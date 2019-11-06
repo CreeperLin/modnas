@@ -3,19 +3,19 @@
 import os
 import argparse
 import traceback
-import utils
-from utils.routine import search, augment
-from utils.config import Config
-from utils.exp_manager import ExpManager
 
-from data_provider.dataloader import load_data
-import arch_space.genotypes as gt
-from arch_space.constructor import convert_from_predefined_net
-from arch_space import build_arch_space
-from core.nas_modules import build_nas_controller
-from core.mixed_ops import build_mixed_op
-from arch_optim import build_arch_optim
-from hparam import build_hparam_tuner, build_hparam_space
+from combo_nas.utils.routine import search, augment
+from combo_nas.utils.config import Config
+from combo_nas.utils.exp_manager import ExpManager
+from combo_nas.data_provider.dataloader import load_data
+from combo_nas.arch_space.constructor import convert_from_predefined_net
+from combo_nas.arch_space import build_arch_space
+from combo_nas.core.nas_modules import build_nas_controller
+from combo_nas.core.mixed_ops import build_mixed_op
+from combo_nas.arch_optim import build_arch_optim
+from combo_nas.hparam import build_hparam_tuner, build_hparam_space
+import combo_nas.arch_space.genotypes as gt
+import combo_nas.utils as utils
 
 def main():
     parser = argparse.ArgumentParser()

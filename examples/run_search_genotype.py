@@ -4,21 +4,19 @@
 import os
 import argparse
 
-import utils
-from utils.routine import search
-from utils.config import Config
-from utils import param_count
-from utils.exp_manager import ExpManager
-
 from model import *
-
-from data_provider.dataloader import load_data
-import arch_space.genotypes as gt
-from arch_space.constructor import convert_from_predefined_net, convert_from_genotype
-from arch_optim import build_arch_optim
-from arch_space import build_arch_space
-from core.nas_modules import build_nas_controller
-from core.mixed_ops import build_mixed_op
+from combo_nas.utils.routine import search
+from combo_nas.utils.config import Config
+from combo_nas.utils import param_count
+from combo_nas.utils.exp_manager import ExpManager
+from combo_nas.data_provider.dataloader import load_data
+from combo_nas.arch_space.constructor import convert_from_predefined_net, convert_from_genotype
+from combo_nas.arch_optim import build_arch_optim
+from combo_nas.arch_space import build_arch_space
+from combo_nas.core.nas_modules import build_nas_controller
+from combo_nas.core.mixed_ops import build_mixed_op
+import combo_nas.utils as utils
+import combo_nas.arch_space.genotypes as gt
 
 
 def main():
