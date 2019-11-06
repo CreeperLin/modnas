@@ -1,0 +1,15 @@
+{
+    "model.type": ["DARTS"],
+    "model.mixed_op": ["BinGate"],
+    "search.architect.type": ["BinGate"],
+    "//": {
+        "model.mixed_op": ["DARTS", "BinGate"],
+        "search.architect.type": ["BinGate", "DARTS", "REINFORCE"],
+        "search.data.dloader.split_ratio": [0.5, 0.8, 0.9],
+        "search.warmup_epochs": [0, 20, 40, 60],
+        "search.epochs": [25, 50, 100, 200],
+        "search.w_optim.lr": [0.035, 0.01, 0.1],
+        "search.a_optim.lr": [0.001, 0.006, 0.01],
+        "primitives": [["MAX","SC3","IDT","NIL"], ["AVG","SC3","IDT","NIL"], ["MAX","SC5","IDT","NIL"]]
+    }
+}
