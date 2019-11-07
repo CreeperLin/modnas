@@ -20,9 +20,6 @@ search:
     momentum: 0.9
     weight_decay: 0.0003
     nesterov: True
-    # type: 'adabound'
-    # lr: 0.001
-    # final_lr: 0.05
   a_optim:
     type: 'adam'
     lr: 0.0003
@@ -33,19 +30,12 @@ search:
     weight_decay: 0.001
   lr_scheduler:
     type: 'cosine'
-  architect:
-    type: 'DARTS'
-    # type: 'BinGate'
-    # type: 'REINFORCE'
-    n_samples: 0
-    batch_size: 10
-    renorm: True
   aux_weight: 0.0
   w_grad_clip: 5.
   warmup_epochs: 0
   epochs: 50
   print_freq: 200
-  save_freq: 10
+  save_freq: 25
   plot: False
   plot_path: './searchs'
 ---
@@ -80,11 +70,27 @@ augment:
   gt_file: ''
   epochs: 600
   print_freq: 200
-  save_freq: 50
+  save_freq: 200
+---
+arch_optim:
+  type: 'DARTS'
+  w_momentum: 0.9
+  w_weight_decay: 0.001
+---
+mixed_op:
+  type: 'DARTS'
+---
+ops:
+  sepconv_stack: False
+  ops_order: 'bn_act_weight'
+  affine: False
+---
+criterion:
+  type: 'LS'
+  eta: 0.1
 ---
 model:
   type: 'DARTS'
-  mixed_op: 'DARTS'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
@@ -96,11 +102,6 @@ model:
   inputs_node: 1
   shared_a: True
   auxiliary: False
-  ops_order: 'act_weight_bn'
-  label_smoothing: 0.1
-  affine: False
-  sepconv_stack: True
-  verbose: False
 ---
 primitives:
   - 'AVG'
@@ -118,3 +119,6 @@ log:
 device:
   gpus: 'all'
   seed: 2
+---
+tune:
+  tuner: 'Random'

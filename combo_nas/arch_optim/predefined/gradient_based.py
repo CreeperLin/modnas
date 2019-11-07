@@ -13,8 +13,8 @@ class DARTSArchitect():
         """
         self.net = net
         self.v_net = copy.deepcopy(net)
-        self.w_momentum = config.w_optim.momentum
-        self.w_weight_decay = config.w_optim.weight_decay
+        self.w_momentum = config.w_momentum
+        self.w_weight_decay = config.w_weight_decay
 
     def virtual_step(self, trn_X, trn_y, lr, w_optim):
         """
@@ -109,9 +109,9 @@ class BinaryGateArchitect():
             w_momentum: weights momentum
         """
         self.net = net
-        self.n_samples = config.architect.n_samples
+        self.n_samples = config.n_samples
         self.sample = (self.n_samples!=0)
-        self.renorm = config.architect.renorm and self.sample
+        self.renorm = config.renorm and self.sample
 
     def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
         """ Compute unrolled loss and backward its gradients

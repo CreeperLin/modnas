@@ -44,9 +44,9 @@ class Prim3(nn.Module):
         return y
 
 custom_primitives = {
-    'P1': lambda C, stride: Prim1(C, stride),
-    'P2': lambda C, stride: Prim2(C, stride),
-    'P3': lambda C, stride: Prim3(C, stride),
+    'P1': lambda C_in, C_out, stride: Prim1(C_in, stride),
+    'P2': lambda C_in, C_out, stride: Prim2(C_in, stride),
+    'P3': lambda C_in, C_out, stride: Prim3(C_in, stride),
 }
 
 custom_ops = ['P1', 'P2', 'P3']
@@ -57,7 +57,7 @@ class CustomMixOp(NASModule):
         pid = -1 if shared_param else None
         super(CustomMixOp, self).__init__(params_shape, pid)
         self.ops = ops
-        self._ops = nn.ModuleList([custom_primitives[n](C_in, stride) for n in ops])
+        self._ops = nn.ModuleList([custom_primitives[n](C_in, C_in, stride) for n in ops])
     
     def param_forward(self, s):
         pass
@@ -157,10 +157,10 @@ class CustomBackbone(nn.Module):
 def build_custom_backbone(config):
     return CustomBackbone(config.channel_in)
 
-def custom_backbone_cvt(slot):
+def custom_backbone_cvt(slot, mixed_op_cls):
     if slot.name == 'first_block':
         # ent = CustomMixOp(slot.chn_in, slot.stride, custom_ops, False)
-        ent = build_mixed_op('DARTS', chn_in=(slot.chn_in, ), stride=slot.stride, ops=custom_ops)
+        ent = build_mixed_op(mixed_op_cls, chn_in=slot.chn_in, chn_out=slot.chn_out, stride=slot.stride, ops=custom_ops)
     elif slot.name == 'last_block':
         ent = nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1)
     return ent
@@ -168,8 +168,9 @@ def custom_backbone_cvt(slot):
 def custom_genotype_cvt(slot, gene):
     if isinstance(gene, list): gene=gene[0]
     chn_in = slot.chn_in if isinstance(slot.chn_in, int) else slot.chn_in[0]
+    chn_out = slot.chn_out if isinstance(slot.chn_out, int) else slot.chn_out[0]
     op_name = gene
-    ent = build_op(op_name, chn_in, slot.stride)
+    ent = build_op(op_name, chn_in, chn_out, slot.stride)
     return ent
 
 ops_map = {
@@ -178,19 +179,20 @@ ops_map = {
     'SC3': ['SC3', 'SC5', 'SC7'],
     'SC5': ['SC3', 'SC5', 'SC7'],
     'SC7': ['SC3', 'SC5', 'SC7'],
+    'DC3': ['SC3', 'SC5', 'SC7'],
+    'DC5': ['SC3', 'SC5', 'SC7'],
 }
 
-def custom_genotype_space_cvt(slot, gene):
+def custom_genotype_space_cvt(slot, gene, mixed_op_cls):
     idx = slot.sid
-    # if idx >= len(gene.ops):
-        # return build_mixed_op('DARTS', chn_in=(slot.chn_in, ), stride=slot.stride, ops=custom_ops)
-    # gene = gene.ops[idx]
     if isinstance(gene, list): gene=gene[0]
+    chn_in = slot.chn_in if isinstance(slot.chn_in, int) else slot.chn_in[0]
+    chn_out = slot.chn_out if isinstance(slot.chn_out, int) else slot.chn_out[0]
     op_name = gene
     if op_name == 'NIL' or op_name == 'IDT':
-        ent = build_op(op_name, slot.chn_in, slot.stride)
+        ent = build_op(op_name, chn_in, chn_out, slot.stride)
     else:
-        ent = build_mixed_op('DARTS', chn_in=(slot.chn_in, ), stride=slot.stride, ops=ops_map[op_name])
+        ent = build_mixed_op(mixed_op_cls, chn_in=chn_in, chn_out=chn_out, stride=slot.stride, ops=ops_map[op_name])
     return ent
 
 def register_custom_ops():

@@ -1,4 +1,5 @@
 """ Network architecture visualizer using graphviz """
+import logging
 import sys
 from graphviz import Digraph
 
@@ -106,9 +107,9 @@ def plot(genotype, dag_layers, file_path, caption=None):
 
     try:
         g.render(file_path, view=False)
-        print('plot saved to: {}'.format(file_path))
+        logging.debug('plot saved to: {}'.format(file_path))
     except Exception as e:
-        print('render failed: {}'.format(str(e)))
+        logging.debug('render failed: {}'.format(str(e)))
         with open(file_path, 'w') as f:
             f.write(g.source)
 

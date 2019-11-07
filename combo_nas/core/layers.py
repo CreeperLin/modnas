@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -76,8 +77,8 @@ class DAGLayer(nn.Module):
             self.num_edges += num_edges
             chn_states.append(self.merger_state.chn_out([ei.chn_out for ei in self.dag[i]]))
             self.chn_out = self.merger_out.chn_out(chn_states)
-        # print('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in, edge_kwargs['chn_in'][0],self.n_nodes, self.num_edges))
-        # print('DAGLayer param count: {:.6f}'.format(param_count(self)))
+        # logging.debug('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in, edge_kwargs['chn_in'][0],self.n_nodes, self.num_edges))
+        # logging.debug('DAGLayer param count: {:.6f}'.format(param_count(self)))
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.chn_states = chn_states
     
@@ -93,7 +94,7 @@ class DAGLayer(nn.Module):
 
         for nidx, edges in enumerate(self.dag):
             res = []
-            n_states = self.n_input+nidx
+            n_states = self.n_input + nidx
             topo = self.topology[nidx] if self.fixed else None
             for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if not topo is None and not eidx in topo: continue
@@ -110,15 +111,15 @@ class DAGLayer(nn.Module):
     
     def to_genotype(self, k):
         gene = []
-        n_states = self.n_input
-        for edges in self.dag:
-            eidx = 0
+        for nidx, edges in enumerate(self.dag):
             topk_genes = []
-            for sidx in self.enumerator.enum(n_states, self.n_input_e):
+            n_states = self.n_input + nidx
+            topo = self.topology[nidx] if self.fixed else None
+            for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
+                if not topo is None and not eidx in topo: continue
                 w_edge, g_edge_child = edges[eidx].to_genotype(k)
                 if w_edge < 0: continue
                 g_edge = (g_edge_child, sidx, n_states)
-                eidx += 1
                 if len(topk_genes) < k:
                     topk_genes.append((w_edge, g_edge))
                     continue
@@ -127,11 +128,10 @@ class DAGLayer(nn.Module):
                     if w_edge > w:
                         topk_genes[i] = (w_edge, g_edge)
                         break
-            n_states += 1
             gene.append([g for w, g in topk_genes])
         return 0, gene
     
-    def build_from_genotype(self, gene):
+    def build_from_genotype(self, gene, *args, **kwargs):
         """ generate discrete ops from gene """
         chn_states = self.chn_states[:self.n_input]
         num_edges = 0
@@ -145,7 +145,7 @@ class DAGLayer(nn.Module):
                 eidx = dag_topology.index(sidx)
                 topo.append(eidx)
                 e = dag_rows[eidx]
-                e.build_from_genotype(g_child)
+                e.build_from_genotype(g_child, *args, **kwargs)
                 num_edges += 1
                 e_chn_out.append(e.chn_out)
             self.topology.append(topo)
@@ -154,8 +154,8 @@ class DAGLayer(nn.Module):
         self.chn_states = chn_states
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.fixed = True
-        # print('DAGLayer: etype:{} chn_in:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in, self.n_nodes, self.num_edges))
-        # print('DAGLayer param count: {:.6f}'.format(param_count(self)))
+        # logging.debug('DAGLayer: etype:{} chn_in:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in, self.n_nodes, self.num_edges))
+        # logging.debug('DAGLayer param count: {:.6f}'.format(param_count(self)))
 
 
 class TreeLayer(nn.Module):
@@ -209,7 +209,7 @@ class TreeLayer(nn.Module):
             else:
                 self.subnets.append(None)
         
-        # print('TreeLayer: etype:{} ctype:{} chn_in:{} #node:{} #p:{:.6f}'.format(str(edge_cls), str(child_cls), chn_in, self.n_nodes, param_count(self)))
+        # logging.debug('TreeLayer: etype:{} ctype:{} chn_in:{} #node:{} #p:{:.6f}'.format(str(edge_cls), str(child_cls), chn_in, self.n_nodes, param_count(self)))
     
     def forward(self, x):
         x = [x] if not isinstance(x, list) else x

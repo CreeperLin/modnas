@@ -40,7 +40,7 @@ class Tuner(object):
         n_parallel = 1
         early_stopping = early_stopping or 1e9
         i = error_ct = 0
-        logging.info('begin tuning: {} {}'.format(n_trial, early_stopping))
+        logging.info('tuner: start: n_trial={} early_stopping={}'.format(n_trial, early_stopping))
         for i in range(n_trial):
             if not self.has_next():
                 break
@@ -58,13 +58,14 @@ class Tuner(object):
                 self.best_score = score
                 self.best_inputs = inputs
                 self.best_iter = i
-            logging.info("No: {}\t score: {:.2f}/{:.2f}".format(i+1, score, self.best_score))
+            logging.info('tuner: iter: {}\t score: {:.2f}/{:.2f}'.format(i+1, score, self.best_score))
             ttl = min(early_stopping + self.best_iter, n_trial) - i
             self.update(inputs, result)
             for callback in callbacks:
                 callback(tuner, inputs, result)
             if i >= self.best_iter + early_stopping:
-                logging.info("Early stopped : Best: %d", self.best_iter)
+                logging.info('tuner: early stopped: best iter: {} score: {} config: {}'.format(self.best_iter, self.best_score, self.best_inputs))
                 break
             if error_ct > 150:
-                logging.warning("Too many errors in tuning: {}".format(error_ct))
+                logging.warning('tuner: Too many errors in tuning: {}'.format(error_ct))
+        logging.info('tuner: finished: best iter: {} score: {} config: {}'.format(self.best_iter, self.best_score, self.best_inputs))

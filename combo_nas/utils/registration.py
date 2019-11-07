@@ -1,4 +1,5 @@
 import importlib
+import logging
 
 class Registry(object):
     """
@@ -10,7 +11,7 @@ class Registry(object):
         self._reg_class = {}
 
     def make(self, path):
-        print('Making new env: %s (%s)', path, kwargs)
+        logging.debug('Making new env: %s (%s)', path, kwargs)
         try:
             module = importlib.import_module(path)
             # catch ImportError for python2.7 compatibility
@@ -37,13 +38,13 @@ class Registry(object):
 
 def register(reg, net_builder, rid=None):
     reg.register(net_builder, rid)
-    print('registered {}: {}'.format(reg.name, rid))
+    logging.info('registered {}: {}'.format(reg.name, rid))
 
 def get_builder(reg, rid):
     return reg.get(rid)
 
 def build(reg, rid, *args, **kwargs):
-    # print('build {}: {}'.format(reg.name, rid))
+    # logging.debug('build {}: {}'.format(reg.name, rid))
     return reg.get(rid)(*args, **kwargs)
 
 def register_wrapper(reg, rid):

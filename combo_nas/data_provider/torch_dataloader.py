@@ -1,3 +1,4 @@
+import logging
 import os
 import torch
 from torchvision import transforms, datasets
@@ -106,7 +107,7 @@ def get_torch_dataloader(config, metadata):
     if config.split_ratio > 0:
         n_data = len(data)
         split = int(n_data * config.split_ratio)
-        print('split data: {}/{}'.format(split, n_data-split))
+        logging.info('data_provider: split data: {}/{}'.format(split, n_data-split))
         indices = list(range(n_data))
         trn_sampler = SubsetRandomSampler(indices[:split])
         val_sampler = SubsetRandomSampler(indices[split:])

@@ -53,6 +53,7 @@ class Config(dict):
         keywords = key.split('.')
         val = config[keywords[0]]
         if len(keywords) == 1: return val
+        elif val is None: raise ValueError('invalid key: {}'.format(keywords[0]))
         return Config.get_value(val, '.'.join(keywords[1:]))
     
     @staticmethod
@@ -60,6 +61,7 @@ class Config(dict):
         keywords = key.split('.')
         val = config.get(keywords[0], None)
         if len(keywords) == 1: config[keywords[0]] = value
+        elif val is None: raise ValueError('invalid key: {}'.format(keywords[0]))
         else: Config.set_value(val, '.'.join(keywords[1:]), value)
     
     @staticmethod

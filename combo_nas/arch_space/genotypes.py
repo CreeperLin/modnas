@@ -4,6 +4,7 @@
     - gene: discrete ops information (w/o output connection)
     - dag: real ops (can be mixed or discrete, but Genotype has only discrete information itself)
 """
+import logging
 import os
 from collections import namedtuple
 from ..core import ops
@@ -15,7 +16,7 @@ PRIMITIVES = []
 def set_primitives(prim):
     global PRIMITIVES
     PRIMITIVES = prim
-    print('candidate ops: {}'.format(get_primitives()))
+    logging.info('candidate ops: {}'.format(get_primitives()))
 
 def get_primitives():
     return PRIMITIVES
@@ -27,7 +28,7 @@ def to_file(gene, path):
 
 def from_file(path):
     if not os.path.exists(path):
-        print("genotype file not found: {}".format(path))
+        logging.debug("genotype file not found: {}".format(path))
         return Genotype(dag=None, ops=None)
     with open(path, 'r', encoding='UTF-8') as f:
         g_str = f.read()

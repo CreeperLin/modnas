@@ -15,16 +15,17 @@ register = partial(register_wrapper, mixed_op_registry)
 
 class DARTSMixedOp(NASModule):
     """ Mixed operation as in DARTS """
-    def __init__(self, chn_in, stride, ops, pid=None):
+    def __init__(self, chn_in, chn_out, stride, ops, pid=None):
         params_shape = (len(ops), )
         super().__init__(params_shape, pid)
         self.ops = ops
         self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
         self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
+        self.chn_out = chn_out if isinstance(chn_out, int) else chn_chn_outin[0]
         self.stride = stride
         self._ops = nn.ModuleList()
         for primitive in ops:
-            op = build_op(primitive, self.chn_in, stride)
+            op = build_op(primitive, self.chn_in, self.chn_out, stride)
             self._ops.append(op)
         self.params_shape = params_shape
         self.chn_out = self.chn_in
@@ -50,21 +51,28 @@ class DARTSMixedOp(NASModule):
 
 class BinGateMixedOp(NASModule):
     """ Mixed operation controlled by binary gate """
-    def __init__(self, chn_in, stride, ops, pid=None, n_samples=1):
+    def __init__(self, chn_in, chn_out, stride, ops, pid=None, n_samples=1, sample_dist='multinomial'):
         params_shape = (len(ops), )
         super().__init__(params_shape, pid)
         self.ops = ops
         self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
         self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
+        self.chn_out = chn_out if isinstance(chn_out, int) else chn_out[0]
         self.n_samples = n_samples
         self.stride = stride
         self._ops = nn.ModuleList()
         self.fixed = False
         for primitive in ops:
-            op = build_op(primitive, self.chn_in, stride)
+            op = build_op(primitive, self.chn_in, self.chn_out, stride)
             self._ops.append(op)
+        if sample_dist == 'multinomial':
+            self.sd = 'm'
+        elif sample_dist == 'uniform':
+            self.sd = 'u'
+        else:
+            raise ValueError('invalid sample distribution: {}'.format(sample_dist))
         self.reset_ops()
-        # print("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
+        # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
         self.params_shape = params_shape
         self.chn_out = self.chn_in
     
@@ -72,7 +80,11 @@ class BinGateMixedOp(NASModule):
         s_op = self.get_state('s_op')
         w_path = F.softmax(p.index_select(-1, s_op), dim=-1)
         self.set_state('w_path_f', w_path)
-        self.set_state('s_path_f', s_op.index_select(-1, w_path.multinomial(self.n_samples)))
+        if self.sd == 'm':
+            prob = w_path
+        elif self.sd == 'u':
+            prob = F.softmax(torch.empty(w_path.shape, device=w_path.device).uniform_(0, 1), dim=-1)
+        self.set_state('s_path_f', s_op.index_select(-1, prob.multinomial(self.n_samples)))
     
     def sample_ops(self, p, n_samples=0):
         s_op = F.softmax(p, dim=-1).multinomial(n_samples).detach()

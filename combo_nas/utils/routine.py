@@ -17,7 +17,7 @@ def save_checkpoint(expman, model, w_optim, a_optim, lr_scheduler, epoch, logger
             'model': model.state_dict(),
             'arch': NASModule.nasmod_state_dict(),
             'w_optim': w_optim.state_dict(),
-            'a_optim': a_optim.state_dict(),
+            'a_optim': None if a_optim is None else a_optim.state_dict(),
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,
         }, save_path)
@@ -35,9 +35,7 @@ def save_genotype(expman, genotype, epoch, logger):
         logger.error("Save genotype failed")
 
 
-def search(expman, chkpt_path, w_train_loader, a_train_loader, model, architect, writer, logger, device, config):
-    valid_loader = a_train_loader
-    
+def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_optim, writer, logger, device):
     w_optim = utils.get_optim(model.weights(), config.w_optim)
     a_optim = utils.get_optim(model.alphas(), config.a_optim)
     lr_scheduler_cls = utils.get_lr_scheduler(config.lr_scheduler)
@@ -73,14 +71,13 @@ def search(expman, chkpt_path, w_train_loader, a_train_loader, model, architect,
                 lr = warmup_lr_scheduler.get_lr()[0]
 
                 # training
-                train(w_train_loader, None, model, writer, logger, architect, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
+                train(train_loader, None, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
 
                 # validation
-                cur_step = (epoch+1) * len(w_train_loader)
+                cur_step = (epoch+1) * len(train_loader)
                 top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config)
 
                 warmup_lr_scheduler.step()
-                print("")
         else:
             last_epoch = -1
     except KeyboardInterrupt:
@@ -99,9 +96,9 @@ def search(expman, chkpt_path, w_train_loader, a_train_loader, model, architect,
         lr = lr_scheduler.get_lr()[0]
         model.print_alphas(logger)
         # training
-        train(w_train_loader, a_train_loader, model, writer, logger, architect, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
+        train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
         # validation
-        cur_step = (epoch+1) * len(w_train_loader)
+        cur_step = (epoch+1) * len(train_loader)
         top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config) 
         # genotype
         genotype = model.to_genotype()
@@ -122,7 +119,6 @@ def search(expman, chkpt_path, w_train_loader, a_train_loader, model, architect,
             save_checkpoint(expman, model, w_optim, a_optim, lr_scheduler, epoch, logger)
 
         lr_scheduler.step()
-        print("")
         
     logger.info("Final best Prec@1 = {:.4%}".format(best_top1))
     logger.info("Best Genotype = {}".format(best_genotype))
@@ -130,7 +126,7 @@ def search(expman, chkpt_path, w_train_loader, a_train_loader, model, architect,
     return best_top1, best_genotype, genotypes
 
 
-def augment(expman, chkpt_path, train_loader, valid_loader, model, writer, logger, device, config):
+def augment(config, chkpt_path, expman, train_loader, valid_loader, model, writer, logger, device):
     
     w_optim = utils.get_optim(model.weights(), config.w_optim)
 
@@ -182,13 +178,11 @@ def augment(expman, chkpt_path, train_loader, valid_loader, model, writer, logge
             save_checkpoint(expman, model, w_optim, None, lr_scheduler, epoch, logger)
 
         lr_scheduler.step()
-        print("")
-        
     logger.info("Final best Prec@1 = {:.4%}".format(best_top1))
     return best_top1
 
 
-def train(train_loader, valid_loader, model, writer, logger, architect, w_optim, a_optim, lr, epoch, tot_epochs, device, config):
+def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config):
     top1 = utils.AverageMeter()
     top5 = utils.AverageMeter()
     losses = utils.AverageMeter()
@@ -207,17 +201,17 @@ def train(train_loader, valid_loader, model, writer, logger, architect, w_optim,
     for step, (trn_X, trn_y) in enumerate(train_loader):
         trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
         N = trn_X.size(0)
+        tprof.timer_start('train')
         # phase 1. child network step (w)
         w_optim.zero_grad()
-        tprof.timer_start('train')
         loss, logits = model.loss_logits(trn_X, trn_y, config.aux_weight)
-        tprof.timer_stop('train')
         loss.backward()
         # gradient clipping
         if config.w_grad_clip > 0:
             nn.utils.clip_grad_norm_(model.weights(), config.w_grad_clip)
         w_optim.step()
-        # phase 2. architect step (alpha)
+        tprof.timer_stop('train')
+        # phase 2. arch_optim step (alpha)
         if not valid_loader is None and step % tr_ratio == 0:
             try:
                 val_X, val_y = next(val_iter)
@@ -226,7 +220,7 @@ def train(train_loader, valid_loader, model, writer, logger, architect, w_optim,
                 val_X, val_y = next(val_iter)
             val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
             tprof.timer_start('arch')
-            architect.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
+            arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
             tprof.timer_stop('arch')
 
         prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
@@ -246,7 +240,6 @@ def train(train_loader, valid_loader, model, writer, logger, architect, w_optim,
         writer.add_scalar('train/top1', prec1.item(), cur_step)
         writer.add_scalar('train/top5', prec5.item(), cur_step)
         cur_step += 1
-
     logger.info("Train: [{:2d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
     tprof.print_stat('train')
     tprof.print_stat('arch')

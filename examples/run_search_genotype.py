@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 import os
 import argparse
 
 from model import *
-from combo_nas.utils.routine import search
-from combo_nas.utils.config import Config
-from combo_nas.utils import param_count
-from combo_nas.utils.exp_manager import ExpManager
-from combo_nas.data_provider.dataloader import load_data
-from combo_nas.arch_space.constructor import convert_from_predefined_net, convert_from_genotype
-from combo_nas.arch_optim import build_arch_optim
-from combo_nas.arch_space import build_arch_space
-from combo_nas.core.nas_modules import build_nas_controller
-from combo_nas.core.mixed_ops import build_mixed_op
 import combo_nas.utils as utils
-import combo_nas.arch_space.genotypes as gt
-
+from combo_nas.utils.config import Config
+from combo_nas.utils.routine import search
+from combo_nas.utils.wrapper import init_all_search
 
 def main():
     parser = argparse.ArgumentParser()
@@ -39,31 +31,9 @@ def main():
     conf_str = config.to_string()
 
     exp_root_dir = os.path.join('exp', args.name)
-    expman = ExpManager(exp_root_dir)
-
-    logger = utils.get_logger(expman.logs_path, args.name)
-    writer = utils.get_writer(expman.writer_path, config.log.writer)
-    
-    dev, dev_list = utils.init_device(config.device, args.device)
-
-    trn_loader, val_loader = load_data(config.search.data, validation=False)
-
-    gt.set_primitives(config.primitives)
-
-    # register_custom_ops()
-
-    genotype = gt.get_genotype(None, args.genotype)
-    
-    # net = CustomBackbone(config.model.channel_in)
-    net = build_arch_space(config.model.type, config.model)
-    # convert_fn = custom_genotype_cvt
     convert_fn = custom_genotype_space_cvt
-    net = convert_from_genotype(net, genotype, convert_fn)
-
-    model = build_nas_controller(config.model, net, dev, dev_list)
-    arch = build_arch_optim('DARTS', config.search, model)
-
-    search(expman, args.chkpt, trn_loader, val_loader, model, arch, writer, logger, dev, config.search)
+    search_kwargs = init_all_search(config, args.name, exp_root_dir, args.device, args.genotype, convert_fn=convert_fn)
+    search(config=config.search, chkpt_path=args.chkpt, **search_kwargs)
 
 
 if __name__ == '__main__':

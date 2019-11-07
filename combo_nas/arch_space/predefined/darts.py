@@ -115,11 +115,11 @@ class DARTSLikeNet(nn.Module):
         else:
             return y, aux_logits
     
-    def build_from_genotype(self, gene, drop_path=True):
+    def build_from_genotype(self, gene, drop_path=True, *args, **kwargs):
         assert len(self.cell_group) == len(gene.dag)
         for cells, g in zip(self.cell_group, gene.dag):
             for c in cells:
-                c.build_from_genotype(g, )
+                c.build_from_genotype(g, *args, **kwargs)
     
     def to_genotype(self):
         # assert ops[-1] == 'none' # assume last PRIMITIVE is 'none'

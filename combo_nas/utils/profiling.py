@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import sys
 import time
 import torch
@@ -22,7 +21,7 @@ def report_time(msg=''):
     global t0
     t1 = get_cputime()
     fr = sys._getframe(1)
-    print ("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} sec".format(
+    print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} sec".format(
         msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, t1, t1 - t0))
     t0 = t1
 
@@ -31,7 +30,7 @@ def report_mem(msg=''):
     global m0
     m1 = get_gpumem()
     fr = sys._getframe(1)
-    print ("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
+    print("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
         msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, m1, m1 - m0))
     m0 = m1
 
@@ -48,7 +47,7 @@ def profile_mem(function):
             mtable[fname].append(fp)
         else:
             mtable[fname] = [fp]
-        print ("GPU Mem: {}: {:.3f} / {:.3f} / {:.3f} / {} MB".format(
+        print("GPU Mem: {}: {:.3f} / {:.3f} / {:.3f} / {} MB".format(
             fname.center(20,' '), m1, m2, fp, seqstat(mtable[fname])))
         return result
     return gpu_mem_profiler
@@ -66,7 +65,7 @@ def profile_time(function):
             ttable[fname].append(lat)
         else:
             ttable[fname] = [lat]
-        print ("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} sec".format(
+        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} sec".format(
             fname.center(20,' '), t1, t2, lat, seqstat(ttable[fname])))
         return result
     return function_timer
@@ -93,18 +92,18 @@ class profile_ctx():
             mtable[fname].append(fp)
         else:
             mtable[fname] = [fp]
-        print ("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} sec".format(
+        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} sec".format(
             fname.center(20,' '), self.t0, self.t1, lat, seqstat(ttable[fname])))
-        print ("GPU Mem: {}: {:.3f} / {:.3f} / {:.3f} / {} MB".format(
+        print("GPU Mem: {}: {:.3f} / {:.3f} / {:.3f} / {} MB".format(
             fname.center(20,' '), self.m0, self.m1, mem, seqstat(mtable[fname])))
     
     def report(self):
         t1 = get_cputime()
         fr = sys._getframe(1)
-        print ("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} sec".format(
+        print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} sec".format(
         self.name.center(20,' '), fr.f_code.co_name, fr.f_lineno, t1, t1 - self.t0))
         m1 = get_gpumem()
-        print ("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
+        print("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
         self.name.center(20,' '), fr.f_code.co_name, fr.f_lineno, m1, m1 - self.m0))
 
 

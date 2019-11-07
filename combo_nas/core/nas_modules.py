@@ -6,13 +6,8 @@ import torch.nn.functional as F
 from ..arch_space import genotypes as gt
 from .ops import DropPath_, configure_ops
 from ..utils.profiling import tprof
-from torch.nn.parallel._functions import Broadcast
 from ..utils import param_count, get_current_device, get_net_crit
-
-def broadcast_list(l, device_ids):
-    """ Broadcasting list """
-    l_copies = Broadcast.apply(device_ids, l)
-    return l_copies
+import traceback
 
 class NASModule(nn.Module):
     _init_ratio = 1e-3
@@ -23,7 +18,6 @@ class NASModule(nn.Module):
     _param_id = -1
     _params_map = {}
     _dev_list = [get_current_device()]
-    new_shared_p = False
 
     def __init__(self, params_shape, pid=None):
         super().__init__()
@@ -39,8 +33,18 @@ class NASModule(nn.Module):
         else:
             self.pid = pid
         NASModule.add_module(self, self.id, self.pid)
-        # print('reg nas module: {} mid: {} pid: {} {}'.format(self.__class__.__name__, self.id, self.pid, params_shape))
+        # logging.debug('reg nas module: {} mid: {} pid: {} {}'.format(self.__class__.__name__, self.id, self.pid, params_shape))
     
+    @staticmethod
+    def reset():
+        NASModule._modules = []
+        NASModule._params = []
+        NASModule._module_id = -1
+        NASModule._module_state_dict = {}
+        NASModule._param_id = -1
+        NASModule._params_map = {}
+        NASModule._dev_list = [get_current_device()]
+
     @property
     def arch_param(self):
         return NASModule._params[self.pid]
@@ -79,10 +83,6 @@ class NASModule(nn.Module):
     def get_new_id():
         NASModule._module_id += 1
         return NASModule._module_id
-
-    @staticmethod
-    def add_shared_param():
-        NASModule.new_shared_p = True
     
     @staticmethod
     def add_param(params_shape):
@@ -308,6 +308,7 @@ class NASController(nn.Module):
             gene_dag = self.net.to_genotype(*args, **kwargs)
             return gt.Genotype(dag=gene_dag, ops=None)
         except AttributeError:
+            # traceback.print_exc()
             gene_ops = NASModule.to_genotype_all(*args, **kwargs)
             return gt.Genotype(dag=None, ops=gene_ops)
     
@@ -315,6 +316,7 @@ class NASController(nn.Module):
         try:
             self.net.build_from_genotype(gene, *args, **kwargs)
         except AttributeError:
+            # traceback.print_exc()
             NASModule.build_from_genotype_all(gene, *args, **kwargs)
 
     def weights(self, check_grad=False):
@@ -351,11 +353,8 @@ class NASController(nn.Module):
             if isinstance(module, DropPath_):
                 module.p = p
 
-
-def build_nas_controller(config, net, device, dev_list):
-    configure_ops(config)
+def build_nas_controller(net, crit, device, dev_list, verbose=False):
     NASModule.set_device(dev_list)
-    crit = get_net_crit(config).to(device)
     model = NASController(net, crit, dev_list).to(device=device)
-    if config.verbose: print(model)
+    if verbose: logging.debug(model)
     return model

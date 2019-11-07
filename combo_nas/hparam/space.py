@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import json
 import copy
@@ -18,7 +19,7 @@ class HParamSpace():
         self.__iter__ = self.hp_map.__iter__
         
     def add_hparam(self, name, hp):
-        print(name, hp.val_range)
+        logging.debug('hp: {} {}'.format(name, hp.val_range))
         self.hp_map[name] = hp
 
     def __len__(self):
@@ -42,7 +43,7 @@ class HParamSpace():
         space = HParamSpace()
         for n, hp in named_hparams(config):
             space.add_hparam(n, hp)
-        print('hparam space', len(space))
+        logging.debug('hparam: space size: {}'.format(len(space)))
         return space
         
     @staticmethod
@@ -55,7 +56,7 @@ class HParamSpace():
                 space.add_hparam(k, hp)
             elif not k=='//':
                 raise ValueError('support hparam in list format only')
-        print('hparam space', len(space))
+        logging.debug('hparam: space size: {}'.format(len(space)))
         return space
     
     def to_json(self, path):

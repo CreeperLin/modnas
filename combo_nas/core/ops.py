@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,7 +11,7 @@ op_registry = Registry('op')
 def register_op(net_builder, rid=None, abbr=None):
     op_registry.register(net_builder, rid)
     if not abbr is None: op_registry.register(net_builder, abbr)
-    print('registered op: {} {}'.format(rid, abbr))
+    logging.debug('registered op: {} {}'.format(rid, abbr))
 
 def update_op(ops):
     op_registry.update(ops)
@@ -19,17 +20,20 @@ get_op_builder = partial(get_builder, op_registry)
 build_op = partial(build, op_registry)
 register = partial(register_wrapper, op_registry)
 
-register_op(lambda C, stride: Zero(stride), 'none', 'NIL')
-register_op(lambda C, stride: PoolBN('avg', C, 3, stride, 1), 'avg_pool_3x3', 'AVG')
-register_op(lambda C, stride: PoolBN('max', C, 3, stride, 1), 'max_pool_3x3', 'MAX')
-register_op(lambda C, stride: Identity() if stride == 1 else FactorizedReduce(C, C), 'skip_connect', 'IDT')
-register_op(lambda C, stride: SepConv(C, C, 3, stride, 1), 'sep_conv_3x3', 'SC3')
-register_op(lambda C, stride: SepConv(C, C, 5, stride, 2), 'sep_conv_5x5', 'SC5')
-register_op(lambda C, stride: SepConv(C, C, 7, stride, 3), 'sep_conv_7x7', 'SC7')
-register_op(lambda C, stride: DilConv(C, C, 3, stride, 2, 2), 'dil_conv_3x3', 'DC3')
-register_op(lambda C, stride: DilConv(C, C, 5, stride, 4, 2), 'dil_conv_5x5', 'DC5')
-register_op(lambda C, stride: FacConv(C, C, 7, stride, 3), 'conv_7x1_1x7', 'FC7')
-register_op(lambda C, stride: StdConv(C, C, 1, stride, 0), 'conv_1x1', 'C11')
+register_op(lambda C_in, C_out, stride: Zero(stride), 'none', 'NIL')
+register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, 3, stride, 1), 'avg_pool_3x3', 'AVG')
+register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, 3, stride, 1), 'max_pool_3x3', 'MAX')
+register_op(lambda C_in, C_out, stride: Identity() if stride == 1 else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
+register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 3, stride, 1), 'sep_conv_3x3', 'SC3')
+register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 5, stride, 2), 'sep_conv_5x5', 'SC5')
+register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 7, stride, 3), 'sep_conv_7x7', 'SC7')
+register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 3, stride, 1), 'std_conv_3x3', 'NC3')
+register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 5, stride, 2), 'std_conv_5x5', 'NC5')
+register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 7, stride, 3), 'std_conv_7x7', 'NC7')
+register_op(lambda C_in, C_out, stride: DilConv(C_in, C_out, 3, stride, 2, 2), 'dil_conv_3x3', 'DC3')
+register_op(lambda C_in, C_out, stride: DilConv(C_in, C_out, 5, stride, 4, 2), 'dil_conv_5x5', 'DC5')
+register_op(lambda C_in, C_out, stride: FacConv(C_in, C_out, 7, stride, 3), 'conv_7x1_1x7', 'FC7')
+register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 1, stride, 0), 'conv_1x1', 'C11')
 
 OPS_ORDER = ['bn','act','weight']
 sepconv_stack = False
@@ -38,15 +42,15 @@ AFFINE = True
 def configure_ops(config):
     global OPS_ORDER
     OPS_ORDER = config.ops_order.split('_')
-    print('configure ops: ops order set to: {}'.format(OPS_ORDER))
+    logging.info('configure ops: ops order set to: {}'.format(OPS_ORDER))
     
     global sepconv_stack
     sepconv_stack = config.sepconv_stack
-    print('configure ops: SepConv stack: {}'.format(sepconv_stack))
+    logging.info('configure ops: SepConv stack: {}'.format(sepconv_stack))
 
     global AFFINE
     AFFINE = config.affine
-    print('configure ops: affine: {}'.format(AFFINE))
+    logging.info('configure ops: affine: {}'.format(AFFINE))
 
 def drop_path_(x, drop_prob, training):
     if training and drop_prob > 0.:

@@ -14,7 +14,6 @@ setup(
     url = 'https://github.com/CreeperLin/combo_nas',
     description = 'combo_nas: a nas framework for rapid experiment, development and tuning',
     long_description = readme,
-    long_description_content_type = 'text/markdown',
     license = license,
     packages = find_packages(exclude=('test')),
     install_requires = requirements,

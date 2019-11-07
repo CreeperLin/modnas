@@ -7,7 +7,7 @@ search:
     valid_root: './data'
     dloader:
       type: 'pytorch'
-      split_ratio: 0.85
+      split_ratio: 0.8
       trn_batch_size: 64
       val_batch_size: 64
       workers: 0
@@ -15,29 +15,31 @@ search:
       jitter: True
   w_optim:
     type: 'sgd'
-    lr: 0.025
-    lr_min: 0.001
+    lr: 0.035
+    lr_min: 0.0
     momentum: 0.9
-    weight_decay: 0.0003
     nesterov: True
+    weight_decay: 0.0001
+    # type: 'adabound'
+    # lr: 0.001
+    # final_lr: 0.05
   a_optim:
     type: 'adam'
-    lr: 0.0003
-    betas:
-     - 0.5
-     - 0.999
-    momentum: 0.9
-    weight_decay: 0.001
+    lr: 0.006
+    betas: 
+      - 0.0
+      - 0.999
+    weight_decay: 0
   lr_scheduler:
     type: 'cosine'
-  aux_weight: 0.0
-  w_grad_clip: 5.
-  warmup_epochs: 0
-  epochs: 50
+  w_grad_clip: 0.0
+  drop_path_prob: 0.0
+  warmup_epochs: 30
+  epochs: 200
   print_freq: 200
-  save_freq: 25
-  plot: False
+  save_freq: 100
   plot_path: './searchs'
+  gt_file: './searchs'
 ---
 augment:
   data:
@@ -49,36 +51,43 @@ augment:
     dloader:
       type: 'pytorch'
       split_ratio: 0
-      trn_batch_size: 96
-      val_batch_size: 96
+      trn_batch_size: 64
+      val_batch_size: 64
       workers: 0
       cutout: 16
       jitter: True
+  epochs: 600
+  genotype: ''
+  gt_file: ''
   w_optim:
     type: 'sgd'
-    lr: 0.025
-    lr_min: 0.001
+    lr: 0.1
+    lr_min: 0.0
     momentum: 0.9
-    weight_decay: 0.0003
+    weight_decay: 0.0001
     nesterov: True
   lr_scheduler:
     type: 'cosine'
-  aux_weight: 0.4
-  drop_path_prob: 0.2
-  w_grad_clip: 5.
-  genotype: ''
-  gt_file: ''
-  epochs: 600
+  drop_path_prob: 0.0
+  w_grad_clip: 0.0
   print_freq: 200
-  save_freq: 200
+  save_freq: 300
 ---
 arch_optim:
-  type: 'DARTS'
+  # type: 'DARTS'
+  type: 'BinGate'
+  # type: 'REINFORCE'
+  n_samples: 0
+  batch_size: 10
   w_momentum: 0.9
-  w_weight_decay: 0.001
+  w_weight_decay: 0.0003
+  renorm: True
 ---
 mixed_op:
-  type: 'DARTS'
+  type: 'BinGate'
+  args:
+    sample_dist: 'multinomial'
+  # type: 'DARTS'
 ---
 ops:
   sepconv_stack: False
@@ -90,27 +99,30 @@ criterion:
   eta: 0.1
 ---
 model:
-  type: 'DARTS'
+  type: 'ProxylessNAS'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 36        # init channel
-  channel_multiplier: 3   # init channel multiplier
-  nodes: 4                # num of nodes (states) per layer
-  layers: 20              # num of DAG layers (cells) in model
-  inputs_model: 1
-  inputs_layer: 2
-  inputs_node: 1
-  shared_a: True
-  auxiliary: True
+  channel_init: 16        # init channel
+  channel_multiplier: 1   # init channel multiplier
+  groups: 3               # num of nodes (states) per layer
+  blocks: 18              # num of DAG layers (cells) in model
+  alpha: 84
+  conv_groups: 2
+  bottleneck_ratio: 4
+  path_drop_rate: 0.0
+  dropout_rate: 0.0
+  use_avg: False
+  bn_before_add: True
+  pxl_ops_order: 'bn_act_weight'
 ---
 primitives:
   - 'AVG'
   - 'MAX'
+  - 'IDT'
   - 'SC3'
   - 'SC5'
+  - 'SC7'
   - 'DC3'
-  - 'DC5'
-  - 'IDT'
   - 'NIL'
 ---
 log:

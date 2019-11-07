@@ -32,19 +32,12 @@ search:
     weight_decay: 0
   lr_scheduler:
     type: 'cosine'
-  architect:
-    # type: 'DARTS'
-    type: 'BinGate'
-    # type: 'REINFORCE'
-    n_samples: 0
-    batch_size: 10
-    renorm: True
   w_grad_clip: 0.0
   drop_path_prob: 0.0
-  warmup_epochs: 20
-  epochs: 20
+  warmup_epochs: 30
+  epochs: 200
   print_freq: 200
-  save_freq: 0
+  save_freq: 100
   plot_path: './searchs'
   gt_file: './searchs'
 ---
@@ -78,25 +71,41 @@ augment:
   drop_path_prob: 0.0
   w_grad_clip: 0.0
   print_freq: 200
-  save_freq: 0
+  save_freq: 300
 ---
-tune:
-  tuner: 'Random'
+arch_optim:
+  type: 'BinGate'
+  n_samples: 0
+  batch_size: 10
+  w_momentum: 0.9
+  w_weight_decay: 0.0003
+  renorm: True
+---
+mixed_op:
+  type: 'BinGate'
+  args:
+    sample_dist: 'multinomial'
+---
+ops:
+  sepconv_stack: False
+  ops_order: 'bn_act_weight'
+  affine: False
+---
+criterion:
+  type: 'LS'
+  eta: 0.1
 ---
 model:
-  # type: 'ProxylessNAS'
-  type: 'DARTS'
-  mixed_op: 'BinGate'
-  # mixed_op: 'DARTS'
+  type: 'ProxylessNAS'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
   channel_multiplier: 1   # init channel multiplier
   groups: 3               # num of nodes (states) per layer
-  blocks: 1              # num of DAG layers (cells) in model
-  alpha: 4
-  nodes: 2                # num of nodes (states) per layer
-  layers: 3              # num of DAG layers (cells) in model
+  blocks: 18              # num of DAG layers (cells) in model
+  alpha: 84
+  nodes: 4                # num of nodes (states) per layer
+  layers: 8              # num of DAG layers (cells) in model
   inputs_model: 1
   inputs_layer: 2
   inputs_node: 1
@@ -107,20 +116,14 @@ model:
   use_avg: False
   bn_before_add: True
   pxl_ops_order: 'bn_act_weight'
-  ops_order: 'bn_act_weight'
-  sepconv_stack: False
-  affine: False
-  samples: 1
   auxiliary: False
   shared_a: True
-  label_smoothing: 0.1
-  verbose: False
 ---
 primitives:
   - 'AVG'
-  - 'SC3'
   - 'MAX'
   - 'IDT'
+  - 'SC3'
   - 'SC5'
   - 'DC3'
   - 'DC5'
@@ -132,3 +135,6 @@ log:
 device:
   gpus: 'all'
   seed: 2
+---
+tune:
+  tuner: 'Random'

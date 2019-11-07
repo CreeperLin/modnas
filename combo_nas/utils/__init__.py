@@ -46,10 +46,10 @@ def check_config(hp, name):
             for a in i.split('.'):
                 ddict = getattr(ddict, a)
             if ddict == '':
-                print('ERROR: check_config: field {} requires non-empty value'.format(i))
+                logging.error('ERROR: check_config: field {} requires non-empty value'.format(i))
                 flag = True
         except:
-            print('ERROR: check_config: field {} is missing'.format(i))
+            logging.error('ERROR: check_config: field {} is missing'.format(i))
             flag = True
 
     defaults = {
@@ -77,7 +77,7 @@ def check_config(hp, name):
                 flag = True
                 continue
             else:
-                print('check_config: setting field {} to default: {}'.format(i, defaults[i]))
+                logging.warning('check_config: setting field {} to default: {}'.format(i, defaults[i]))
                 setattr(ddict, a, defaults[i])
     
     if flag:
@@ -85,7 +85,7 @@ def check_config(hp, name):
 
     hp.search.path = os.path.join('searchs', name)
     hp.search.plot_path = os.path.join(hp.search.path, 'plot')
-    print('check_config: OK')
+    logging.info('check_config: OK')
     return False
 
 
@@ -104,7 +104,7 @@ def init_device(config, ovr_gpus):
     
     torch.cuda.manual_seed_all(config.seed)
     torch.backends.cudnn.benchmark = True
-    print('device: {} {}'.format(device, config.gpus))
+    logging.debug('device: {} {}'.format(device, config.gpus))
     return device, config.gpus
 
 
@@ -141,8 +141,9 @@ def get_writer(log_dir, enabled):
     return writer
 
 def get_net_crit(config):
-    if config.label_smoothing > 0:
-        crit = CrossEntropyLossLS(config.label_smoothing)
+    crit_type = config.type
+    if crit_type == 'LS':
+        crit = CrossEntropyLossLS(config.eta)
     else:
         crit = nn.CrossEntropyLoss()
     return crit

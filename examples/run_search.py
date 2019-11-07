@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 import os
-import random
-import time
-import torch
 import argparse
 
-from model import *
 import combo_nas.utils as utils
 from combo_nas.utils.config import Config
-from combo_nas.utils.routine import augment
-from combo_nas.utils.wrapper import init_all_augment
+from combo_nas.utils.routine import search
+from combo_nas.utils.wrapper import init_all_search
 
 def main():
-    parser = argparse.ArgumentParser(description='Proxyless-NAS augment')
+    parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', type=str, required=True,
                         help="name of the model")
     parser.add_argument('-c','--config',type=str, default='./config/default.yaml',
@@ -24,17 +20,17 @@ def main():
                         help="path of checkpoint pt file")
     parser.add_argument('-d','--device',type=str,default="all",
                         help="override device ids")
-    parser.add_argument('-g','--genotype',type=str,default=None,
-                        help="override genotype file")
     args = parser.parse_args()
 
     config = Config(args.config)
     if utils.check_config(config, args.name):
-        raise Exception("Config error.")
-    
+        raise Exception("config error.")
+    config_str = config.to_string()
+
     exp_root_dir = os.path.join('exp', args.name)
-    augment_kwargs = init_all_augment(config, args.name, exp_root_dir, args.device, args.genotype)
-    augment(config.augment, args.chkpt, **augment_kwargs)
+
+    search_kwargs = init_all_search(config, args.name, exp_root_dir, args.device, convert_fn=None)
+    search(config=config.search, chkpt_path=args.chkpt, **search_kwargs)
 
 
 if __name__ == '__main__':
