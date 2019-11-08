@@ -88,8 +88,8 @@ mixed_op:
   # type: 'DARTS'
 ---
 ops:
-  sepconv_stack: False
-  ops_order: 'bn_act_weight'
+  sepconv_stack: True
+  ops_order: 'weight'
   affine: False
 ---
 criterion:

@@ -75,14 +75,14 @@ augment:
 arch_optim:
   type: 'DARTS'
   w_momentum: 0.9
-  w_weight_decay: 0.001
+  w_weight_decay: 0.0003
 ---
 mixed_op:
   type: 'DARTS'
 ---
 ops:
-  sepconv_stack: False
-  ops_order: 'bn_act_weight'
+  sepconv_stack: True
+  ops_order: 'act_weight_bn'
   affine: False
 ---
 criterion:

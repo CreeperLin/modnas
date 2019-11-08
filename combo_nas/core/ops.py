@@ -217,8 +217,8 @@ class SepConv(nn.Module):
         super().__init__()
         if sepconv_stack:
             self.net = nn.Sequential(
-                DilConv(C_in, C_in, kernel_size, stride, padding,   dilation=1, affine=AFFINE),
-                DilConv(C_in, C_out, kernel_size, 1, padding, dilation=1, affine=AFFINE)
+                DilConv(C_in, C_in, kernel_size, stride, padding, dilation=1),
+                DilConv(C_in, C_out, kernel_size, 1, padding, dilation=1)
             )
             return
         C = C_in
