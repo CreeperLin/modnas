@@ -46,10 +46,10 @@ def check_config(hp, name):
             for a in i.split('.'):
                 ddict = getattr(ddict, a)
             if ddict == '':
-                logging.error('ERROR: check_config: field {} requires non-empty value'.format(i))
+                logging.error('check_config: field {} requires non-empty value'.format(i))
                 flag = True
         except:
-            logging.error('ERROR: check_config: field {} is missing'.format(i))
+            logging.error('check_config: field {} is missing'.format(i))
             flag = True
 
     defaults = {
@@ -60,10 +60,9 @@ def check_config(hp, name):
         'search.plot': False,
         'search.aux_weight': 0.0,
         'augment.aux_weight': 0.0,
-        'model.ops_order': 'act_weight_bn',
-        'model.sepconv_stack': False,
-        'model.label_smoothing': 0.1,
-        'model.affine': False,
+        'ops.ops_order': 'act_weight_bn',
+        'ops.sepconv_stack': False,
+        'ops.affine': False,
         'log.writer': False,
     }
 
@@ -109,12 +108,14 @@ def init_device(config, ovr_gpus):
 
 
 def get_logger(log_dir, name):
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    log_path = os.path.join(log_dir, '%s-%d.log' % (name, time.time()))
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(message)s',
         handlers=[
-            logging.FileHandler(os.path.join(log_dir,
-                '%s-%d.log' % (name, time.time()))),
+            logging.FileHandler(log_path),
             logging.StreamHandler()
         ]
     )
@@ -168,11 +169,17 @@ def get_optim(params, config):
         raise Exception("Optimizer not supported: %s" % config.optimizer)
     return optimizer
 
-def get_lr_scheduler(config):
-    if config.type == 'cosine':
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR
+def get_lr_scheduler(w_optim, config, epochs, last_epoch=-1):
+    lr_type = config.type
+    lr_args = config.get('args', {})
+    if lr_type == 'cosine':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(w_optim, T_max=epochs, **lr_args)
+    elif lr_type == 'step':
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(w_optim, **lr_args)
+    elif lr_type == 'multistep':
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(w_optim, **lr_args)
     else:
-        raise NotImplementedError
+        raise ValueError('unsupported lr scheduler: {}'.format(lr_type))
     return lr_scheduler
 
 def get_same_padding(kernel_size):

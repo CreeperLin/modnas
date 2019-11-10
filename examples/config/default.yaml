@@ -16,7 +16,6 @@ search:
   w_optim:
     type: 'sgd'
     lr: 0.035
-    lr_min: 0.0
     momentum: 0.9
     nesterov: True
     weight_decay: 0.0001
@@ -32,14 +31,14 @@ search:
     weight_decay: 0
   lr_scheduler:
     type: 'cosine'
+    args:
+      eta_min: 0.001
   w_grad_clip: 0.0
   drop_path_prob: 0.0
   warmup_epochs: 30
   epochs: 200
   print_freq: 200
   save_freq: 100
-  plot_path: './searchs'
-  gt_file: './searchs'
 ---
 augment:
   data:
@@ -62,12 +61,13 @@ augment:
   w_optim:
     type: 'sgd'
     lr: 0.1
-    lr_min: 0.0
     momentum: 0.9
     weight_decay: 0.0001
     nesterov: True
   lr_scheduler:
     type: 'cosine'
+    args:
+      eta_min: 0.001
   drop_path_prob: 0.0
   w_grad_clip: 0.0
   print_freq: 200

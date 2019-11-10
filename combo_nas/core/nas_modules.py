@@ -356,5 +356,5 @@ class NASController(nn.Module):
 def build_nas_controller(net, crit, device, dev_list, verbose=False):
     NASModule.set_device(dev_list)
     model = NASController(net, crit, dev_list).to(device=device)
-    if verbose: logging.debug(model)
+    if verbose: print(model)
     return model

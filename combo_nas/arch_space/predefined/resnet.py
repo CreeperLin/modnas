@@ -4,11 +4,10 @@ from ...arch_space.constructor import Slot
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
            'resnet152', 'resnext50_32x4d', 'resnext101_32x8d']
 
+
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
     """3x3 convolution with padding"""
-    return Slot(in_planes, out_planes, stride)
-    # return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                    #  padding=1, groups=groups, bias=False)\
+    return Slot(in_planes, out_planes, stride, groups=groups)
 
 
 def conv1x1(in_planes, out_planes, stride=1):
@@ -172,6 +171,25 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
+
+    def get_default_converter(self):
+        return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, stride=slot.stride,
+                                            padding=1, bias=False, **slot.kwargs)
+
+
+def resnet10(config, pretrained=False, **kwargs):
+    """Constructs a ResNet-10 model.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    chn_in = config.channel_in
+    chn = config.channel_init
+    n_classes = config.classes
+    model = ResNet(chn_in, chn, BasicBlock, [1, 1, 1, 1], num_classes=n_classes, **kwargs)
+    # if pretrained:
+    #     model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
+    return model
 
 
 def resnet18(config, pretrained=False, **kwargs):

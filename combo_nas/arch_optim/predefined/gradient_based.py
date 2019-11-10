@@ -52,7 +52,6 @@ class DARTSArchitect():
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
-        a_optim.zero_grad()
         # do virtual step (calc w`)
         self.virtual_step(trn_X, trn_y, lr, w_optim)
         # calc unrolled loss
@@ -119,7 +118,6 @@ class BinaryGateArchitect():
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
-        a_optim.zero_grad()
         # sample k
         if self.sample:
             NASModule.param_module_call('sample_ops', n_samples=self.n_samples)
@@ -151,3 +149,13 @@ class BinaryGateArchitect():
                     p[i] += (torch.log(k) - torch.log(kprev))
 
         NASModule.module_call('reset_ops')
+
+
+class DummyArchitect():
+    def __init__(self, config, net):
+        sefl.net = net
+    
+    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
+        loss = self.net.loss(val_X, val_y)
+        loss.backward()
+        a_optim.step()

@@ -16,7 +16,6 @@ class REINFORCE():
         return total_reward
     
     def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
-        a_optim.zero_grad()
         grad_batch = []
         reward_batch = []
         net_info_batch = []
@@ -60,4 +59,3 @@ class REINFORCE():
             m.arch_param.grad.data /= self.batch_size
         # apply gradients
         a_optim.step()
-        pass

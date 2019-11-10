@@ -38,8 +38,7 @@ def save_genotype(expman, genotype, epoch, logger):
 def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_optim, writer, logger, device):
     w_optim = utils.get_optim(model.weights(), config.w_optim)
     a_optim = utils.get_optim(model.alphas(), config.a_optim)
-    lr_scheduler_cls = utils.get_lr_scheduler(config.lr_scheduler)
-    lr_scheduler = lr_scheduler_cls(w_optim, config.epochs, eta_min=config.w_optim.lr_min)
+    lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, config.epochs)
     
     if chkpt_path is not None:
         logger.info("Resuming from checkpoint: {}".format(chkpt_path))
@@ -62,8 +61,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
     logger.info('begin warmup training')
     try:
         if not resume and config.warmup_epochs > 0:
-            warmup_lr_scheduler = lr_scheduler_cls(w_optim, config.warmup_epochs, eta_min=config.w_optim.lr_min)
-            last_epoch = 0
+            warmup_lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, config.warmup_epochs)
             tot_epochs = config.warmup_epochs
             for epoch in itertools.count(init_epoch+1):
                 if epoch == tot_epochs: break
@@ -78,8 +76,6 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
                 top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config)
 
                 warmup_lr_scheduler.step()
-        else:
-            last_epoch = -1
     except KeyboardInterrupt:
         logger.info('skipped')
     
@@ -127,12 +123,8 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
 
 
 def augment(config, chkpt_path, expman, train_loader, valid_loader, model, writer, logger, device):
-    
     w_optim = utils.get_optim(model.weights(), config.w_optim)
-
-    lr_scheduler_cls = utils.get_lr_scheduler(config.lr_scheduler)
-    lr_scheduler = lr_scheduler_cls(
-        w_optim, config.epochs, eta_min=config.w_optim.lr_min)
+    lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, config.epochs)
 
     init_epoch = -1
 
@@ -183,6 +175,7 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
 
 
 def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config):
+    one_level = False
     top1 = utils.AverageMeter()
     top5 = utils.AverageMeter()
     losses = utils.AverageMeter()
@@ -201,9 +194,10 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
     for step, (trn_X, trn_y) in enumerate(train_loader):
         trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
         N = trn_X.size(0)
-        tprof.timer_start('train')
-        # phase 1. child network step (w)
         w_optim.zero_grad()
+        if not a_optim is None: a_optim.zero_grad()
+        # phase 1. child network step (w)
+        tprof.timer_start('train')
         loss, logits = model.loss_logits(trn_X, trn_y, config.aux_weight)
         loss.backward()
         # gradient clipping
@@ -213,14 +207,17 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
         tprof.timer_stop('train')
         # phase 2. arch_optim step (alpha)
         if not valid_loader is None and step % tr_ratio == 0:
-            try:
-                val_X, val_y = next(val_iter)
-            except:
-                val_iter = iter(valid_loader)
-                val_X, val_y = next(val_iter)
-            val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
             tprof.timer_start('arch')
-            arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
+            if one_level:
+                arch_optim.step(trn_X, trn_y, trn_X, trn_y, lr, w_optim, a_optim)
+            else:
+                try:
+                    val_X, val_y = next(val_iter)
+                except:
+                    val_iter = iter(valid_loader)
+                    val_X, val_y = next(val_iter)
+                val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
+                arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
             tprof.timer_stop('arch')
 
         prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))

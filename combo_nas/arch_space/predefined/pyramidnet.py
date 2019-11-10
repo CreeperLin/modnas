@@ -31,12 +31,10 @@ class GroupConv(nn.Module):
 
 class BottleneckBlock(nn.Module):
     def __init__(self, C_in, C, stride=1, groups=1, bneck_ratio=4,
-                 downsample=None, cell_cls=None, cell_kwargs={}):
+                 downsample=None):
         super(BottleneckBlock, self).__init__()
         self.bottle_in = GroupConv(C_in, C, 1, 1, 0, relu=False)
-        cell_kwargs['chn_in'] = C
-        cell_kwargs['stride'] = stride
-        self.cell = cell_cls(**cell_kwargs)
+        self.cell = Slot(C, C, stride, groups=groups)
         self.bottle_out = GroupConv(C, C * bneck_ratio, 1, 1, 0)
         self.bn = nn.BatchNorm2d(C * bneck_ratio)
         self.downsample = downsample
@@ -71,7 +69,7 @@ class BottleneckBlock(nn.Module):
 
 class PyramidNet(nn.Module):
         
-    def __init__(self, chn_in, chn, n_classes, n_groups, n_blocks, conv_groups, bneck_ratio, alpha, cell_cls, cell_kwargs):
+    def __init__(self, chn_in, chn, n_classes, n_groups, n_blocks, conv_groups, bneck_ratio, alpha):
         super(PyramidNet, self).__init__()
         self.chn_in = chn_in
         self.chn = chn
@@ -91,7 +89,7 @@ class PyramidNet(nn.Module):
         groups = []
         for i in range(0, self.n_groups):
             stride = 1 if i==0 else 2
-            groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride, cell_cls, cell_kwargs))
+            groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride))
         self.pyramid = nn.Sequential(*groups)
         
         self.chn_fin = int(round(self.chn_cur)) * self.bneck_ratio
@@ -101,7 +99,7 @@ class PyramidNet(nn.Module):
         # self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(self.chn_fin, self.n_classes)
 
-    def pyramidal_make_layer(self, block, n_blocks, stride, cell_cls, cell_kwargs):
+    def pyramidal_make_layer(self, block, n_blocks, stride):
         downsample = None
         if stride != 1: # or self.chn_cur != int(round(featuremap_dim_1st)) * block.outchannel_ratio:
             downsample = nn.AvgPool2d((2,2), stride = (2, 2), ceil_mode=True)
@@ -116,8 +114,7 @@ class PyramidNet(nn.Module):
                         stride=b_stride,
                         groups=self.conv_groups,
                         bneck_ratio=self.bneck_ratio,
-                        downsample=downsample,
-                        cell_cls=cell_cls, cell_kwargs=cell_kwargs)
+                        downsample=downsample)
             layers.append(blk)
             self.chn_cur += self.addrate
             self.chn_in = chn_next * self.bneck_ratio
@@ -138,6 +135,9 @@ class PyramidNet(nn.Module):
     
         return x
 
+    def get_default_converter(self):
+        return lambda slot: GroupConv(slot.chn_in, slot.chn_out, 3, slot.stride, 1, **slot.kwargs)
+
 
 def build_from_config(config):
     chn_in = config.channel_in
@@ -157,11 +157,5 @@ def build_from_config(config):
         'conv_groups': conv_groups,
         'alpha': alpha,
         'bneck_ratio': config.bottleneck_ratio,
-        'cell_cls': Slot,
-        'cell_kwargs': {
-            'chn_in': None,
-            'chn_out': None,
-            'stride': None,
-        }
     }
     return PyramidNet(**pyramidnet_kwargs)

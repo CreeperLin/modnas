@@ -32,8 +32,7 @@ class MobileInvertedResidualBlock(nn.Module):
         self.chn_in = chn_in
         self.chn_out = chn_out
         C = chn_in * t
-        # self.conv = MobileInvertedConv(chn_in, chn_out, C, stride, activation)
-        self.conv = Slot(chn_in, chn_out, stride=stride)
+        self.conv = Slot(chn_in, chn_out, stride, C=C, activation=activation)
 
     def forward(self, x):
         residual = x
@@ -125,6 +124,9 @@ class MobileNetV2(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+    
+    def get_default_converter(self):
+        return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
 
 def mobilenetv2(config):

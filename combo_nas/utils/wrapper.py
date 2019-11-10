@@ -64,6 +64,8 @@ def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=No
     Slot.reset()
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
+    if convert_fn is None and hasattr(net, 'get_default_converter'):
+        convert_fn = net.get_default_converter()
     if genotype is None:
         supernet = convert_from_predefined_net(net, convert_fn)
     else:
