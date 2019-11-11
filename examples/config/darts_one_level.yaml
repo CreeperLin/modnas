@@ -7,7 +7,7 @@ search:
     valid_root: './data'
     dloader:
       type: 'pytorch'
-      split_ratio: 0.85
+      split_ratio: 0 # not splitting data (one level)
       trn_batch_size: 64
       val_batch_size: 64
       workers: 0
@@ -75,9 +75,7 @@ augment:
   save_freq: 200
 ---
 arch_optim:
-  type: 'DARTS'
-  w_momentum: 0.9
-  w_weight_decay: 0.001
+  type: 'Dummy'
 ---
 mixed_op:
   type: 'DARTS'
@@ -85,7 +83,7 @@ mixed_op:
 ops:
   sepconv_stack: True
   ops_order: 'act_weight_bn'
-  affine: True
+  affine: False
 ---
 criterion:
   type: 'LS'
@@ -95,15 +93,15 @@ model:
   type: 'DARTS'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 36        # init channel
+  channel_init: 16        # init channel
   channel_multiplier: 3   # init channel multiplier
   nodes: 4                # num of nodes (states) per layer
-  layers: 20              # num of DAG layers (cells) in model
+  layers: 8               # num of DAG layers (cells) in model
   inputs_model: 1
   inputs_layer: 2
   inputs_node: 1
   shared_a: True
-  auxiliary: True
+  auxiliary: False
 ---
 primitives:
   - 'AVG'

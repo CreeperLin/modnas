@@ -69,7 +69,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
                 lr = warmup_lr_scheduler.get_lr()[0]
 
                 # training
-                train(train_loader, None, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
+                train(train_loader, None, model, writer, logger, None, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
 
                 # validation
                 cur_step = (epoch+1) * len(train_loader)
@@ -92,10 +92,11 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
         lr = lr_scheduler.get_lr()[0]
         model.print_alphas(logger)
         # training
-        train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
+        trn_top1 = train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
         # validation
         cur_step = (epoch+1) * len(train_loader)
-        top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config) 
+        val_top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config) 
+        if val_top1 is None: val_top1 = trn_top1
         # genotype
         genotype = model.to_genotype()
         genotypes.append(genotype)
@@ -107,8 +108,8 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
                 caption = "Epoch {} - DAG {}".format(epoch+1, i)
                 plot(genotype.dag[i], dag, plot_path + "-dag_{}".format(i), caption)
         
-        if best_top1 < top1:
-            best_top1 = top1
+        if best_top1 < val_top1:
+            best_top1 = val_top1
             best_genotype = genotype
 
         if config.save_freq != 0 and epoch % config.save_freq == 0:
@@ -153,15 +154,16 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
         lr = lr_scheduler.get_lr()[0]
 
         # training
-        train(train_loader, None, model, writer, logger, None, w_optim, None, lr, epoch, tot_epochs, device, config)
+        trn_top1 = train(train_loader, None, model, writer, logger, None, w_optim, None, lr, epoch, tot_epochs, device, config)
 
         # validation
         cur_step = (epoch+1) * len(train_loader)
-        top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config) 
+        val_top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config)
+        if val_top1 is None: val_top1 = trn_top1
 
         # save
-        if best_top1 < top1:
-            best_top1 = top1
+        if best_top1 < val_top1:
+            best_top1 = val_top1
             is_best = True
         else:
             is_best = False
@@ -175,25 +177,37 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
 
 
 def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config):
-    one_level = False
     top1 = utils.AverageMeter()
     top5 = utils.AverageMeter()
     losses = utils.AverageMeter()
 
-    cur_step = epoch*len(train_loader)
+    n_trn_batch = len(train_loader)
+    cur_step = epoch*n_trn_batch
     writer.add_scalar('train/lr', lr, cur_step)
 
-    model.train()
-
     if not valid_loader is None:
-        tr_ratio = len(train_loader) // len(valid_loader)
         val_iter = iter(valid_loader)
+        n_val_batch = len(valid_loader)
 
-    eta_m = utils.ETAMeter(tot_epochs, epoch, len(train_loader))
+    update_arch = False
+    if not arch_optim is None:
+        update_arch = True
+        arch_update_freq = config.arch_update_freq
+        if arch_update_freq == -1: # update proportionally
+            arch_update_freq = n_val_batch if not valid_loader is None else n_trn_batch
+        elif arch_update_freq == 0: # update every step
+            arch_update_freq = n_trn_batch
+        arch_update_intv = n_trn_batch // arch_update_freq
+        arch_update_batch = config.arch_update_batch
+
+    model.train()
+    eta_m = utils.ETAMeter(tot_epochs, epoch, n_trn_batch)
     eta_m.start()
+    tprof.timer_start('data')
     for step, (trn_X, trn_y) in enumerate(train_loader):
         trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
         N = trn_X.size(0)
+        tprof.timer_stop('data')
         w_optim.zero_grad()
         if not a_optim is None: a_optim.zero_grad()
         # phase 1. child network step (w)
@@ -206,49 +220,57 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
         w_optim.step()
         tprof.timer_stop('train')
         # phase 2. arch_optim step (alpha)
-        if not valid_loader is None and step % tr_ratio == 0:
-            tprof.timer_start('arch')
-            if one_level:
-                arch_optim.step(trn_X, trn_y, trn_X, trn_y, lr, w_optim, a_optim)
-            else:
-                try:
-                    val_X, val_y = next(val_iter)
-                except:
-                    val_iter = iter(valid_loader)
-                    val_X, val_y = next(val_iter)
-                val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
-                arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
-            tprof.timer_stop('arch')
+        if update_arch and (step+1) % arch_update_intv == 0:
+            for a_batch in range(arch_update_batch):
+                if valid_loader is None:
+                    tprof.timer_start('arch')
+                    arch_optim.step(trn_X, trn_y, trn_X, trn_y, lr, w_optim, a_optim)
+                else:
+                    tprof.timer_start('data')
+                    try:
+                        val_X, val_y = next(val_iter)
+                    except:
+                        val_iter = iter(valid_loader)
+                        val_X, val_y = next(val_iter)
+                    val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
+                    tprof.timer_stop('data')
+                    tprof.timer_start('arch')
+                    arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
+                tprof.timer_stop('arch')
 
         prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
         top5.update(prec5.item(), N)
 
-        if step !=0 and step % config.print_freq == 0 or step == len(train_loader)-1:
+        if step !=0 and step % config.print_freq == 0 or step == n_trn_batch-1:
             eta = eta_m.step(step)
             logger.info(
                 "Train: [{:2d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f} "
                 "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%}) | ETA: {eta}".format(
-                    epoch+1, tot_epochs, step, len(train_loader)-1, lr, losses=losses,
+                    epoch+1, tot_epochs, step, n_trn_batch-1, lr, losses=losses,
                     top1=top1, top5=top5, eta=utils.format_time(eta)))
 
         writer.add_scalar('train/loss', loss.item(), cur_step)
         writer.add_scalar('train/top1', prec1.item(), cur_step)
         writer.add_scalar('train/top5', prec5.item(), cur_step)
         cur_step += 1
+        if step < n_trn_batch-1: tprof.timer_start('data')
     logger.info("Train: [{:2d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
+    tprof.print_stat('data')
     tprof.print_stat('train')
     tprof.print_stat('arch')
+    return top1.avg
 
 
 def validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config):
+    if valid_loader is None: return None
     top1 = utils.AverageMeter()
     top5 = utils.AverageMeter()
     losses = utils.AverageMeter()
 
+    n_val_batch = len(valid_loader)
     model.eval()
-
     with torch.no_grad():
         for step, (val_X, val_y) in enumerate(valid_loader):
             val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
@@ -263,11 +285,11 @@ def validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, d
             top1.update(prec1.item(), N)
             top5.update(prec5.item(), N)
 
-            if step !=0 and step % config.print_freq == 0 or step == len(valid_loader)-1:
+            if step !=0 and step % config.print_freq == 0 or step == n_val_batch-1:
                 logger.info(
                     "Valid: [{:2d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
                     "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(
-                        epoch+1, tot_epochs, step, len(valid_loader)-1, losses=losses,
+                        epoch+1, tot_epochs, step, n_val_batch-1, losses=losses,
                         top1=top1, top5=top5))
 
     writer.add_scalar('val/loss', losses.avg, cur_step)

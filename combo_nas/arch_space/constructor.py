@@ -82,10 +82,7 @@ def default_predefined_converter(slot, mixed_op_cls, *args, **kwargs):
                         *args, **kwargs)
     return ent
 
-def default_op_builder(op_name, slot, drop_path=True):
-    chn_in = slot.chn_in if isinstance(slot.chn_in, int) else slot.chn_in[0]
-    chn_out = slot.chn_out if isinstance(slot.chn_out, int) else slot.chn_out[0]
-    ent = build_op(op_name, chn_in, chn_out, slot.stride)
+def apply_drop_path(ent, drop_path):
     if drop_path and not isinstance(ent, Identity):
         ent = nn.Sequential(
             ent,
@@ -93,20 +90,22 @@ def default_op_builder(op_name, slot, drop_path=True):
         )
     return ent
 
-def default_genotype_converter(slot, gene, drop_path=True):
+def default_genotype_converter(slot, gene):
     if isinstance(gene, list): gene = gene[0]
     op_name = gene
-    ent = default_op_builder(op_name, slot, drop_path)
+    chn_in = slot.chn_in if isinstance(slot.chn_in, int) else slot.chn_in[0]
+    chn_out = slot.chn_out if isinstance(slot.chn_out, int) else slot.chn_out[0]
+    ent = build_op(op_name, chn_in, chn_out, slot.stride)
     return ent
 
-def convert_from_predefined_net(model, convert_fn=None, *args, **kwargs):
+def convert_from_predefined_net(model, convert_fn=None, drop_path=False, *args, **kwargs):
     convert_fn = default_predefined_converter if convert_fn is None else convert_fn
     for m in slots(model):
-        ent = convert_fn(m, *args, **kwargs)
+        ent = apply_drop_path(convert_fn(m, *args, **kwargs), drop_path)
         m.set_entity(ent)
     return model
 
-def convert_from_genotype(model, genotype, convert_fn=None, *args, **kwargs):
+def convert_from_genotype(model, genotype, convert_fn=None, drop_path=False, *args, **kwargs):
     convert_fn = default_genotype_converter if convert_fn is None else convert_fn
     logging.info('building net from genotype: {}'.format(genotype))
     try:
@@ -116,5 +115,9 @@ def convert_from_genotype(model, genotype, convert_fn=None, *args, **kwargs):
         for i, m in enumerate(slots(model)):
             gene = genotype.ops[i]
             ent = convert_fn(m, gene, *args, **kwargs)
+            m.set_entity(ent)
+    if drop_path:
+        for m in slots(model):
+            ent = apply_drop_path(m.ent, drop_path)
             m.set_entity(ent)
     return model

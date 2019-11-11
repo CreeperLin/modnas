@@ -104,9 +104,10 @@ def get_torch_dataloader(config, metadata):
         data = dset(root, train = True,
                 transform=transforms.Compose(trn_transf), download = True)
     
-    if config.split_ratio > 0:
+    sp_ratio = config.split_ratio
+    if sp_ratio > 0 and sp_ratio < 1.0:
         n_data = len(data)
-        split = int(n_data * config.split_ratio)
+        split = int(n_data * sp_ratio)
         logging.info('data_provider: split data: {}/{}'.format(split, n_data-split))
         indices = list(range(n_data))
         trn_sampler = SubsetRandomSampler(indices[:split])

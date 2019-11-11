@@ -153,9 +153,7 @@ class BinaryGateArchitect():
 
 class DummyArchitect():
     def __init__(self, config, net):
-        sefl.net = net
+        pass
     
     def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
-        loss = self.net.loss(val_X, val_y)
-        loss.backward()
         a_optim.step()

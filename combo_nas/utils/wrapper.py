@@ -18,7 +18,12 @@ def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_f
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    trn_loader, val_loader = load_data(config.search.data, validation=False)
+    sp_ratio = config.search.data.dloader.split_ratio
+    if sp_ratio > 0:
+        trn_loader, val_loader = load_data(config.search.data, validation=False)
+    else:
+        trn_loader = load_data(config.search.data, validation=False)
+        val_loader = None
     # primitives
     gt.set_primitives(config.primitives)
     # net
@@ -27,11 +32,12 @@ def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_f
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
     mixed_op_args = config.mixed_op.get('args', {})
+    drop_path = config.search.drop_path_prob > 0.0
     if genotype is None:
-        supernet = convert_from_predefined_net(net, convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+        supernet = convert_from_predefined_net(net, convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
     else:
         genotype = gt.get_genotype(None, genotype)
-        supernet = convert_from_genotype(net, genotype, convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+        supernet = convert_from_genotype(net, genotype, convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
     # model
     crit = utils.get_net_crit(config.criterion)
     model = build_nas_controller(supernet, crit, dev, dev_list)
@@ -64,13 +70,14 @@ def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=No
     Slot.reset()
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
-    if convert_fn is None and hasattr(net, 'get_default_converter'):
-        convert_fn = net.get_default_converter()
+    drop_path = config.augment.drop_path_prob > 0.0
     if genotype is None:
-        supernet = convert_from_predefined_net(net, convert_fn)
+        if convert_fn is None and hasattr(net, 'get_default_converter'):
+            convert_fn = net.get_default_converter()
+        supernet = convert_from_predefined_net(net, convert_fn, drop_path)
     else:
         genotype = gt.get_genotype(None, genotype)
-        supernet = convert_from_genotype(net, genotype, convert_fn)
+        supernet = convert_from_genotype(net, genotype, convert_fn, drop_path)
     # model
     crit = utils.get_net_crit(config.criterion)
     model = build_nas_controller(supernet, crit, dev, dev_list)

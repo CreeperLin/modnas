@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
+import copy
 import argparse
 import traceback
 
@@ -35,13 +36,14 @@ def main():
 
     def measure(hp):
         global trial_index
-        Config.apply(config, hp)
+        trial_config = copy.deepcopy(config)
+        Config.apply(trial_config, hp)
         trial_name = '{}_{}'.format(args.name, trial_index)
         exp_root_dir = os.path.join('exp', trial_name)
         trial_index += 1
         try:
-            search_kwargs = init_all_search(config, trial_name, exp_root_dir, args.device, convert_fn=None)
-            best_top1, best_gt, gts = search(config.search, args.chkpt, **search_kwargs)
+            search_kwargs = init_all_search(trial_config, trial_name, exp_root_dir, args.device, convert_fn=None)
+            best_top1, best_gt, gts = search(trial_config.search, args.chkpt, **search_kwargs)
             score = best_top1
             error_no = 0
         except Exception as e:
