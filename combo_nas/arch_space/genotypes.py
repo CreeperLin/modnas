@@ -39,11 +39,11 @@ def from_str(s):
     genotype = eval(s)
     return genotype
 
-def get_genotype(g_str, ovr_genotype):
+def get_genotype(config, ovr_genotype):
     if not ovr_genotype is None:
         genotype = from_file(ovr_genotype)
-    elif g_str == '':
-        genotype = from_file(config.gt_file)
+    elif config.gt_str == '':
+        genotype = from_file(config.gt_path)
     else:
-        genotype = from_str(g_str)
+        genotype = from_str(config.gt_str)
     return genotype

@@ -5,6 +5,7 @@ from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
+from .prefetcher import fast_collate, data_prefetcher
 
 class Cutout(object):
     def __init__(self, length):
@@ -31,6 +32,8 @@ class Cutout(object):
 
 def get_torch_dataloader(config, metadata):
     dataset, root, MEAN, STD, validation = metadata
+    prefetch = config.prefetch
+    collate_fn = fast_collate if prefetch else None
 
     if dataset == 'cifar10':
         dset = datasets.CIFAR10
@@ -85,12 +88,14 @@ def get_torch_dataloader(config, metadata):
     if config.jitter:
         trn_transf.append(transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1))
     
-    normalize = [transforms.ToTensor(), transforms.Normalize(MEAN, STD)]
-    trn_transf.extend(normalize)
-    val_transf.extend(normalize)
-
-    if config.cutout > 0:
-        trn_transf.append(Cutout(config.cutout))
+    cutout = config.cutout
+    
+    if not prefetch:
+        normalize = [transforms.ToTensor(), transforms.Normalize(MEAN, STD)]
+        trn_transf.extend(normalize)
+        val_transf.extend(normalize)
+        if cutout > 0:
+            trn_transf.append(Cutout(cutout))
     
     if dset == datasets.ImageFolder:
         if validation:
@@ -105,6 +110,8 @@ def get_torch_dataloader(config, metadata):
                 transform=transforms.Compose(trn_transf), download = True)
     
     sp_ratio = config.split_ratio
+    trn_loader = None
+    val_loader = None
     if sp_ratio > 0 and sp_ratio < 1.0:
         n_data = len(data)
         split = int(n_data * sp_ratio)
@@ -116,22 +123,30 @@ def get_torch_dataloader(config, metadata):
                         batch_size=config.trn_batch_size,
                         sampler=trn_sampler,
                         num_workers=config.workers,
-                        pin_memory=True)
+                        pin_memory=True,
+                        collate_fn=collate_fn)
         val_loader = DataLoader(data,
                         batch_size=config.val_batch_size,
                         sampler=val_sampler,
                         num_workers=config.workers,
-                        pin_memory=True)
-        return trn_loader, val_loader
+                        pin_memory=True,
+                        collate_fn=collate_fn)
     elif validation:
         val_loader = DataLoader(data,
             batch_size=config.val_batch_size,
             num_workers=config.workers,
-            shuffle=False, pin_memory=True, drop_last=False)
-        return val_loader
+            shuffle=False, pin_memory=True, 
+            drop_last=False, collate_fn=collate_fn)
     else:
         trn_loader = DataLoader(data,
             batch_size=config.trn_batch_size,
             num_workers=config.workers,
-            shuffle=True, pin_memory=True, drop_last=True)
-        return trn_loader
+            shuffle=True, pin_memory=True, 
+            drop_last=True, collate_fn=collate_fn)
+    
+    if prefetch:
+        if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, MEAN, STD)
+        if not val_loader is None: val_loader = data_prefetcher(val_loader, MEAN, STD)
+    if trn_loader is None: return val_loader
+    if val_loader is None: return trn_loader
+    return trn_loader, val_loader

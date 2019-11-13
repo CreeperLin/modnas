@@ -36,12 +36,15 @@ def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_f
     if genotype is None:
         supernet = convert_from_predefined_net(net, convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
     else:
-        genotype = gt.get_genotype(None, genotype)
+        genotype = gt.get_genotype(config.genotypes, genotype)
         supernet = convert_from_genotype(net, genotype, convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
     # model
     crit = utils.get_net_crit(config.criterion)
     model = build_nas_controller(supernet, crit, dev, dev_list)
     arch = build_arch_optim(config.arch_optim.type, config.arch_optim, model)
+    # genotype
+    if config.genotypes.disable_dag:
+        model.to_genotype = model.to_genotype_ops
     return {
         'expman': expman,
         'train_loader': trn_loader,
@@ -68,6 +71,7 @@ def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=No
     gt.set_primitives(config.primitives)
     # net
     Slot.reset()
+    config.ops.affine = True
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
     drop_path = config.augment.drop_path_prob > 0.0
@@ -76,7 +80,7 @@ def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=No
             convert_fn = net.get_default_converter()
         supernet = convert_from_predefined_net(net, convert_fn, drop_path)
     else:
-        genotype = gt.get_genotype(None, genotype)
+        genotype = gt.get_genotype(config.genotypes, genotype)
         supernet = convert_from_genotype(net, genotype, convert_fn, drop_path)
     # model
     crit = utils.get_net_crit(config.criterion)

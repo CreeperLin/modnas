@@ -10,7 +10,7 @@ search:
       split_ratio: 0.8
       trn_batch_size: 64
       val_batch_size: 64
-      workers: 0
+      workers: 2
       cutout: 0
       jitter: True
   w_optim:
@@ -50,14 +50,12 @@ augment:
     dloader:
       type: 'pytorch'
       split_ratio: 0
-      trn_batch_size: 64
-      val_batch_size: 64
-      workers: 0
-      cutout: 16
+      trn_batch_size: 128
+      val_batch_size: 128
+      workers: 2
+      cutout: 0
       jitter: True
-  epochs: 350
-  genotype: ''
-  gt_file: ''
+  epochs: 200
   w_optim:
     type: 'sgd'
     lr: 0.1
@@ -67,8 +65,8 @@ augment:
   lr_scheduler:
     type: 'multistep'
     args:
-      milestones: [135, 185]
-      gamma: 0.1
+      milestones: [60, 120, 160]
+      gamma: 0.2
   drop_path_prob: 0.0
   w_grad_clip: 0.0
   print_freq: 200
@@ -122,3 +120,7 @@ device:
 ---
 tune:
   tuner: 'Random'
+---
+genotypes:
+  gt_str: ''
+  gt_path: ''

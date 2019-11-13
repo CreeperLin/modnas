@@ -11,7 +11,6 @@ class Registry(object):
         self._reg_class = {}
 
     def make(self, path):
-        logging.debug('Making new env: %s (%s)', path, kwargs)
         try:
             module = importlib.import_module(path)
             # catch ImportError for python2.7 compatibility
@@ -24,6 +23,7 @@ class Registry(object):
 
     def register(self, regclass, rid=None):
         rid = regclass.__name__ if rid is None else rid
+        rid = rid.lower()
         if rid in self._reg_class:
             raise ValueError('Cannot re-register rid: {}'.format(rid))
         self._reg_class[rid] = regclass
@@ -32,6 +32,7 @@ class Registry(object):
         self._reg_class.update(regdict)
     
     def get(self, rid):
+        rid = rid.lower()
         if not rid in self._reg_class: raise ValueError('registry id {} not found'.format(rid))
         return self._reg_class[rid]
 

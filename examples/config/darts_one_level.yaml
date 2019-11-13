@@ -10,7 +10,7 @@ search:
       split_ratio: 0 # not splitting data (one level)
       trn_batch_size: 64
       val_batch_size: 64
-      workers: 0
+      workers: 2
       cutout: 0
       jitter: True
   w_optim:
@@ -22,9 +22,7 @@ search:
   a_optim:
     type: 'adam'
     lr: 0.0003
-    betas:
-     - 0.5
-     - 0.999
+    betas: [0.5, 0.999]
     momentum: 0.9
     weight_decay: 0.001
   lr_scheduler:
@@ -52,7 +50,7 @@ augment:
       split_ratio: 0
       trn_batch_size: 96
       val_batch_size: 96
-      workers: 0
+      workers: 2
       cutout: 16
       jitter: True
   w_optim:
@@ -68,8 +66,6 @@ augment:
   aux_weight: 0.4
   drop_path_prob: 0.2
   w_grad_clip: 5.
-  genotype: ''
-  gt_file: ''
   epochs: 600
   print_freq: 200
   save_freq: 200
@@ -122,3 +118,7 @@ device:
 ---
 tune:
   tuner: 'Random'
+---
+genotypes:
+  gt_str: ''
+  gt_path: ''

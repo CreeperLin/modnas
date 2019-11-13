@@ -53,6 +53,8 @@ def check_config(hp, name):
             flag = True
 
     defaults = {
+        'search.data.dloader.prefetch': False,
+        'augment.data.dloader.prefetch': False,
         'search.data.dloader.cutout': 0,
         'augment.data.dloader.cutout': 16,
         'search.data.dloader.jitter': True,
@@ -68,6 +70,9 @@ def check_config(hp, name):
         'ops.sepconv_stack': False,
         'ops.affine': False,
         'log.writer': False,
+        'genotypes.disable_dag': False,
+        'genotypes.gt_str': '',
+        'genotypes.gt_path': '',
     }
 
     for i in defaults:
@@ -157,7 +162,8 @@ def get_optim(params, config):
     if config.type == 'adam':
         optimizer = torch.optim.Adam(params,
                             lr=config.lr,
-                            betas=config.betas)
+                            betas=config.betas,
+                            weight_decay=config.weight_decay)
     elif config.type == 'adabound':
         import adabound
         optimizer = adabound.AdaBound(params,
