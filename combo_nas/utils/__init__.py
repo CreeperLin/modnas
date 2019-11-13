@@ -154,8 +154,10 @@ def get_net_crit(config):
     crit_type = config.type
     if crit_type == 'LS':
         crit = CrossEntropyLossLS(config.eta)
-    else:
+    elif crit_type == 'CE':
         crit = nn.CrossEntropyLoss()
+    else:
+        raise ValueError('Unsupported loss function: {}'.format(crit_type))
     return crit
 
 def get_optim(params, config):

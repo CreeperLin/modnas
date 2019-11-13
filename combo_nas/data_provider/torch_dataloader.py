@@ -136,17 +136,17 @@ def get_torch_dataloader(config, metadata):
             batch_size=config.val_batch_size,
             num_workers=config.workers,
             shuffle=False, pin_memory=True, 
-            drop_last=False, collate_fn=collate_fn)
+            collate_fn=collate_fn)
     else:
         trn_loader = DataLoader(data,
             batch_size=config.trn_batch_size,
             num_workers=config.workers,
             shuffle=True, pin_memory=True, 
-            drop_last=True, collate_fn=collate_fn)
+            collate_fn=collate_fn)
     
     if prefetch:
-        if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, MEAN, STD)
-        if not val_loader is None: val_loader = data_prefetcher(val_loader, MEAN, STD)
+        if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, MEAN, STD, cutout)
+        if not val_loader is None: val_loader = data_prefetcher(val_loader, MEAN, STD, cutout)
     if trn_loader is None: return val_loader
     if val_loader is None: return trn_loader
     return trn_loader, val_loader

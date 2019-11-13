@@ -1,0 +1,127 @@
+search:
+  data:
+    type: 'CIFAR10'
+    # type: 'MNIST'
+    # type: 'ImageNet'
+    train_root: './data'
+    valid_root: './data'
+    dloader:
+      type: 'pytorch'
+      split_ratio: 0.85
+      trn_batch_size: 64
+      val_batch_size: 64
+      workers: 2
+      cutout: 0
+      jitter: True
+  w_optim:
+    type: 'sgd'
+    lr: 0.025
+    momentum: 0.9
+    weight_decay: 0.0003
+    nesterov: True
+  a_optim:
+    type: 'adam'
+    lr: 0.0003
+    betas:
+     - 0.5
+     - 0.999
+    momentum: 0.9
+    weight_decay: 0.001
+  lr_scheduler:
+    type: 'cosine'
+    args:
+      eta_min: 0.001
+  aux_weight: 0.0
+  drop_path_prob: 0.0
+  w_grad_clip: 5.
+  warmup_epochs: 0
+  epochs: 50
+  print_freq: 200
+  save_freq: 25
+  plot: False
+---
+augment:
+  data:
+    type: 'CIFAR10'
+    # type: 'MNIST'
+    # type: 'ImageNet'
+    train_root: './data'
+    valid_root: './data'
+    dloader:
+      type: 'pytorch'
+      split_ratio: 0
+      trn_batch_size: 96
+      val_batch_size: 96
+      workers: 2
+      cutout: 16
+      jitter: False
+  w_optim:
+    type: 'sgd'
+    lr: 0.025
+    momentum: 0.9
+    weight_decay: 0.0003
+    nesterov: False
+  lr_scheduler:
+    type: 'cosine'
+    args:
+      eta_min: 0.001
+  aux_weight: 0.4
+  drop_path_prob: 0.2
+  w_grad_clip: 5.
+  epochs: 600
+  print_freq: 200
+  save_freq: 200
+---
+arch_optim:
+  type: 'DARTS'
+  w_momentum: 0.9
+  w_weight_decay: 0.001
+---
+mixed_op:
+  type: 'DARTS'
+---
+ops:
+  sepconv_stack: True
+  ops_order: 'act_weight_bn'
+  affine: True
+---
+criterion:
+  type: 'CE'
+---
+model:
+  type: 'DARTS'
+  classes: 10             # use 10 for MNIST, CIFAR10
+  channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
+  channel_init: 36        # init channel
+  channel_multiplier: 3   # init channel multiplier
+  nodes: 4                # num of nodes (states) per layer
+  layers: 20              # num of DAG layers (cells) in model
+  inputs_model: 1
+  inputs_layer: 2
+  inputs_node: 1
+  shared_a: True
+  auxiliary: True
+---
+primitives:
+  - 'AVG'
+  - 'MAX'
+  - 'SC3'
+  - 'SC5'
+  - 'DC3'
+  - 'DC5'
+  - 'IDT'
+  - 'NIL'
+---
+log:
+  writer: False
+---
+device:
+  gpus: 'all'
+  seed: 2
+---
+tune:
+  tuner: 'Random'
+---
+genotypes:
+  gt_str: ''
+  gt_path: ''
