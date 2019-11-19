@@ -308,9 +308,9 @@ class NASController(nn.Module):
             gene_dag = self.net.to_genotype(*args, **kwargs)
             return gt.Genotype(dag=gene_dag, ops=None)
         except AttributeError:
-            return self.to_genotype_ops()
+            return self.to_genotype_ops(*args, **kwargs)
     
-    def to_genotype_ops(self):
+    def to_genotype_ops(self, *args, **kwargs):
         gene_ops = NASModule.to_genotype_all(*args, **kwargs)
         return gt.Genotype(dag=None, ops=gene_ops)
     

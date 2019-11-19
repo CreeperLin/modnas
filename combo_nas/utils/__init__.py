@@ -207,13 +207,12 @@ def get_same_padding(kernel_size):
 
 def param_size(model):
     """ Compute parameter size in MB """
-    n_params = sum(
-        np.prod(v.size()) for k, v in model.named_parameters() if not k.startswith('aux_head'))
+    n_params = sum(p.data.nelement() for p in model.parameters())
     return 4 * n_params / 1024. / 1024.
 
 def param_count(model):
     """ Compute parameter count in million """
-    n_params = sum([p.data.nelement() for p in model.parameters()])
+    n_params = sum(p.data.nelement() for p in model.parameters())
     return n_params / 1e6
 
 class AverageMeter():

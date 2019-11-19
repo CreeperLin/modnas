@@ -6,22 +6,6 @@ import torch.nn.functional as F
 from ..utils import param_count
 from ..arch_space.constructor import Slot
 
-class PreprocLayer(nn.Module):
-    """ Standard conv
-    ReLU - Conv - BN
-    """
-    def __init__(self, C_in, C_out, affine=False):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.ReLU(),
-            nn.Conv2d(C_in, C_out, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(C_out, affine=affine)
-        )
-
-    def forward(self, x):
-        return self.net(x)
-
-
 class DAGLayer(nn.Module):
     _edge_id = 0
     

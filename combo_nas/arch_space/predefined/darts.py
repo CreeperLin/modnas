@@ -3,12 +3,15 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from ...core.layers import DAGLayer
-from ...core.ops import FactorizedReduce
-from ...core.layers import PreprocLayer
+from ...core.ops import FactorizedReduce, StdConv
 from ...core.defs import ConcatMerger, SumMerger, CombinationEnumerator, ReplicateAllocator
 from ...arch_space.constructor import Slot
+
+class PreprocLayer(StdConv):
+    def __init__(self, C_in, C_out):
+        super(PreprocLayer, self).__init__(C_in, C_out, 1, 1, 0)
+
 
 class AuxiliaryHead(nn.Module):
     """ Auxiliary head in 2/3 place of network to let the gradient flow well """
