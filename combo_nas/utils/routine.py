@@ -192,12 +192,11 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
     update_arch = False
     if not arch_optim is None:
         update_arch = True
-        arch_update_freq = config.arch_update_freq
-        if arch_update_freq == -1: # update proportionally
-            arch_update_freq = n_val_batch if not valid_loader is None else n_trn_batch
-        elif arch_update_freq == 0: # update every step
-            arch_update_freq = n_trn_batch
-        arch_update_intv = n_trn_batch // arch_update_freq
+        arch_update_intv = config.arch_update_intv
+        if arch_update_intv == -1: # update proportionally
+            arch_update_intv = n_trn_batch // n_val_batch if not valid_loader is None else 1
+        elif arch_update_intv == 0: # update every step
+            arch_update_intv = n_trn_batch
         arch_update_batch = config.arch_update_batch
 
     model.train()

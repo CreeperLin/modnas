@@ -45,6 +45,8 @@ def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_f
     # genotype
     if config.genotypes.disable_dag:
         model.to_genotype = model.to_genotype_ops
+    # init
+    model.init_model(config.init)
     return {
         'expman': expman,
         'train_loader': trn_loader,
@@ -85,6 +87,8 @@ def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=No
     # model
     crit = utils.get_net_crit(config.criterion)
     model = build_nas_controller(supernet, crit, dev, dev_list)
+    # init
+    model.init_model(config.init)
     return {
         'expman': expman,
         'train_loader': trn_loader,

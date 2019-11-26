@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import logging
 import torch
 import torch.nn as nn
@@ -7,7 +8,6 @@ from ..arch_space import genotypes as gt
 from .ops import DropPath_, configure_ops
 from ..utils.profiling import tprof
 from ..utils import param_count, get_current_device, get_net_crit
-import traceback
 
 class NASModule(nn.Module):
     _init_ratio = 1e-3
@@ -318,7 +318,6 @@ class NASController(nn.Module):
         try:
             self.net.build_from_genotype(gene, *args, **kwargs)
         except AttributeError:
-            # traceback.print_exc()
             NASModule.build_from_genotype_all(gene, *args, **kwargs)
 
     def weights(self, check_grad=False):
@@ -354,6 +353,45 @@ class NASController(nn.Module):
         for module in self.modules():
             if isinstance(module, DropPath_):
                 module.p = p
+
+    def init_model(self, config):
+        init_type = config.type
+        init_div_groups = config.conv_div_groups
+        if init_type == 'none': return
+        a = 0.
+        gain = math.sqrt(2. / (1 + a**2))
+        for n, m in self.named_modules():
+            if isinstance(m, nn.Conv2d):
+                fan = m.kernel_size[0] * m.kernel_size[1]
+                if init_div_groups:
+                    fan /= m.groups
+                if init_type == 'he_normal_fout':
+                    fan *= m.out_channels
+                    stdv = gain / math.sqrt(fan)
+                    nn.init.normal_(m.weight, 0, stdv)
+                elif init_type == 'he_normal_fin':
+                    fan *= m.in_channels
+                    stdv = gain / math.sqrt(fan)
+                    nn.init.normal_(m.weight, 0, stdv)
+                elif init_type == 'he_uniform_fout':
+                    fan *= m.out_channels
+                    b = math.sqrt(3.) * gain / math.sqrt(fan)
+                    nn.init.uniform_(m.weight, -b, b)
+                elif init_type == 'he_uniform_fin':
+                    fan *= m.in_channels
+                    b = math.sqrt(3.) * gain / math.sqrt(fan)
+                    nn.init.uniform_(m.weight, -b, b)
+                else:
+                    raise NotImplementedError
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                if not m.weight is None: nn.init.ones_(m.weight)
+                if not m.bias is None: nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                stdv = 1. / math.sqrt(m.weight.size(1))
+                nn.init.uniform_(m.weight, -stdv, stdv)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+
 
 def build_nas_controller(net, crit, device, dev_list, verbose=False):
     NASModule.set_device(dev_list)

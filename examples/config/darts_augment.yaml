@@ -39,7 +39,6 @@ search:
   print_freq: 200
   save_freq: 25
   plot: False
----
 augment:
   data:
     type: 'CIFAR10'
@@ -71,24 +70,19 @@ augment:
   epochs: 600
   print_freq: 200
   save_freq: 200
----
 arch_optim:
   type: 'DARTS'
   w_momentum: 0.9
   w_weight_decay: 0.001
----
 mixed_op:
   type: 'DARTS'
----
 ops:
   sepconv_stack: True
   ops_order: 'act_weight_bn'
   affine: True
----
 criterion:
   type: 'LS'
   eta: 0.1
----
 model:
   type: 'DARTS'
   classes: 10             # use 10 for MNIST, CIFAR10
@@ -102,7 +96,6 @@ model:
   inputs_node: 1
   shared_a: True
   auxiliary: True
----
 primitives:
   - 'AVG'
   - 'MAX'
@@ -112,17 +105,15 @@ primitives:
   - 'DC5'
   - 'IDT'
   - 'NIL'
----
 log:
   writer: False
----
 device:
   gpus: 'all'
   seed: 2
----
 tune:
   tuner: 'Random'
----
 genotypes:
   gt_str: ''
   gt_path: ''
+init:
+  type: 'he_normal_fout'

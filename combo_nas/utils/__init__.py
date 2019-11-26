@@ -59,7 +59,7 @@ def check_config(hp, name):
         'augment.data.dloader.cutout': 16,
         'search.data.dloader.jitter': True,
         'augment.data.dloader.jitter': True,
-        'search.arch_update_freq': -1,
+        'search.arch_update_intv': -1,
         'search.arch_update_batch': 1,
         'search.plot': False,
         'search.aux_weight': 0.0,
@@ -73,6 +73,8 @@ def check_config(hp, name):
         'genotypes.disable_dag': False,
         'genotypes.gt_str': '',
         'genotypes.gt_path': '',
+        'init.type': 'he_normal_fout',
+        'init.conv_div_groups': True,
     }
 
     for i in defaults:
@@ -83,6 +85,7 @@ def check_config(hp, name):
         except:
             if a != i.split('.')[-1]:
                 flag = True
+                logging.error('check_config: node {} in field {} missing'.format(a, i))
                 continue
             else:
                 logging.warning('check_config: setting field {} to default: {}'.format(i, defaults[i]))
@@ -91,8 +94,6 @@ def check_config(hp, name):
     if flag:
         return True
 
-    hp.search.path = os.path.join('searchs', name)
-    hp.search.plot_path = os.path.join(hp.search.path, 'plot')
     logging.info('check_config: OK')
     return False
 

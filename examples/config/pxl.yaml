@@ -39,7 +39,6 @@ search:
   epochs: 200
   print_freq: 200
   save_freq: 100
----
 augment:
   data:
     type: 'CIFAR10'
@@ -70,7 +69,6 @@ augment:
   w_grad_clip: 0.0
   print_freq: 200
   save_freq: 300
----
 arch_optim:
   # type: 'DARTS'
   type: 'BinGate'
@@ -80,22 +78,18 @@ arch_optim:
   w_momentum: 0.9
   w_weight_decay: 0.0003
   renorm: True
----
 mixed_op:
   type: 'BinGate'
   args:
     sample_dist: 'multinomial'
   # type: 'DARTS'
----
 ops:
   sepconv_stack: False
   ops_order: 'bn_act_weight'
   affine: False
----
 criterion:
   type: 'LS'
   eta: 0.1
----
 model:
   type: 'ProxylessNAS'
   classes: 10             # use 10 for MNIST, CIFAR10
@@ -112,7 +106,6 @@ model:
   use_avg: False
   bn_before_add: True
   pxl_ops_order: 'bn_act_weight'
----
 primitives:
   - 'AVG'
   - 'MAX'
@@ -122,17 +115,15 @@ primitives:
   - 'SC7'
   - 'DC3'
   - 'NIL'
----
 log:
   writer: False
----
 device:
   gpus: 'all'
   seed: 2
----
 tune:
   tuner: 'Random'
----
 genotypes:
   gt_str: ''
   gt_path: ''
+init:
+  type: 'he_normal_fout'
