@@ -29,7 +29,7 @@ def parse_gpus(gpus):
     else:
         return [int(s) for s in gpus.split(',')]
 
-def check_config(hp, name):
+def check_config(hp, name, excludes=[]):
     required = (
         'search.data.type',
         'augment.data.type',
@@ -49,6 +49,7 @@ def check_config(hp, name):
                 logging.error('check_config: field {} requires non-empty value'.format(i))
                 flag = True
         except:
+            if a in excludes: continue
             logging.error('check_config: field {} is missing'.format(i))
             flag = True
 
@@ -59,6 +60,8 @@ def check_config(hp, name):
         'augment.data.dloader.cutout': 16,
         'search.data.dloader.jitter': True,
         'augment.data.dloader.jitter': True,
+        'search.arch_update_epoch_start': 0,
+        'search.arch_update_epoch_intv': 1,
         'search.arch_update_intv': -1,
         'search.arch_update_batch': 1,
         'search.plot': False,
@@ -83,6 +86,7 @@ def check_config(hp, name):
             for a in i.split('.'):
                 ddict = getattr(ddict, a)
         except:
+            if a in excludes: continue
             if a != i.split('.')[-1]:
                 flag = True
                 logging.error('check_config: node {} in field {} missing'.format(a, i))

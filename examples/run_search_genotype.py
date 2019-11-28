@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import argparse
-
 from model import *
-import combo_nas.utils as utils
-from combo_nas.utils.config import Config
 from combo_nas.utils.routine import search
 from combo_nas.utils.wrapper import init_all_search
 
@@ -23,15 +20,10 @@ def main():
                         help="override genotype file")
     args = parser.parse_args()
 
-    config = Config(args.config)
-    if utils.check_config(config, args.name):
-        raise Exception("Config error.")
-    conf_str = config.to_string()
-
     exp_root_dir = os.path.join('exp', args.name)
     convert_fn = custom_genotype_space_cvt
-    search_kwargs = init_all_search(config, args.name, exp_root_dir, args.device, args.genotype, convert_fn=convert_fn)
-    search(config=config.search, chkpt_path=args.chkpt, **search_kwargs)
+    search_kwargs = init_all_search(args.config, args.name, exp_root_dir, args.chkpt, args.device, args.genotype, convert_fn=convert_fn)
+    search(**search_kwargs)
 
 
 if __name__ == '__main__':

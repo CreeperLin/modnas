@@ -116,8 +116,8 @@ class ResNet(nn.Module):
         #     nn.Conv2d(chn_in, self.chn, kernel_size=7, stride=2, padding=3, bias=False),
         #     norm_layer(self.chn),
         #     nn.ReLU(inplace=True),
+        #     nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         # )
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layers = nn.Sequential(*[
             self._make_layer(block, (2 ** i) * chn, layers[i], stride=(1 if i==0 else 2), norm_layer=norm_layer)
         for i in range(len(layers))])
@@ -156,7 +156,6 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.maxpool(x)
 
         x = self.layers(x)
         x = self.avgpool(x)
@@ -268,6 +267,19 @@ def resnet101(config, pretrained=False, **kwargs):
     model = ResNet(chn_in, chn, Bottleneck, [3, 4, 23, 3], num_classes=n_classes, **kwargs)
     # if pretrained:
     #     model.load_state_dict(model_zoo.load_url(model_urls['resnet101']))
+    return model
+
+
+def resnet110(config, pretrained=False, **kwargs):
+    """Constructs a ResNet-110 model.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    chn_in = config.channel_in
+    chn = config.channel_init
+    n_classes = config.classes
+    model = ResNet(chn_in, chn, BasicBlock, [18, 18, 18], num_classes=n_classes, **kwargs)
     return model
 
 

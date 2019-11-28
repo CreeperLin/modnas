@@ -8,9 +8,21 @@ from ..arch_space.constructor import Slot
 from ..core.nas_modules import NASModule, build_nas_controller
 from ..arch_optim import build_arch_optim
 from .. import utils as utils
+from ..utils.config import Config
 from ..arch_space import genotypes as gt
 
-def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_fn=None):
+def load_config(conf, name, excludes):
+    if isinstance(conf, Config):
+        config = conf
+    else:
+        config = Config(conf)
+    if utils.check_config(config, name, excludes):
+        raise Exception("config error.")
+    config_str = config.to_string()
+    return config
+
+def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, convert_fn=None):
+    config = load_config(config, name, excludes=['augment'])
     # dir
     expman = ExpManager(exp_root_dir)
     logger = utils.get_logger(expman.logs_path, name)
@@ -47,7 +59,11 @@ def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_f
         model.to_genotype = model.to_genotype_ops
     # init
     model.init_model(config.init)
+    # chkpt
+    chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
+        'config': config.search,
+        'chkpt_path': chkpt,
         'expman': expman,
         'train_loader': trn_loader,
         'valid_loader': val_loader,
@@ -59,7 +75,8 @@ def init_all_search(config, name, exp_root_dir, device, genotype=None, convert_f
     }
 
 
-def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=None):
+def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, convert_fn=None):
+    config = load_config(config, name, excludes=['search'])
     # dir
     expman = ExpManager(exp_root_dir)
     logger = utils.get_logger(expman.logs_path, name)
@@ -89,7 +106,11 @@ def init_all_augment(config, name, exp_root_dir, device, genotype, convert_fn=No
     model = build_nas_controller(supernet, crit, dev, dev_list)
     # init
     model.init_model(config.init)
+    # chkpt
+    chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
+        'config': config.augment,
+        'chkpt_path': chkpt,
         'expman': expman,
         'train_loader': trn_loader,
         'valid_loader': val_loader,

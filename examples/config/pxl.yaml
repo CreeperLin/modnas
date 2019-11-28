@@ -22,13 +22,6 @@ search:
     # type: 'adabound'
     # lr: 0.001
     # final_lr: 0.05
-  a_optim:
-    type: 'adam'
-    lr: 0.006
-    betas: 
-      - 0.0
-      - 0.999
-    weight_decay: 0
   lr_scheduler:
     type: 'cosine'
     args:
@@ -78,6 +71,13 @@ arch_optim:
   w_momentum: 0.9
   w_weight_decay: 0.0003
   renorm: True
+  a_optim:
+    type: 'adam'
+    lr: 0.006
+    betas: 
+      - 0.0
+      - 0.999
+    weight_decay: 0
 mixed_op:
   type: 'BinGate'
   args:

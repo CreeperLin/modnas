@@ -6,6 +6,7 @@ from combo_nas.core.ops import configure_ops, register_op, update_op, build_op
 from combo_nas.core.mixed_ops import build_mixed_op
 from combo_nas.core.nas_modules import NASModule
 import combo_nas.arch_space as arch_space
+import combo_nas.core.mixed_ops as mixed_ops
 
 class Prim1(nn.Module):
     def __init__(self, C, stride):
@@ -51,6 +52,7 @@ custom_primitives = {
 
 custom_ops = ['P1', 'P2', 'P3']
 
+@mixed_ops.register('CustomMixedOp')
 class CustomMixOp(NASModule):
     def __init__(self, C_in, stride, ops, shared_param):
         params_shape = (len(ops), )

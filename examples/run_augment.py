@@ -5,10 +5,6 @@ import random
 import time
 import torch
 import argparse
-
-from model import *
-import combo_nas.utils as utils
-from combo_nas.utils.config import Config
 from combo_nas.utils.routine import augment
 from combo_nas.utils.wrapper import init_all_augment
 
@@ -26,13 +22,9 @@ def main():
                         help="override genotype file")
     args = parser.parse_args()
 
-    config = Config(args.config)
-    if utils.check_config(config, args.name):
-        raise Exception("Config error.")
-    
     exp_root_dir = os.path.join('exp', args.name)
-    augment_kwargs = init_all_augment(config, args.name, exp_root_dir, args.device, args.genotype)
-    augment(config.augment, args.chkpt, **augment_kwargs)
+    augment_kwargs = init_all_augment(args.config, args.name, exp_root_dir, args.chkpt, args.device, args.genotype)
+    augment(**augment_kwargs)
 
 
 if __name__ == '__main__':

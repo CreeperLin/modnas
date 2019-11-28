@@ -35,20 +35,19 @@ class RandomTuner(Tuner):
     def __init__(self, space, seed=None):
         super(RandomTuner, self).__init__(space)
         self.visited = set()
+        self.counter = 0
         seed = int(time.time()) if seed is None else seed
         rng = np.random.RandomState()
         rng.seed(seed)
         self.np_random = rng
 
     def next(self):
-        ret = []
-        counter = 0
         if len(self.visited) >= len(self.space): return None
         index = self.np_random.randint(len(self.space))
         while index in self.visited:
             index = self.np_random.randint(len(self.space))
         self.visited.add(index)
-        counter += 1
+        self.counter += 1
         return self.space.get(index)
     
     def update(self, inputs, result):

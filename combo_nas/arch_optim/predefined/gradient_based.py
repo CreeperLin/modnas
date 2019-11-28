@@ -1,17 +1,33 @@
 """ Architect controls architecture of cell by computing gradients of alphas """
 import copy
 import torch
+from .base import ArchOptimBase
 from ...core.nas_modules import NASModule
+from ...utils import get_optim, accuracy
 
-class DARTSArchitect():
+class GradientBasedArchOptim(ArchOptimBase):
+    def __init__(self, config, net):
+        super().__init__(config, net)
+        self.a_optim = get_optim(net.alphas(), config.a_optim)
+        self.a_optim.zero_grad()
+
+    def state_dict(self):
+        return {
+            'a_optim': self.a_optim.state_dict()
+        }
+    
+    def load_state_dict(self, sd):
+        self.a_optim.load_state_dict(sd['a_optim'])
+
+    def optim_step(self):
+        self.a_optim.step()
+        self.a_optim.zero_grad()
+
+
+class DARTSArchitect(GradientBasedArchOptim):
     """ Compute gradients of alphas """
     def __init__(self, config, net):
-        """
-        Args:
-            net
-            w_momentum: weights momentum
-        """
-        self.net = net
+        super().__init__(config, net)
         self.v_net = copy.deepcopy(net)
         self.w_momentum = config.w_momentum
         self.w_weight_decay = config.w_weight_decay
@@ -46,7 +62,7 @@ class DARTSArchitect():
             for a, va in zip(self.net.alphas(), self.v_net.alphas()):
                 va.copy_(a)
 
-    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
+    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim):
         """ Compute unrolled loss and backward its gradients
         Args:
             lr: learning rate for virtual gradient step (same as net lr)
@@ -67,7 +83,7 @@ class DARTSArchitect():
         with torch.no_grad():
             for alpha, da, h in zip(self.net.alphas(), dalpha, hessian):
                 alpha.grad = da - lr*h
-        a_optim.step()
+        self.optim_step()
 
     def compute_hessian(self, dw, trn_X, trn_y):
         """
@@ -99,20 +115,15 @@ class DARTSArchitect():
         return hessian
 
 
-class BinaryGateArchitect():
+class BinaryGateArchitect(GradientBasedArchOptim):
     """ Compute gradients of alphas """
     def __init__(self, config, net):
-        """
-        Args:
-            net
-            w_momentum: weights momentum
-        """
-        self.net = net
+        super().__init__(config, net)
         self.n_samples = config.n_samples
         self.sample = (self.n_samples!=0)
         self.renorm = config.renorm and self.sample
 
-    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
+    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim):
         """ Compute unrolled loss and backward its gradients
         Args:
             lr: learning rate for virtual gradient step (same as net lr)
@@ -127,7 +138,7 @@ class BinaryGateArchitect():
         NASModule.backward_all(loss)
         # renormalization
         if not self.renorm:
-            a_optim.step()
+            self.optim_step()
         else:
             prev_pw = []
             for p, m in NASModule.param_modules():
@@ -138,7 +149,7 @@ class BinaryGateArchitect():
                 k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
                 prev_pw.append(k)
 
-            a_optim.step()
+            self.optim_step()
 
             for kprev, (p, m) in zip(prev_pw, NASModule.param_modules()):
                 s_op = m.get_state('s_op')
@@ -151,9 +162,68 @@ class BinaryGateArchitect():
         NASModule.module_call('reset_ops')
 
 
-class DummyArchitect():
+class DummyArchitect(GradientBasedArchOptim):
     def __init__(self, config, net):
-        pass
+        super().__init__(config, net)
+    
+    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim):
+        self.optim_step()
+
+
+class REINFORCE(GradientBasedArchOptim):
+    def __init__(self, config, net):
+        super().__init__(config, net)
+        self.batch_size = config.architect.batch_size
+        self.baseline = None
+        self.baseline_decay_weight = 0.99
+
+    def reward(self, net_info):
+        acc1 = net_info['acc1']
+        acc_reward = acc1
+        total_reward = acc_reward
+        return total_reward
     
     def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
-        a_optim.step()
+        grad_batch = []
+        reward_batch = []
+        net_info_batch = []
+        for i in range(self.batch_size):
+            logits = self.net.logits(val_X)
+            acc1, acc5 = accuracy(logits, val_y, topk=(1, 5))
+            net_info = {'acc1':acc1.item(), }
+            net_info_batch.append(net_info)
+            # calculate reward according to net_info
+            reward = self.reward(net_info)
+            # loss term
+            obj_term = 0
+            for m in self.net.mixed_ops():
+                if m.arch_param.grad is not None:
+                    m.arch_param.grad.data.zero_()
+                path_prob = m.get_state('w_path_f')
+                smpl = m.get_state('s_path_f')
+                path_prob_f = path_prob.index_select(-1, smpl)
+                obj_term = obj_term + torch.log(path_prob_f)
+            loss = -obj_term
+            # backward
+            loss.backward()
+            # take out gradient dict
+            grad_list = []
+            for m in self.net.mixed_ops():
+                grad_list.append(m.arch_param.grad.data.clone())
+            grad_batch.append(grad_list)
+            reward_batch.append(reward)
+
+        # update baseline function
+        avg_reward = sum(reward_batch) / self.batch_size
+        if self.baseline is None:
+            self.baseline = avg_reward
+        else:
+            self.baseline += self.baseline_decay_weight * (avg_reward - self.baseline)
+        # assign gradients
+        for idx, m in enumerate(self.net.mixed_ops()):
+            m.arch_param.grad.data.zero_()
+            for j in range(self.batch_size):
+                m.arch_param.grad.data += (reward_batch[j] - self.baseline) * grad_batch[j][idx]
+            m.arch_param.grad.data /= self.batch_size
+        # apply gradients
+        self.optim_step()

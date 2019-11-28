@@ -33,7 +33,6 @@ def main():
     hp_space = build_hparam_space('hparams.json')
     tuner = build_hparam_tuner(config.tune.tuner, hp_space)
 
-
     def measure(hp):
         global trial_index
         trial_config = copy.deepcopy(config)
@@ -42,8 +41,8 @@ def main():
         exp_root_dir = os.path.join('exp', trial_name)
         trial_index += 1
         try:
-            search_kwargs = init_all_search(trial_config, trial_name, exp_root_dir, args.device, convert_fn=None)
-            best_top1, best_gt, gts = search(trial_config.search, args.chkpt, **search_kwargs)
+            search_kwargs = init_all_search(trial_config, trial_name, exp_root_dir, args.chkpt, args.device, convert_fn=None)
+            best_top1, best_gt, gts = search(**search_kwargs)
             score = best_top1
             error_no = 0
         except Exception as e:

@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 import os
 import argparse
-
-import combo_nas.utils as utils
-from combo_nas.utils.config import Config
 from combo_nas.utils.routine import search
 from combo_nas.utils.wrapper import init_all_search
 
@@ -20,15 +17,10 @@ def main():
                         help="override device ids")
     args = parser.parse_args()
 
-    config = Config(args.config)
-    if utils.check_config(config, args.name):
-        raise Exception("config error.")
-    config_str = config.to_string()
-
     exp_root_dir = os.path.join('exp', args.name)
 
-    search_kwargs = init_all_search(config, args.name, exp_root_dir, args.device, convert_fn=None)
-    search(config=config.search, chkpt_path=args.chkpt, **search_kwargs)
+    search_kwargs = init_all_search(args.config, args.name, exp_root_dir, args.chkpt, args.device, convert_fn=None)
+    search(**search_kwargs)
 
 
 if __name__ == '__main__':

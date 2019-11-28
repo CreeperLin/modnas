@@ -17,7 +17,7 @@ class DARTSMixedOp(NASModule):
     """ Mixed operation as in DARTS """
     def __init__(self, chn_in, chn_out, stride, ops, pid=None):
         params_shape = (len(ops), )
-        super().__init__(params_shape, pid)
+        super().__init__(ops, params_shape, pid)
         self.ops = ops
         self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
         self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
@@ -53,7 +53,7 @@ class BinGateMixedOp(NASModule):
     """ Mixed operation controlled by binary gate """
     def __init__(self, chn_in, chn_out, stride, ops, pid=None, n_samples=1, sample_dist='multinomial'):
         params_shape = (len(ops), )
-        super().__init__(params_shape, pid)
+        super().__init__(ops, params_shape, pid)
         self.ops = ops
         self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
         self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
@@ -61,7 +61,6 @@ class BinGateMixedOp(NASModule):
         self.n_samples = n_samples
         self.stride = stride
         self._ops = nn.ModuleList()
-        self.fixed = False
         for primitive in ops:
             op = build_op(primitive, self.chn_in, self.chn_out, stride)
             self._ops.append(op)
@@ -152,6 +151,42 @@ class BinGateMixedOp(NASModule):
         gene = [ops[i] for i in prim_idx]
         if gene == []: return -1, [None]
         return w_max, gene
+
+
+class IndexMixedOp(NASModule):
+    """ Mixed operation controlled by external index """
+    def __init__(self, chn_in, chn_out, stride, ops, pid=None):
+        params_shape = (len(ops), )
+        super().__init__(ops, params_shape, pid)
+        self.ops = ops
+        self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
+        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
+        self.chn_out = chn_out if isinstance(chn_out, int) else chn_out[0]
+        self.n_samples = n_samples
+        self.stride = stride
+        self._ops = nn.ModuleList([
+            build_op(prim, self.chn_in, self.chn_out, stride) for prim in ops
+        ])
+        # logging.debug("IndexMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
+        self.params_shape = params_shape
+        self.chn_out = self.chn_in
+    
+    def param_forward(self, p):
+        pass
+
+    def forward(self, x):
+        x = x[0] if isinstance(x, list) else x
+        smp = self.get_state('s_path_f')
+        return sum(self._ops[i](x) for i in smp)
+
+    def to_genotype(self, k=1):
+        ops = self.ops
+        if self.pid == -1: return -1, [None]
+        w_max, prim_idx = torch.topk(w, k)
+        gene = [ops[i] for i in prim_idx]
+        if gene == []: return -1, [None]
+        return 0, gene
+
 
 register_mixed_op(DARTSMixedOp, 'DARTS')
 register_mixed_op(BinGateMixedOp, 'BinGate')

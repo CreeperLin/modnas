@@ -10,14 +10,14 @@ from .profiling import tprof
 from ..arch_space import genotypes as gt
 from ..core.nas_modules import NASModule
 
-def save_checkpoint(expman, model, w_optim, a_optim, lr_scheduler, epoch, logger):
+def save_checkpoint(expman, model, w_optim, arch_optim, lr_scheduler, epoch, logger):
     try:
         save_path = expman.join('chkpt', 'chkpt_{:03d}.pt'.format(epoch+1))
         torch.save({
             'model': model.state_dict(),
             'arch': NASModule.nasmod_state_dict(),
             'w_optim': w_optim.state_dict(),
-            'a_optim': None if a_optim is None else a_optim.state_dict(),
+            'arch_optim': None if arch_optim is None else arch_optim.state_dict(),
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,
         }, save_path)
@@ -37,7 +37,6 @@ def save_genotype(expman, genotype, epoch, logger):
 
 def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_optim, writer, logger, device):
     w_optim = utils.get_optim(model.weights(), config.w_optim)
-    a_optim = utils.get_optim(model.alphas(), config.a_optim)
     lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, config.epochs)
     
     if chkpt_path is not None:
@@ -46,7 +45,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
         model.load_state_dict(checkpoint['model'])
         NASModule.nasmod_load_state_dict(checkpoint['arch'])
         w_optim.load_state_dict(checkpoint['w_optim'])
-        a_optim.load_state_dict(checkpoint['a_optim'])
+        arch_optim.load_state_dict(checkpoint['arch_optim'])
         lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
         init_epoch = checkpoint['epoch']
         resume = True
@@ -69,7 +68,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
                 lr = warmup_lr_scheduler.get_lr()[0]
 
                 # training
-                train(train_loader, None, model, writer, logger, None, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
+                train(train_loader, None, model, writer, logger, None, w_optim, lr, epoch, tot_epochs, device, config)
 
                 # validation
                 cur_step = (epoch+1) * len(train_loader)
@@ -79,7 +78,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
     except KeyboardInterrupt:
         logger.info('skipped')
     
-    save_checkpoint(expman, model, w_optim, a_optim, lr_scheduler, init_epoch, logger)
+    save_checkpoint(expman, model, w_optim, arch_optim, lr_scheduler, init_epoch, logger)
     save_genotype(expman, model.to_genotype(), init_epoch, logger)
 
     # training loop
@@ -92,7 +91,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
         lr = lr_scheduler.get_lr()[0]
         model.print_alphas(logger)
         # training
-        trn_top1 = train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config)
+        trn_top1 = train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, lr, epoch, tot_epochs, device, config)
         # validation
         cur_step = (epoch+1) * len(train_loader)
         val_top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config) 
@@ -113,7 +112,7 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
             best_genotype = genotype
 
         if config.save_freq != 0 and epoch % config.save_freq == 0:
-            save_checkpoint(expman, model, w_optim, a_optim, lr_scheduler, epoch, logger)
+            save_checkpoint(expman, model, w_optim, arch_optim, lr_scheduler, epoch, logger)
 
         lr_scheduler.step()
         
@@ -154,7 +153,7 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
         lr = lr_scheduler.get_lr()[0]
 
         # training
-        trn_top1 = train(train_loader, None, model, writer, logger, None, w_optim, None, lr, epoch, tot_epochs, device, config)
+        trn_top1 = train(train_loader, None, model, writer, logger, None, w_optim, lr, epoch, tot_epochs, device, config)
 
         # validation
         cur_step = (epoch+1) * len(train_loader)
@@ -176,7 +175,7 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
     return best_top1
 
 
-def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, a_optim, lr, epoch, tot_epochs, device, config):
+def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim, lr, epoch, tot_epochs, device, config):
     top1 = utils.AverageMeter()
     top5 = utils.AverageMeter()
     losses = utils.AverageMeter()
@@ -191,13 +190,16 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
 
     update_arch = False
     if not arch_optim is None:
-        update_arch = True
-        arch_update_intv = config.arch_update_intv
-        if arch_update_intv == -1: # update proportionally
-            arch_update_intv = n_trn_batch // n_val_batch if not valid_loader is None else 1
-        elif arch_update_intv == 0: # update every step
-            arch_update_intv = n_trn_batch
-        arch_update_batch = config.arch_update_batch
+        arch_epoch_start = config.arch_update_epoch_start
+        arch_epoch_intv = config.arch_update_epoch_intv
+        if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
+            update_arch = True
+            arch_update_intv = config.arch_update_intv
+            if arch_update_intv == -1: # update proportionally
+                arch_update_intv = n_trn_batch // n_val_batch if not valid_loader is None else 1
+            elif arch_update_intv == 0: # update every step
+                arch_update_intv = n_trn_batch
+            arch_update_batch = config.arch_update_batch
 
     model.train()
     eta_m = utils.ETAMeter(tot_epochs, epoch, n_trn_batch)
@@ -208,8 +210,7 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
         N = trn_X.size(0)
         tprof.timer_stop('data')
         w_optim.zero_grad()
-        if not a_optim is None: a_optim.zero_grad()
-        # phase 1. child network step (w)
+        # phase 1. child network step
         tprof.timer_start('train')
         loss, logits = model.loss_logits(trn_X, trn_y, config.aux_weight)
         loss.backward()
@@ -218,12 +219,12 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
             nn.utils.clip_grad_norm_(model.weights(), config.w_grad_clip)
         w_optim.step()
         tprof.timer_stop('train')
-        # phase 2. arch_optim step (alpha)
+        # phase 2. arch_optim step
         if update_arch and (step+1) % arch_update_intv == 0:
             for a_batch in range(arch_update_batch):
                 if valid_loader is None:
                     tprof.timer_start('arch')
-                    arch_optim.step(trn_X, trn_y, trn_X, trn_y, lr, w_optim, a_optim)
+                    arch_optim.step(trn_X, trn_y, trn_X, trn_y, lr, w_optim)
                 else:
                     tprof.timer_start('data')
                     try:
@@ -234,7 +235,7 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
                     val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
                     tprof.timer_stop('data')
                     tprof.timer_start('arch')
-                    arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim)
+                    arch_optim.step(trn_X, trn_y, val_X, val_y, lr, w_optim)
                 tprof.timer_stop('arch')
 
         prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))

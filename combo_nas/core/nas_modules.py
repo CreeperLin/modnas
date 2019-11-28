@@ -19,8 +19,9 @@ class NASModule(nn.Module):
     _params_map = {}
     _dev_list = [get_current_device()]
 
-    def __init__(self, params_shape, pid=None):
+    def __init__(self, ops, params_shape, pid=None):
         super().__init__()
+        self.ops = ops
         self.id = self.get_new_id()
         if pid==-1:
             self.pid = NASModule._param_id
@@ -235,6 +236,33 @@ class NASModule(nn.Module):
         raise NotImplementedError
 
 
+class ArchParamSpace():
+    '''
+        discrete arch descriptor space
+    '''
+    def __init__(self):
+        self.arch_param_map = list()
+        self._length = None
+        for m in NASModule.modules():
+            self.arch_param_map.append(m.ops)
+    
+    def __len__(self):
+        if self._length is None:
+            self._length = int(np.prod([len(x) for x in self.arch_param_map]))
+        return self._length
+    
+    def get_dim(self, idx):
+        return self.arch_param_map[idx]
+    
+    def get(self, idx):
+        arch_param = []
+        for ap in self.arch_param_map:
+            ap_dim = len(ap)
+            arch_param.append(ap[idx % ap_dim])
+            idx //= ap_dim
+        return arch_param
+
+
 class NASController(nn.Module):
     def __init__(self, net, criterion, device_ids=None):
         super().__init__()
@@ -244,6 +272,7 @@ class NASController(nn.Module):
             device_ids = list(range(torch.cuda.device_count()))
         self.device_ids = device_ids
         self.net = net
+        self.arch_param_space = ArchParamSpace()
 
     def forward(self, x):
         if not self.augment: NASModule.param_forward_all()
@@ -335,16 +364,6 @@ class NASController(nn.Module):
     def alphas(self):
         return NASModule.params()
 
-    def named_alphas(self):
-        for n, p in self._alphas:
-            yield n, p
-
-    def alpha_grad(self, loss):
-        return NASModule.params_grad()
-
-    def alpha_backward(self, loss):
-        NASModule.param_backward(loss)
-    
     def mixed_ops(self):
         return NASModule.modules()
     

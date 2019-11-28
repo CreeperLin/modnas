@@ -1,5 +1,4 @@
-from .gradient_based import DARTSArchitect, BinaryGateArchitect, DummyArchitect
-from .reinforce import REINFORCE
+from .gradient_based import DARTSArchitect, BinaryGateArchitect, DummyArchitect, REINFORCE
 from ...utils.registration import Registry, build, get_builder, register, register_wrapper
 from functools import partial
 
