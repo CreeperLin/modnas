@@ -209,9 +209,9 @@ def train(train_loader, valid_loader, model, writer, logger, arch_optim, w_optim
         trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
         N = trn_X.size(0)
         tprof.timer_stop('data')
-        w_optim.zero_grad()
         # phase 1. child network step
         tprof.timer_start('train')
+        w_optim.zero_grad()
         loss, logits = model.loss_logits(trn_X, trn_y, config.aux_weight)
         loss.backward()
         # gradient clipping

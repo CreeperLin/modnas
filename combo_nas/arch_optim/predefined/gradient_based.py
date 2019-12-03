@@ -140,24 +140,26 @@ class BinaryGateArchitect(GradientBasedArchOptim):
         if not self.renorm:
             self.optim_step()
         else:
-            prev_pw = []
-            for p, m in NASModule.param_modules():
-                s_op = m.get_state('s_op')
-                pdt = p.detach()
-                pp = pdt.index_select(-1,s_op)
-                if pp.size() == pdt.size(): continue
-                k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
-                prev_pw.append(k)
+            with torch.no_grad():
+                prev_pw = []
+                for p, m in NASModule.param_modules():
+                    s_op = m.get_state('s_op')
+                    pdt = p.detach()
+                    pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
+                    if pp.size() == pdt.size(): continue
+                    k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
+                    prev_pw.append(k)
 
             self.optim_step()
 
-            for kprev, (p, m) in zip(prev_pw, NASModule.param_modules()):
-                s_op = m.get_state('s_op')
-                pdt = p.detach()
-                pp = pdt.index_select(-1,s_op)
-                k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
-                for i in s_op:
-                    p[i] += (torch.log(k) - torch.log(kprev))
+            with torch.no_grad():
+                for kprev, (p, m) in zip(prev_pw, NASModule.param_modules()):
+                    s_op = m.get_state('s_op')
+                    pdt = p.detach()
+                    pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
+                    k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
+                    for i in s_op:
+                        p[i] += (torch.log(k) - torch.log(kprev))
 
         NASModule.module_call('reset_ops')
 

@@ -66,10 +66,7 @@ arch_optim:
   # type: 'DARTS'
   type: 'BinGate'
   # type: 'REINFORCE'
-  n_samples: 0
-  batch_size: 10
-  w_momentum: 0.9
-  w_weight_decay: 0.0003
+  n_samples: 2
   renorm: True
   a_optim:
     type: 'adam'
@@ -80,8 +77,6 @@ arch_optim:
     weight_decay: 0
 mixed_op:
   type: 'BinGate'
-  args:
-    sample_dist: 'multinomial'
   # type: 'DARTS'
 ops:
   sepconv_stack: False
@@ -114,7 +109,6 @@ primitives:
   - 'SC5'
   - 'SC7'
   - 'DC3'
-  - 'NIL'
 log:
   writer: False
 device:

@@ -45,6 +45,8 @@ class Slot(nn.Module):
     
     def set_entity(self, ent):
         self.ent = ent
+        self.forward = ent.forward
+        self.__call__ = ent.__call__
         logging.debug('slot {} ({}) {}: set to {}'.format(self.sid, self.pid, self.name, ent.__class__.__name__))
     
     def forward(self, x):

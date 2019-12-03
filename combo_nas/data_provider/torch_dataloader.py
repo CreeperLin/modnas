@@ -112,6 +112,14 @@ def get_torch_dataloader(config, metadata):
     sp_ratio = config.split_ratio
     trn_loader = None
     val_loader = None
+    extra_kwargs = {
+        'num_workers': config.workers,
+        'pin_memory': True,
+        # 'collate_fn': collate_fn,
+    }
+    if not collate_fn is None:
+        # backward compatibility for pytorch < 1.2.0
+        extra_kwargs['collate_fn'] = collate_fn
     if sp_ratio > 0 and sp_ratio < 1.0:
         n_data = len(data)
         split = int(n_data * sp_ratio)
@@ -122,27 +130,19 @@ def get_torch_dataloader(config, metadata):
         trn_loader = DataLoader(data,
                         batch_size=config.trn_batch_size,
                         sampler=trn_sampler,
-                        num_workers=config.workers,
-                        pin_memory=True,
-                        collate_fn=collate_fn)
+                        **extra_kwargs)
         val_loader = DataLoader(data,
                         batch_size=config.val_batch_size,
                         sampler=val_sampler,
-                        num_workers=config.workers,
-                        pin_memory=True,
-                        collate_fn=collate_fn)
+                        **extra_kwargs)
     elif validation:
         val_loader = DataLoader(data,
             batch_size=config.val_batch_size,
-            num_workers=config.workers,
-            shuffle=False, pin_memory=True, 
-            collate_fn=collate_fn)
+            shuffle=False, **extra_kwargs)
     else:
         trn_loader = DataLoader(data,
             batch_size=config.trn_batch_size,
-            num_workers=config.workers,
-            shuffle=True, pin_memory=True, 
-            collate_fn=collate_fn)
+            shuffle=True, **extra_kwargs)
     
     if prefetch:
         if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, MEAN, STD, cutout)

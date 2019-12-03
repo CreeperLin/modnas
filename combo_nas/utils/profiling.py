@@ -5,36 +5,48 @@ import torch
 from functools import wraps
 import numpy as np
 
+ttable = {}
+mtable = {}
+
 def get_gpumem():
     return torch.cuda.memory_allocated() / 1024. / 1024.
 
 def get_cputime():
-    return time.perf_counter()
+    return time.perf_counter() * 1000
 
 def seqstat(arr):
-    a = np.array(arr)
-    return '[ {:.3f} / {:.3f} / {:.3f} / {:.3f} ]'.format(
-        np.mean(a), np.min(a), np.max(a), np.std(a))
+    a = np.array(arr[min(len(arr)-1,1):])
+    return '[ {:.3f}({:.3f}) / {:.3f} / {:.3f} / {:.3f} ]'.format(
+        np.mean(a), np.mean(a[len(a)//2:]), np.min(a), np.max(a), np.std(a))
 
 t0 = 0
 def report_time(msg=''):
     global t0
     t1 = get_cputime()
     fr = sys._getframe(1)
-    print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} sec".format(
-        msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, t1, t1 - t0))
-    t0 = t1
+    lat = t1 - t0
+    if msg in ttable:
+        ttable[msg].append(lat)
+    else:
+        ttable[msg] = [lat]
+    print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} / {} ms".format(
+        msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, t1, lat, seqstat(ttable[msg])))
+    t0 = get_cputime()
 
 m0 = 0
 def report_mem(msg=''):
     global m0
     m1 = get_gpumem()
     fr = sys._getframe(1)
+    fp = m1 - m0
+    if msg in mtable:
+        mtable[msg].append(fp)
+    else:
+        mtable[msg] = [fp]
     print("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
-        msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, m1, m1 - m0))
+        msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, m1, fp, seqstat(mtable[msg])))
     m0 = m1
 
-mtable = {}
 def profile_mem(function):
     @wraps(function)
     def gpu_mem_profiler(*args, **kwargs):
@@ -52,7 +64,6 @@ def profile_mem(function):
         return result
     return gpu_mem_profiler
 
-ttable = {}
 def profile_time(function):
     @wraps(function)
     def function_timer(*args, **kwargs):
@@ -65,7 +76,7 @@ def profile_time(function):
             ttable[fname].append(lat)
         else:
             ttable[fname] = [lat]
-        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} sec".format(
+        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} ms".format(
             fname.center(20,' '), t1, t2, lat, seqstat(ttable[fname])))
         return result
     return function_timer
@@ -92,7 +103,7 @@ class profile_ctx():
             mtable[fname].append(fp)
         else:
             mtable[fname] = [fp]
-        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} sec".format(
+        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} ms".format(
             fname.center(20,' '), self.t0, self.t1, lat, seqstat(ttable[fname])))
         print("GPU Mem: {}: {:.3f} / {:.3f} / {:.3f} / {} MB".format(
             fname.center(20,' '), self.m0, self.m1, mem, seqstat(mtable[fname])))
@@ -100,7 +111,7 @@ class profile_ctx():
     def report(self):
         t1 = get_cputime()
         fr = sys._getframe(1)
-        print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} sec".format(
+        print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} ms".format(
         self.name.center(20,' '), fr.f_code.co_name, fr.f_lineno, t1, t1 - self.t0))
         m1 = get_gpumem()
         print("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
@@ -117,7 +128,7 @@ class TimeProfiler(object):
         self.offset = self.table['ofs'][0]
     
     def timer_start(self, id):
-        t0 = time.perf_counter()
+        t0 = get_cputime()
         if not id in self.table:
             self.table[id] = np.array([-t0])
         else:
@@ -125,18 +136,14 @@ class TimeProfiler(object):
             self.table[id] = np.append(arr, -t0)
     
     def timer_stop(self, id):
-        t1 = time.perf_counter()
+        t1 = get_cputime()
         self.table[id][-1] += t1 - self.offset
 
     def print_stat(self, id):
         if not id in self.table: return
         arr = self.table[id]
-        avg = np.mean(arr)
-        tmin = np.min(arr)
-        tmax = np.max(arr)
-        std = np.std(arr)
-        print('Time {}: {} / {:.3f} / {:.3f} / {:.3f} / {:.3f} / {:.3f}'.format(
-            id.center(10,' '), len(arr), sum(arr), avg, tmin, tmax, std))
+        print('Time {}: {} / {:.3f} / {} ms'.format(
+            id.center(10,' '), len(arr), arr[-1], seqstat(arr)))
     
     def stat_all(self):
         for i in self.table:
@@ -161,13 +168,8 @@ class TimeProfiler(object):
     def stat_acc(self, cid):
         if not cid in self.acc_table: return
         arr = self.acc_table[cid]
-        tsum = np.sum(arr)
-        avg = np.mean(arr)
-        tmin = np.min(arr)
-        tmax = np.max(arr)
-        std = np.std(arr)
-        print('Acc Time {} : {} / {:.3f} / {:.3f} / {:.3f} / {:.3f} / {:.3f}'.format(
-            cid.center(10,' '), len(arr), sum(arr), avg, tmix, tmax, std))
+        print('AccTime {}: {} / {:.3f} / {} ms'.format(
+            cid.center(10,' '), len(arr), arr[-1], seqstat(arr)))
 
     def avg(self, id):
         return 0 if not id in self.table else np.mean(self.table[id])

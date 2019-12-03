@@ -88,7 +88,8 @@ class NASModule(nn.Module):
     @staticmethod
     def add_param(params_shape):
         NASModule._param_id += 1
-        param = nn.Parameter(NASModule._init_ratio * torch.randn(params_shape).to(device=NASModule._dev_list[0]))
+        # param = nn.Parameter(NASModule._init_ratio * torch.randn(params_shape).to(device=NASModule._dev_list[0]))
+        param = nn.Parameter(NASModule._init_ratio * torch.randn(params_shape))
         NASModule._params.append(param)
         NASModule._params_map[NASModule._param_id] = []
         return NASModule._param_id
@@ -203,12 +204,16 @@ class NASModule(nn.Module):
         sd = self.nas_state_dict()
         if not name in sd: return
         ret = sd[name]
-        ret = ret.detach() if detach else ret
-        return ret
+        if detach:
+            return ret.detach()
+        else:
+            return ret
     
     def set_state(self, name, val, detach=False):
-        val = val.detach() if detach else val
-        self.nas_state_dict()[name] = val
+        if detach:
+            self.nas_state_dict()[name] = val.detach()
+        else:
+            self.nas_state_dict()[name] = val
     
     def del_state(self, name):
         if not name in self.nas_state_dict(): return
@@ -314,7 +319,7 @@ class NASController(nn.Module):
             logits = ret
         return logits
 
-    def print_alphas(self, logger):
+    def print_alphas(self, logger, max_num=3):
         # remove formats
         org_formatters = []
         for handler in logger.handlers:
@@ -322,7 +327,9 @@ class NASController(nn.Module):
             handler.setFormatter(logging.Formatter("%(message)s"))
 
         alphas = tuple(F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.alphas())
-        logger.info("ALPHA: {}\n{}".format(len(alphas), '\n'.join([str(a) for a in alphas])))
+        max_num = min(len(alphas)//2, max_num)
+        logger.info("ALPHA: {}\n{}".format(
+            len(alphas), '\n'.join([str(a) for a in (alphas[:max_num]+('...',)+alphas[-max_num:])])))
 
         # restore formats
         for handler, formatter in zip(logger.handlers, org_formatters):

@@ -78,8 +78,6 @@ arch_optim:
     weight_decay: 0
 mixed_op:
   type: 'BinGate'
-  args:
-    sample_dist: 'multinomial'
 ops:
   sepconv_stack: False
   ops_order: 'bn_act_weight'

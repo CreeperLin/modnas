@@ -18,7 +18,6 @@ def load_config(conf, name, excludes):
         config = Config(conf)
     if utils.check_config(config, name, excludes):
         raise Exception("config error.")
-    config_str = config.to_string()
     return config
 
 def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, convert_fn=None):
@@ -27,6 +26,7 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     expman = ExpManager(exp_root_dir)
     logger = utils.get_logger(expman.logs_path, name)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
+    logger.info('config loaded:\n{}'.format(config))
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
