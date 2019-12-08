@@ -7,7 +7,6 @@
 import logging
 import os
 from collections import namedtuple
-from ..core import ops
 
 Genotype = namedtuple('Genotype', 'dag ops')
 

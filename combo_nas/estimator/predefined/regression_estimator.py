@@ -52,14 +52,7 @@ class RegressionEstimator(EstimatorBase):
         return best_val_top1
 
     def validate(self):
-        config = self.config
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
-        device = self.device
-
-        subnet = self.construct_subnet()
-        top1_avg = validate(valid_loader, subnet, writer, logger, 0, 1, 0, device, config)
+        top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0)
         return top1_avg
 
     def search(self, arch_optim):

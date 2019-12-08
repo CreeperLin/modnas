@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..utils import param_count
-from ..arch_space.constructor import Slot
+from .constructor import Slot
 
 class DAGLayer(nn.Module):
     _edge_id = 0

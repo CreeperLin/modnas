@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import itertools
 
-
 class MergerBase():
     def __init__(self):
         pass

@@ -149,6 +149,38 @@ class EstimatorBase():
     def search(self, arch_optim):
         pass
     
+    def train_epoch(self, epoch, tot_epochs, **kwargs):
+        tr_kwargs = {
+            'train_loader': self.train_loader,
+            'model': self.model,
+            'writer': self.writer,
+            'logger': self.logger,
+            'w_optim': self.w_optim,
+            'lr_scheduler': self.lr_scheduler,
+            'epoch': epoch,
+            'tot_epochs': tot_epochs,
+            'device': self.device,
+            'config': self.config,
+        }
+        tr_kwargs.update(kwargs)
+        return train(**tr_kwargs)
+    
+    def validate_epoch(self, epoch, tot_epochs, cur_step=0, **kwargs):
+        va_kwargs = {
+            'valid_loader': self.valid_loader,
+            'model': self.model,
+            'writer': self.writer,
+            'logger': self.logger,
+            'epoch': epoch,
+            'tot_epochs': tot_epochs,
+            'cur_step': cur_step,
+            'device': self.device,
+            'config': self.config,
+        }
+        if cur_step is None: va_kwargs['cur_step'] = (epoch+1) * len(self.train_loader)
+        va_kwargs.update(kwargs)
+        return validate(**va_kwargs)
+    
     def save(self, epoch):
         self.save_genotype(epoch)
         self.save_checkpoint(epoch)

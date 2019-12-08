@@ -1,8 +1,8 @@
 import logging
 import torch
 import torch.nn as nn
-from ..core.ops import build_op, Identity, DropPath_
-from ..core.mixed_ops import build_mixed_op
+from .ops import build_op, Identity, DropPath_
+from .mixed_ops import build_mixed_op
 from . import genotypes as gt
 
 class Slot(nn.Module):

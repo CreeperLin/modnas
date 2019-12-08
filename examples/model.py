@@ -2,11 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from combo_nas.arch_space.constructor import Slot
-from combo_nas.core.ops import configure_ops, register_op, update_op, build_op
-from combo_nas.core.mixed_ops import build_mixed_op
+from combo_nas.arch_space.ops import configure_ops, register_op, update_op, build_op
+from combo_nas.arch_space.mixed_ops import build_mixed_op, mixed_ops
 from combo_nas.core.nas_modules import NASModule
 import combo_nas.arch_space as arch_space
-import combo_nas.core.mixed_ops as mixed_ops
 
 class Prim1(nn.Module):
     def __init__(self, C, stride):

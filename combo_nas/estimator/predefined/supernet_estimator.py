@@ -4,7 +4,6 @@ import itertools
 from ..base import EstimatorBase
 from ... import utils
 from ...utils.profiling import tprof
-from ..base import train, validate
 from ...core.param_space import ArchParamSpace
 
 class SuperNetEstimator(EstimatorBase):
@@ -12,14 +11,9 @@ class SuperNetEstimator(EstimatorBase):
         pass
     
     def search(self, arch_optim):
-        config = self.config
-        train_loader = self.train_loader
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
-        tot_epochs = config.epochs
         model = self.model
-        device = self.device
+        config = self.config
+        tot_epochs = config.epochs
 
         best_top1 = 0.
         genotypes = []
@@ -29,8 +23,7 @@ class SuperNetEstimator(EstimatorBase):
             # train
             trn_top1 = self.search_epoch(epoch, arch_optim)
             # validate
-            cur_step = (epoch+1) * len(train_loader)
-            val_top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config)
+            val_top1 = self.validate_epoch(epoch, tot_epochs)
             genotype = model.to_genotype()
             genotypes.append(genotype)
             if val_top1 is None: val_top1 = trn_top1
@@ -143,12 +136,5 @@ class SuperNetEstimator(EstimatorBase):
         return top1.avg
 
     def validate(self):
-        config = self.config
-        train_loader = self.train_loader
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
-        model = self.model
-        device = self.device
-        top1_avg = validate(valid_loader, model, writer, logger, 0, 1, 0, device, config)
+        top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0)
         return top1_avg

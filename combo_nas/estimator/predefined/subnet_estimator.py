@@ -4,30 +4,21 @@ import itertools
 from ..base import EstimatorBase
 from ... import utils
 from ...utils.profiling import tprof
-from ..base import train, validate
 from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
     def step(self):
         config = self.config
-        train_loader = self.train_loader
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
-        lr_scheduler = self.lr_scheduler
-        w_optim = self.w_optim
-        device = self.device
         tot_epochs = config.subnet_epochs
         subnet = self.construct_subnet()
         # train
         best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
-            cur_step = (epoch+1) * len(train_loader)
             # train
-            trn_top1 = train(train_loader, subnet, writer, logger, w_optim, lr_scheduler, epoch, tot_epochs, device, config)
+            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             # validate
-            val_top1 = validate(valid_loader, subnet, writer, logger, epoch, tot_epochs, cur_step, device, config)
+            val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             if val_top1 is None: val_top1 = trn_top1
             best_val_top1 = max(best_val_top1, val_top1)
         return best_val_top1
@@ -52,24 +43,16 @@ class SubNetEstimator(EstimatorBase):
     
     def train(self):
         config = self.config
-        train_loader = self.train_loader
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
         tot_epochs = config.epochs
-        lr_scheduler = self.lr_scheduler
-        w_optim = self.w_optim
-        device = self.device
         subnet = self.construct_subnet()
 
         best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
-            cur_step = (epoch+1) * len(train_loader)
             # train
-            trn_top1 = train(train_loader, subnet, writer, logger, w_optim, lr_scheduler, epoch, tot_epochs, device, config)
+            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs)
             # validate
-            val_top1 = validate(valid_loader, subnet, writer, logger, epoch, tot_epochs, cur_step, device, config)
+            val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs)
             if val_top1 is None: val_top1 = trn_top1
             best_val_top1 = max(best_val_top1, val_top1)
             # save
@@ -78,16 +61,12 @@ class SubNetEstimator(EstimatorBase):
         return best_val_top1
 
     def validate(self):
-        config = self.config
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
-        device = self.device
         subnet = self.construct_subnet()
-        top1_avg = validate(valid_loader, subnet, writer, logger, 0, 1, 0, device, config)
+        top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0, model=subnet)
         return top1_avg
 
     def search(self, arch_optim):
+        logger = self.logger
         config = self.config
         tot_epochs = config.epochs
 

@@ -3,7 +3,7 @@ from ..utils.exp_manager import ExpManager
 from ..data_provider.dataloader import load_data
 from ..arch_space.constructor import convert_from_predefined_net
 from ..arch_space.constructor import convert_from_genotype
-from ..core.ops import configure_ops
+from ..arch_space.ops import configure_ops
 from ..arch_space import build_arch_space
 from ..arch_space.constructor import Slot
 from ..core.nas_modules import NASModule

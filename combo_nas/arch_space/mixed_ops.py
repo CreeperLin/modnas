@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .nas_modules import NASModule
+from ..core.nas_modules import NASModule
+from ..core.param_space import ArchParamDiscrete, ArchParamContinuous
 from .ops import build_op
-from .param_space import ArchParamDiscrete, ArchParamContinuous
 from ..utils import get_current_device
 from ..utils.registration import Registry, build, get_builder, register, register_wrapper
 from ..utils.profiling import profile_time, report_time

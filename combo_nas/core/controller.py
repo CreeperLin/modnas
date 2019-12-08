@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..arch_space import genotypes as gt
-from .ops import DropPath_
+from ..arch_space.ops import DropPath_
 from .param_space import ArchParamSpace
 from .nas_modules import NASModule
 

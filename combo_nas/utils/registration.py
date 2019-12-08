@@ -33,7 +33,7 @@ class Registry(object):
     
     def get(self, rid):
         rid = rid.lower()
-        if not rid in self._reg_class: raise ValueError('registry id {} not found'.format(rid))
+        if not rid in self._reg_class: raise ValueError('registry id not found: {}'.format(rid))
         return self._reg_class[rid]
 
 

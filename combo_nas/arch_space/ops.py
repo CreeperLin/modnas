@@ -27,6 +27,9 @@ register_op(lambda C_in, C_out, stride: Identity() if stride == 1 else Factorize
 register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 3, stride, 1), 'sep_conv_3x3', 'SC3')
 register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 5, stride, 2), 'sep_conv_5x5', 'SC5')
 register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 7, stride, 3), 'sep_conv_7x7', 'SC7')
+register_op(lambda C_in, C_out, stride: SepConvSingle(C_in, C_out, 3, stride, 1), 'sepsingle_3x3', 'SS3')
+register_op(lambda C_in, C_out, stride: SepConvSingle(C_in, C_out, 5, stride, 2), 'sepsingle_5x5', 'SS5')
+register_op(lambda C_in, C_out, stride: SepConvSingle(C_in, C_out, 7, stride, 3), 'sepsingle_7x7', 'SS7')
 register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 3, stride, 1), 'std_conv_3x3', 'NC3')
 register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 5, stride, 2), 'std_conv_5x5', 'NC5')
 register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 7, stride, 3), 'std_conv_7x7', 'NC7')
@@ -36,17 +39,12 @@ register_op(lambda C_in, C_out, stride: FacConv(C_in, C_out, 7, stride, 3), 'con
 register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 1, stride, 0), 'conv_1x1', 'C11')
 
 OPS_ORDER = ['bn','act','weight']
-sepconv_stack = False
 AFFINE = True
 
 def configure_ops(config):
     global OPS_ORDER
     OPS_ORDER = config.ops_order.split('_')
     logging.info('configure ops: ops order set to: {}'.format(OPS_ORDER))
-    
-    global sepconv_stack
-    sepconv_stack = config.sepconv_stack
-    logging.info('configure ops: SepConv stack: {}'.format(sepconv_stack))
 
     global AFFINE
     AFFINE = config.affine
@@ -215,12 +213,21 @@ class SepConv(nn.Module):
     """
     def __init__(self, C_in, C_out, kernel_size, stride, padding):
         super().__init__()
-        if sepconv_stack:
-            self.net = nn.Sequential(
-                DilConv(C_in, C_in, kernel_size, stride, padding, dilation=1),
-                DilConv(C_in, C_out, kernel_size, 1, padding, dilation=1)
-            )
-            return
+        self.net = nn.Sequential(
+            DilConv(C_in, C_in, kernel_size, stride, padding, dilation=1),
+            DilConv(C_in, C_out, kernel_size, 1, padding, dilation=1)
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class SepConvSingle(nn.Module):
+    """ Depthwise separable conv
+    DilConv(dilation=1)
+    """
+    def __init__(self, C_in, C_out, kernel_size, stride, padding):
+        super().__init__()
         C = C_in
         nets = []
         for i in OPS_ORDER:
