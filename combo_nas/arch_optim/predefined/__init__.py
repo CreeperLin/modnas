@@ -1,4 +1,5 @@
 from .gradient_based import DARTSArchitect, BinaryGateArchitect, DummyArchitect, REINFORCE
+from .gridsearch import RandomSearch, GridSearch
 from ...utils.registration import Registry, build, get_builder, register, register_wrapper
 from functools import partial
 
@@ -12,3 +13,5 @@ register_arch_optim(DARTSArchitect, 'DARTS')
 register_arch_optim(BinaryGateArchitect, 'BinGate')
 register_arch_optim(DummyArchitect, 'Dummy')
 register_arch_optim(REINFORCE, 'REINFORCE')
+register_arch_optim(RandomSearch, 'Random')
+register_arch_optim(GridSearch, 'GridSearch')

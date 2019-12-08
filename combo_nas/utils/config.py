@@ -8,12 +8,10 @@ def load_config(filename):
     stream = open(filename, 'r')
     docs = yaml.load_all(stream, Loader=yaml.Loader)
     config_dict = dict()
-    config_str = ''
     for doc in docs:
-        config_str += yaml.dump(doc, default_flow_style=False) + '\n'
         for k, v in doc.items():
             config_dict[k] = v
-    return config_str[:-1], config_dict
+    return config_dict
 
 def merge_dict(user, default):
     if isinstance(user, dict) and isinstance(default, dict):
@@ -38,17 +36,22 @@ class Config(dict):
 
     def __init__(self, file, dct=None):
         if not file is None:
-            self.str, dct = load_config(file)
+            dct = load_config(file)
         for key, value in dct.items():
             if hasattr(value, 'keys'):
                 value = Config(None, value)
+            elif isinstance(value, list):
+                for i in range(len(value)):
+                    if hasattr(value[i], 'keys'):
+                        value[i] = Config(None, value[i])
             self[key] = value
+        yaml.add_representer(Config, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
 
     def __deepcopy__(self, memo):
         return Config(None, copy.deepcopy(dict(self)))
-
+    
     def __str__(self):
-        return self.str
+        return yaml.dump(dict(self), default_flow_style=False)
     
     @staticmethod
     def get_value(config, key):

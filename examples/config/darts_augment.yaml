@@ -22,7 +22,7 @@ augment:
   lr_scheduler:
     type: 'cosine'
     args:
-      eta_min: 0.001
+      eta_min: 0.0
   aux_weight: 0.4
   drop_path_prob: 0.2
   w_grad_clip: 5.

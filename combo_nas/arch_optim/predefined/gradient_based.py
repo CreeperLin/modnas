@@ -1,7 +1,7 @@
 """ Architect controls architecture of cell by computing gradients of alphas """
 import copy
 import torch
-from .base import ArchOptimBase
+from ..base import ArchOptimBase
 from ...core.nas_modules import NASModule
 from ...utils import get_optim, accuracy
 
@@ -62,12 +62,15 @@ class DARTSArchitect(GradientBasedArchOptim):
             for a, va in zip(self.net.alphas(), self.v_net.alphas()):
                 va.copy_(a)
 
-    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim):
+    def step(self, estim):
         """ Compute unrolled loss and backward its gradients
         Args:
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
+        trn_X, trn_y = estim.get_next_trn_batch()
+        val_X, val_y = estim.get_next_val_batch()
+        lr, w_optim = estim.lr, estim.w_optim
         # do virtual step (calc w`)
         self.virtual_step(trn_X, trn_y, lr, w_optim)
         # calc unrolled loss
@@ -123,12 +126,13 @@ class BinaryGateArchitect(GradientBasedArchOptim):
         self.sample = (self.n_samples!=0)
         self.renorm = config.renorm and self.sample
 
-    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim):
+    def step(self, estim):
         """ Compute unrolled loss and backward its gradients
         Args:
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
+        val_X, val_y = estim.next_val_batch()
         # sample k
         if self.sample:
             NASModule.param_module_call('sample_ops', n_samples=self.n_samples)
@@ -168,7 +172,7 @@ class DummyArchitect(GradientBasedArchOptim):
     def __init__(self, config, net):
         super().__init__(config, net)
     
-    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim):
+    def step(self, estim):
         self.optim_step()
 
 
@@ -185,10 +189,11 @@ class REINFORCE(GradientBasedArchOptim):
         total_reward = acc_reward
         return total_reward
     
-    def step(self, trn_X, trn_y, val_X, val_y, lr, w_optim, a_optim):
+    def step(self, estim):
         grad_batch = []
         reward_batch = []
         net_info_batch = []
+        val_X, val_y = estim.next_val_batch()
         for i in range(self.batch_size):
             logits = self.net.logits(val_X)
             acc1, acc5 = accuracy(logits, val_y, topk=(1, 5))

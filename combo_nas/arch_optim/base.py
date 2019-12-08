@@ -9,3 +9,6 @@ class ArchOptimBase():
     
     def load_state_dict(self, sd):
         pass
+
+    def update(self, estim):
+        pass

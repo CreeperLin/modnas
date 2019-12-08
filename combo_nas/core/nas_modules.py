@@ -1,71 +1,42 @@
 # -*- coding: utf-8 -*-
-import math
 import logging
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from ..arch_space import genotypes as gt
-from .ops import DropPath_, configure_ops
-from ..utils.profiling import tprof
-from ..utils import param_count, get_current_device, get_net_crit
 
 class NASModule(nn.Module):
-    _init_ratio = 1e-3
     _modules = []
-    _params = []
     _module_id = -1
     _module_state_dict = {}
-    _param_id = -1
-    _params_map = {}
-    _dev_list = [get_current_device()]
+    _dev_list = []
 
-    def __init__(self, ops, params_shape, pid=None):
+    def __init__(self, arch_param_map):
         super().__init__()
-        self.ops = ops
         self.id = self.get_new_id()
-        if pid==-1:
-            self.pid = NASModule._param_id
-        elif pid is None:
-            self.pid = NASModule.add_param(params_shape)
-        elif not isinstance(pid, int) or pid > NASModule._param_id:
-            raise ValueError('invalid pid: {}'.format(pid))
-        elif NASModule._params[pid].shape != params_shape:
-            raise ValueError('size mismatch for given pid: {} {}'.format(pid, params_shape))
-        else:
-            self.pid = pid
-        NASModule.add_module(self, self.id, self.pid)
+        self.arch_param_map = arch_param_map
+        for ap in arch_param_map.values():
+            ap.add_module(self.id)
+        NASModule.add_module(self, self.id)
         # logging.debug('reg nas module: {} mid: {} pid: {} {}'.format(self.__class__.__name__, self.id, self.pid, params_shape))
     
     @staticmethod
     def reset():
         NASModule._modules = []
-        NASModule._params = []
         NASModule._module_id = -1
         NASModule._module_state_dict = {}
-        NASModule._param_id = -1
-        NASModule._params_map = {}
-        NASModule._dev_list = [get_current_device()]
+        NASModule._dev_list = []
 
     @property
-    def arch_param(self):
-        return NASModule._params[self.pid]
+    def arch_param(self, name):
+        return self.arch_param_map[name]
 
     @staticmethod
     def nasmod_state_dict():
         return {
-            # '_modules': NASModule._modules,
-            '_params': NASModule._params,
-            # '_module_id': NASModule._module_id,
-            # '_module_state_dict': NASModule._module_state_dict,
-            # '_param_id': NASModule._param_id,
-            # '_params_map': NASModule._params_map
         }
     
     @staticmethod
     def nasmod_load_state_dict(sd):
-        assert len(sd['_params']) == NASModule._param_id + 1
-        for p, sp in zip(NASModule._params, sd['_params']):
-            p.data.copy_(sp)
+        pass
 
     @staticmethod
     def set_device(dev_list):
@@ -86,95 +57,18 @@ class NASModule(nn.Module):
         return NASModule._module_id
     
     @staticmethod
-    def add_param(params_shape):
-        NASModule._param_id += 1
-        # param = nn.Parameter(NASModule._init_ratio * torch.randn(params_shape).to(device=NASModule._dev_list[0]))
-        param = nn.Parameter(NASModule._init_ratio * torch.randn(params_shape))
-        NASModule._params.append(param)
-        NASModule._params_map[NASModule._param_id] = []
-        return NASModule._param_id
-
-    @staticmethod
-    def add_module(module, mid, pid):
+    def add_module(module, mid):
         NASModule._modules.append(module)
-        if pid >= 0: NASModule._params_map[pid].append(mid)
     
     @staticmethod
-    def param_forward_all(params=None):
-        mmap = NASModule._modules
-        pmap = NASModule._params_map
-        for pid in pmap:
-            for mid in pmap[pid]:
-                mmap[mid].param_forward(NASModule._params[pid])
+    def get_module(mid):
+        return NASModule._modules[mid]
     
     @staticmethod
     def modules():
         for m in NASModule._modules:
             yield m
-    
-    @staticmethod
-    def param_modules():
-        mmap = NASModule._modules
-        pmap = NASModule._params_map
-        plist = NASModule._params
-        for pid in pmap:
-            mlist = pmap[pid]
-            for mid in mlist:
-                yield (plist[pid], mmap[pid])
-    
-    @staticmethod
-    def params_grad(loss):
-        mmap = NASModule._modules
-        pmap = NASModule._params_map
-        for pid in pmap:
-            mlist = pmap[pid]
-            p_grad = mmap[mlist[0]].param_grad(loss)
-            for i in range(1,len(mlist)):
-                p_grad += mmap[mlist[i]].param_grad(loss)
-            yield p_grad
-    
-    @staticmethod
-    def param_backward(loss):
-        mmap = NASModule._modules
-        pmap = NASModule._params_map
-        for pid in pmap:
-            mlist = pmap[pid]
-            p_grad = mmap[mlist[0]].param_grad(loss)
-            for i in range(1,len(mlist)):
-                p_grad += mmap[mlist[i]].param_grad(loss)
-            NASModule._params[pid].grad = p_grad
 
-    @staticmethod
-    def backward_all(loss):
-        m_out_all = []
-        m_out_len = []
-        for dev_id in NASModule.get_device():
-            m_out = [m.get_state('m_out'+dev_id) for m in NASModule.modules()]
-            m_out_all.extend(m_out)
-            m_out_len.append(len(m_out))
-        m_grad = torch.autograd.grad(loss, m_out_all)
-        for i, dev_id in enumerate(NASModule.get_device()):
-            NASModule.param_backward_from_grad(m_grad[sum(m_out_len[:i]) : sum(m_out_len[:i+1])], dev_id)
-
-    @staticmethod
-    def param_backward_from_grad(m_grad, dev_id):
-        mmap = NASModule._modules
-        pmap = NASModule._params_map
-        for pid in pmap:
-            mlist = pmap[pid]
-            p_grad = 0
-            for i in range(0,len(mlist)):
-                p_grad = mmap[mlist[i]].param_grad_dev(m_grad[mlist[i]], dev_id) + p_grad
-            if NASModule._params[pid].grad is None:
-                NASModule._params[pid].grad = p_grad
-            else:
-                NASModule._params[pid].grad += p_grad
-    
-    @staticmethod
-    def params():
-        for p in NASModule._params:
-            yield p
-    
     @staticmethod
     def module_apply(func, **kwargs):
         return [func(m, **kwargs) for m in NASModule._modules]
@@ -182,23 +76,14 @@ class NASModule(nn.Module):
     @staticmethod
     def module_call(func, **kwargs):
         return [getattr(m, func)(**kwargs) for m in NASModule._modules]
-    
-    @staticmethod
-    def param_call(func, **kwargs):
-        return [getattr(p, func)(**kwargs) for p in NASModule._params]
-    
-    @staticmethod
-    def param_module_call(func, **kwargs):
-        mmap = NASModule._modules
-        pmap = NASModule._params_map
-        for pid in pmap:
-            for mid in pmap[pid]:
-                getattr(mmap[mid], func)(NASModule._params[pid], **kwargs)
 
     def nas_state_dict(self):
         if not self.id in NASModule._module_state_dict:
             NASModule._module_state_dict[self.id] = {}
         return NASModule._module_state_dict[self.id]
+    
+    def param_forward(self, *args, **kwargs):
+        pass
     
     def get_state(self, name, detach=False):
         sd = self.nas_state_dict()
@@ -240,187 +125,3 @@ class NASModule(nn.Module):
     def to_genotype(self, *args, **kwargs):
         raise NotImplementedError
 
-
-class ArchParamSpace():
-    '''
-        discrete arch descriptor space
-    '''
-    def __init__(self):
-        self.arch_param_map = list()
-        self._length = None
-        for m in NASModule.modules():
-            self.arch_param_map.append(m.ops)
-    
-    def __len__(self):
-        if self._length is None:
-            self._length = int(np.prod([len(x) for x in self.arch_param_map]))
-        return self._length
-    
-    def get_dim(self, idx):
-        return self.arch_param_map[idx]
-    
-    def get(self, idx):
-        arch_param = []
-        for ap in self.arch_param_map:
-            ap_dim = len(ap)
-            arch_param.append(ap[idx % ap_dim])
-            idx //= ap_dim
-        return arch_param
-
-
-class NASController(nn.Module):
-    def __init__(self, net, criterion, device_ids=None):
-        super().__init__()
-        self.criterion = criterion
-        self.augment = len(tuple(self.alphas())) == 0
-        if device_ids is None:
-            device_ids = list(range(torch.cuda.device_count()))
-        self.device_ids = device_ids
-        self.net = net
-        self.arch_param_space = ArchParamSpace()
-
-    def forward(self, x):
-        if not self.augment: NASModule.param_forward_all()
-        
-        if len(self.device_ids) <= 1:
-            return self.net(x)
-
-        # scatter x
-        xs = nn.parallel.scatter(x, self.device_ids)
-
-        # replicate modules
-        self.net.to(device=self.device_ids[0])
-        replicas = nn.parallel.replicate(self.net, self.device_ids)
-        outputs = nn.parallel.parallel_apply(replicas,
-                                             list(xs),
-                                             devices=self.device_ids)
-        return nn.parallel.gather(outputs, self.device_ids[0])
-    
-    def loss_logits(self, X, y, aux_weight=0):
-        ret = self.forward(X)
-        if isinstance(ret, tuple):
-            logits, aux_logits = ret
-            aux_loss = aux_weight * self.criterion(aux_logits, y)
-        else:
-            logits = ret
-            aux_loss = 0
-        return self.criterion(logits, y) + aux_loss, logits
-    
-    def loss(self, X, y, aux_weight=0):
-        loss, _ = self.loss_logits(X, y, aux_weight)
-        return loss
-    
-    def logits(self, X, aux_weight=0):
-        ret = self.forward(X)
-        if isinstance(ret, tuple):
-            logits, aux_logits = ret
-            logits += aux_weight * aux_logits
-        else:
-            logits = ret
-        return logits
-
-    def print_alphas(self, logger, max_num=3):
-        # remove formats
-        org_formatters = []
-        for handler in logger.handlers:
-            org_formatters.append(handler.formatter)
-            handler.setFormatter(logging.Formatter("%(message)s"))
-
-        alphas = tuple(F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.alphas())
-        max_num = min(len(alphas)//2, max_num)
-        logger.info("ALPHA: {}\n{}".format(
-            len(alphas), '\n'.join([str(a) for a in (alphas[:max_num]+('...',)+alphas[-max_num:])])))
-
-        # restore formats
-        for handler, formatter in zip(logger.handlers, org_formatters):
-            handler.setFormatter(formatter)
-
-    def dags(self):
-        if not hasattr(self.net,'dags'): return []
-        return self.net.dags()
-
-    def to_genotype(self, *args, **kwargs):
-        try:
-            gene_dag = self.net.to_genotype(*args, **kwargs)
-            return gt.Genotype(dag=gene_dag, ops=None)
-        except AttributeError:
-            return self.to_genotype_ops(*args, **kwargs)
-    
-    def to_genotype_ops(self, *args, **kwargs):
-        gene_ops = NASModule.to_genotype_all(*args, **kwargs)
-        return gt.Genotype(dag=None, ops=gene_ops)
-    
-    def build_from_genotype(self, gene, *args, **kwargs):
-        try:
-            self.net.build_from_genotype(gene, *args, **kwargs)
-        except AttributeError:
-            NASModule.build_from_genotype_all(gene, *args, **kwargs)
-
-    def weights(self, check_grad=False):
-        for n, p in self.net.named_parameters(recurse=True):
-            if check_grad and not p.requires_grad:
-                continue
-            yield p
-
-    def named_weights(self, check_grad=False):
-        for n, p in self.net.named_parameters(recurse=True):
-            if check_grad and not p.requires_grad:
-                continue
-            yield n, p
-
-    def alphas(self):
-        return NASModule.params()
-
-    def mixed_ops(self):
-        return NASModule.modules()
-    
-    def drop_path_prob(self, p):
-        """ Set drop path probability """
-        for module in self.modules():
-            if isinstance(module, DropPath_):
-                module.p = p
-
-    def init_model(self, config):
-        init_type = config.type
-        init_div_groups = config.conv_div_groups
-        if init_type == 'none': return
-        a = 0.
-        gain = math.sqrt(2. / (1 + a**2))
-        for n, m in self.named_modules():
-            if isinstance(m, nn.Conv2d):
-                fan = m.kernel_size[0] * m.kernel_size[1]
-                if init_div_groups:
-                    fan /= m.groups
-                if init_type == 'he_normal_fout':
-                    fan *= m.out_channels
-                    stdv = gain / math.sqrt(fan)
-                    nn.init.normal_(m.weight, 0, stdv)
-                elif init_type == 'he_normal_fin':
-                    fan *= m.in_channels
-                    stdv = gain / math.sqrt(fan)
-                    nn.init.normal_(m.weight, 0, stdv)
-                elif init_type == 'he_uniform_fout':
-                    fan *= m.out_channels
-                    b = math.sqrt(3.) * gain / math.sqrt(fan)
-                    nn.init.uniform_(m.weight, -b, b)
-                elif init_type == 'he_uniform_fin':
-                    fan *= m.in_channels
-                    b = math.sqrt(3.) * gain / math.sqrt(fan)
-                    nn.init.uniform_(m.weight, -b, b)
-                else:
-                    raise NotImplementedError
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
-                if not m.weight is None: nn.init.ones_(m.weight)
-                if not m.bias is None: nn.init.zeros_(m.bias)
-            elif isinstance(m, nn.Linear):
-                stdv = 1. / math.sqrt(m.weight.size(1))
-                nn.init.uniform_(m.weight, -stdv, stdv)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
-
-
-def build_nas_controller(net, crit, device, dev_list, verbose=False):
-    NASModule.set_device(dev_list)
-    model = NASController(net, crit, dev_list).to(device=device)
-    if verbose: print(model)
-    return model
