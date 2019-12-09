@@ -48,9 +48,9 @@ class Slot(nn.Module):
         return self.ent(x)
 
     def to_genotype(self, *args, **kwargs):
-        try:
+        if hasattr(self.ent, 'to_genotype'):
             return self.ent.to_genotype(*args, **kwargs)
-        except:
+        else:
             logging.debug('slot {} default genotype {}'.format(self.sid, self.gene))
             return 1, self.gene
 
@@ -92,8 +92,6 @@ def default_genotype_converter(slot, gene):
     return ent
 
 def convert_from_predefined_net(model, convert_fn=None, drop_path=False, *args, **kwargs):
-    if convert_fn is None and hasattr(model, 'get_default_converter'):
-        convert_fn = model.get_default_converter()
     convert_fn = default_predefined_converter if convert_fn is None else convert_fn
     for m in slots(model):
         ent = apply_drop_path(convert_fn(m, *args, **kwargs), drop_path)

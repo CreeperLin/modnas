@@ -2,12 +2,18 @@ import logging
 import numpy as np
 import torch
 import torch.nn as nn
-from .nas_modules import NASModule
+from .nas_modules import ArchModuleSpace
 
 class ArchParamSpace():
     _param_id = -1
     _params = []
     _discrete_length = None
+
+    @staticmethod
+    def reset():
+        ArchParamSpace._param_id = -1
+        ArchParamSpace._params = []
+        ArchParamSpace._discrete_length = None
 
     @staticmethod
     def register(param):
@@ -43,6 +49,18 @@ class ArchParamSpace():
                 yield p
 
     @staticmethod
+    def discrete_values():
+        for p in ArchParamSpace._params:
+            if isinstance(p, ArchParamDiscrete):
+                yield p.value()
+    
+    @staticmethod
+    def continuous_values():
+        for p in ArchParamSpace._params:
+            if isinstance(p, ArchParamContinuous):
+                yield p.value()
+
+    @staticmethod
     def get_discrete_param(self, idx):
         return list(self.discrete_params())[idx]
     
@@ -50,6 +68,14 @@ class ArchParamSpace():
     def get_continuous_param(self, idx):
         return list(self.continuous_params())[idx]
        
+    @staticmethod
+    def get_discrete_value(self, idx):
+        return list(self.discrete_params())[idx].value()
+    
+    @staticmethod
+    def get_continuous_value(self, idx):
+        return list(self.continuous_params())[idx].value()
+
     @staticmethod
     def get_discrete(idx):
         arch_param = []
@@ -65,11 +91,6 @@ class ArchParamSpace():
             ap_dim = len(ap)
             ap.set_value(idx % ap_dim)
             idx //= ap_dim
-    
-    @staticmethod
-    def param_forward_all():
-        for ap in ArchParamSpace._params:
-            ap.param_forward_all()
 
     @staticmethod
     def param_call(func, *args, **kwargs):
@@ -78,61 +99,50 @@ class ArchParamSpace():
     @staticmethod
     def param_module_call(func, *args, **kwargs):
         for p in ArchParamSpace._params:
-            p.module_call(*args, **kwargs)
+            p.param_module_call(func, *args, **kwargs)
     
     @staticmethod
     def param_modules():
         for p in ArchParamSpace._params:
             for m in p.modules():
-                yield (p, m)
-    
-    # @staticmethod
-    # def params_grad(loss):
-    #     mmap = NASModule._modules
-    #     pmap = NASModule._params_map
-    #     for pid in pmap:
-    #         mlist = pmap[pid]
-    #         p_grad = mmap[mlist[0]].param_grad(loss)
-    #         for i in range(1,len(mlist)):
-    #             p_grad += mmap[mlist[i]].param_grad(loss)
-    #         yield p_grad
-    
-    # @staticmethod
-    # def param_backward(loss):
-    #     mmap = NASModule._modules
-    #     pmap = NASModule._params_map
-    #     for pid in pmap:
-    #         mlist = pmap[pid]
-    #         p_grad = mmap[mlist[0]].param_grad(loss)
-    #         for i in range(1,len(mlist)):
-    #             p_grad += mmap[mlist[i]].param_grad(loss)
-    #         NASModule._params[pid].grad = p_grad
+                yield (p.value(), m)
 
-    # @staticmethod
-    # def backward_all(loss):
-    #     m_out_all = []
-    #     m_out_len = []
-    #     for dev_id in NASModule.get_device():
-    #         m_out = [m.get_state('m_out'+dev_id) for m in NASModule.modules()]
-    #         m_out_all.extend(m_out)
-    #         m_out_len.append(len(m_out))
-    #     m_grad = torch.autograd.grad(loss, m_out_all)
-    #     for i, dev_id in enumerate(NASModule.get_device()):
-    #         NASModule.param_backward_from_grad(m_grad[sum(m_out_len[:i]) : sum(m_out_len[:i+1])], dev_id)
+    @staticmethod
+    def continuous_param_modules():
+        for p in ArchParamSpace.continuous_params():
+            for m in p.modules():
+                yield (p.value(), m)
 
-    # @staticmethod
-    # def param_backward_from_grad(m_grad, dev_id):
-    #     mmap = NASModule._modules
-    #     pmap = NASModule._params_map
-    #     for pid in pmap:
-    #         mlist = pmap[pid]
-    #         p_grad = 0
-    #         for i in range(0,len(mlist)):
-    #             p_grad = mmap[mlist[i]].param_grad_dev(m_grad[mlist[i]], dev_id) + p_grad
-    #         if NASModule._params[pid].grad is None:
-    #             NASModule._params[pid].grad = p_grad
-    #         else:
-    #             NASModule._params[pid].grad += p_grad
+    @staticmethod
+    def discrete_param_modules():
+        for p in ArchParamSpace.discrete_params():
+            for m in p.modules():
+                yield (p.value(), m)
+
+    @staticmethod
+    def backward_all(loss):
+        m_out_all = []
+        m_out_len = []
+        for dev_id in ArchModuleSpace.get_device():
+            m_out = [m.get_state('m_out'+dev_id) for m in ArchModuleSpace.modules()]
+            m_out_all.extend(m_out)
+            m_out_len.append(len(m_out))
+        m_grad = torch.autograd.grad(loss, m_out_all)
+        for i, dev_id in enumerate(ArchModuleSpace.get_device()):
+            ArchParamSpace.param_backward_from_grad(m_grad[sum(m_out_len[:i]) : sum(m_out_len[:i+1])], dev_id)
+
+    @staticmethod
+    def param_backward_from_grad(m_grad, dev_id):
+        pmap = ArchParamSpace.continuous_params()
+        for p in pmap:
+            p_grad = sum([
+                ArchModuleSpace.get_module(mid).param_grad_dev(m_grad[mid], dev_id)
+                for mid in p.mids])
+            pv = p.value()
+            if pv.grad is None:
+                pv.grad = p_grad
+            else:
+                pv.grad += p_grad
     
                 
 class ArchParam():
@@ -145,23 +155,21 @@ class ArchParam():
     def add_module(self, mid):
         if mid in self.mids: return
         self.mids.append(mid)
-        print('param: {} add module: {}'.format(self.pid, mid))
+        logging.debug('param: {} add module: {}'.format(self.pid, mid))
+    
+    def param_module_call(self, func, *args, **kwargs):
+        return [
+            getattr(ArchModuleSpace.get_module(mid), func)(self.value(), *args, **kwargs)
+        for mid in self.mids]
+    
+    def module_call(self, func, *args, **kwargs):
+        return [
+            getattr(ArchModuleSpace.get_module(mid), func)(*args, **kwargs)
+        for mid in self.mids]
 
-    def param_forward_all(self):
-        for mid in self.mids:
-            self.param_forward(mid)
-    
-    def param_forward(self, mid):
-        print('pfwd: {} {} {}'.format(self.pid, mid, self.value()))
-        NASModule.get_module(mid).param_forward(self.value())
-    
-    def module_call(self, *args, **kwargs):
-        for mid in self.mids:
-            getattr(NASModule.get_module(mid), func)(self.value(), *args, **kwargs)
-    
     def modules(self):
         for mid in self.mids:
-            yield NASModule.get_module(mid)
+            yield ArchModuleSpace.get_module(mid)
 
 
 class ArchParamDiscrete(ArchParam):
@@ -169,7 +177,7 @@ class ArchParamDiscrete(ArchParam):
         super().__init__()
         self.valrange = valrange
         if not sampler is None: self.sample = sampler
-        logging.info('discrete arch param {} defined: {}'.format(self.pid, self.valrange))
+        logging.debug('discrete arch param {} defined: {}'.format(self.pid, self.valrange))
 
     def sample(self):
         return self.valrange[np.random.randint(len(self))]
@@ -201,11 +209,12 @@ class ArchParamContinuous(ArchParam):
         self.shape = shape
         self.val = self.sample()
         if not sampler is None: self.sample = sampler
-        logging.info('continuous arch param {} defined: {}'.format(self.pid, self.shape))
+        logging.debug('continuous arch param {} defined: {}'.format(self.pid, self.shape))
     
     def sample(self):
         _init_ratio = 1e-3
-        return nn.Parameter(_init_ratio * torch.randn(self.shape))
+        val = nn.Parameter(_init_ratio * torch.randn(self.shape))
+        return val
     
     def value(self):
         if self.val is None:

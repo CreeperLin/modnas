@@ -81,12 +81,12 @@ class DARTSLikeNet(nn.Module):
             cell_kwargs['chn_in'] = (chn_pp, chn_p)
             cell_kwargs['edge_kwargs']['chn_in'] = (chn_cur, )
             cell_kwargs['stride'] = stride
-            cell_kwargs['pid'] = cell_pid if shared_a else None
+            # cell_kwargs['pid'] = cell_pid if shared_a else None
             cell = cell_cls(**cell_kwargs)
-            if reduction:
-                reduce_cell_pid = cell.pid
-            else:
-                normal_cell_pid = cell.pid
+            # if reduction:
+                # reduce_cell_pid = cell.pid
+            # else:
+                # normal_cell_pid = cell.pid
             self.cells.append(cell)
             group = self.cell_group[1 if reduction else 0]
             group.append(cell)
@@ -158,7 +158,6 @@ def build_from_config(config):
         'auxiliary': config.auxiliary,
         'cell_cls': DAGLayer,
         'cell_kwargs': {
-            'config': config,
             'n_nodes': n_nodes,
             'chn_in': None,
             'allocator': ReplicateAllocator,

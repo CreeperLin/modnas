@@ -1,3 +1,4 @@
+import logging
 import time
 import numpy as np
 from ..base import ArchOptimBase
@@ -8,7 +9,7 @@ class DiscreteSpaceArchOptim(ArchOptimBase):
     def __init__(self, config, net):
         super().__init__(config, net)
         self.space_size = ArchParamSpace.discrete_size()
-        print('arch space size: {}'.format(self.space_size))
+        logging.debug('arch space size: {}'.format(self.space_size))
 
 class GridSearch(DiscreteSpaceArchOptim):
     def __init__(self, config, net):
@@ -37,7 +38,4 @@ class RandomSearch(DiscreteSpaceArchOptim):
         while index in self.visited:
             index = self.np_random.randint(self.space_size)
         self.visited.add(index)
-        # print('random: {}'.format(index))
-        # arch_params = ArchParamSpace.get_discrete(index)
-        # print('arch space get: {}'.format(arch_params))
         ArchParamSpace.set_discrete(index)

@@ -6,7 +6,6 @@ from ...arch_space.constructor import Slot
 class GroupConv(nn.Module):
     def __init__(self, chn_in, chn_out, kernel_size, stride=1, padding=0, groups=1, relu=True, affine=True):
         super().__init__()
-        # print(groups)
         chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
         if chn_out is None:
             chn_out = chn_in

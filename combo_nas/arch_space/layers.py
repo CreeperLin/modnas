@@ -7,14 +7,10 @@ from ..utils import param_count
 from .constructor import Slot
 
 class DAGLayer(nn.Module):
-    _edge_id = 0
-    
-    def __init__(self, config, n_nodes, chn_in, stride, 
-                    allocator, merger_state, merger_out, enumerator, preproc, pid,
+    def __init__(self, n_nodes, chn_in, stride, 
+                    allocator, merger_state, merger_out, enumerator, preproc,
                     edge_cls=Slot, edge_kwargs={}):
         super().__init__()
-        self.edge_id = DAGLayer._edge_id
-        DAGLayer._edge_id += 1
         self.n_nodes = n_nodes
         self.stride = stride
         self.chn_in = chn_in
@@ -26,7 +22,6 @@ class DAGLayer(nn.Module):
         self.merger_out = merger_out(start=self.n_input)
         self.merge_out_range = self.merger_out.merge_range(self.n_states)
         self.enumerator = enumerator()
-        self.edge_pids = []
 
         chn_states = []
         if not preproc:
@@ -52,10 +47,7 @@ class DAGLayer(nn.Module):
                 e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
                 edge_kwargs['chn_in'] = e_chn_in
                 edge_kwargs['stride'] = stride if all(s < self.n_input for s in sidx) else 1
-                # edge_kwargs['shared_a'] = shared_a
-                edge_kwargs['pid'] = None if pid is None else pid[len(self.edges)]
                 e = edge_cls(**edge_kwargs)
-                self.edge_pids.append(e.pid)
                 self.dag[i].append(e)
                 self.edges.append(e)
             self.num_edges += num_edges
@@ -65,10 +57,6 @@ class DAGLayer(nn.Module):
         # logging.debug('DAGLayer param count: {:.6f}'.format(param_count(self)))
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.chn_states = chn_states
-    
-    @property
-    def pid(self):
-        return self.edge_pids
 
     def forward(self, x):
         if self.preprocs is None:
@@ -143,7 +131,7 @@ class DAGLayer(nn.Module):
 
 
 class TreeLayer(nn.Module):
-    def __init__(self, config, n_nodes, chn_in, stride, shared_a,
+    def __init__(self, n_nodes, chn_in, stride, shared_a,
                     allocator, merger_out, preproc, 
                     child_cls, child_kwargs, edge_cls, edge_kwargs,
                     children=None, edges=None):

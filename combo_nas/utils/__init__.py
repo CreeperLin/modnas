@@ -116,12 +116,12 @@ def init_device(config, ovr_gpus):
     return device, config.gpus
 
 
-def get_logger(log_dir, name):
+def get_logger(log_dir, name, level=logging.INFO):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     log_path = os.path.join(log_dir, '%s-%d.log' % (name, time.time()))
     logging.basicConfig(
-        level=logging.INFO,
+        level=level,
         format='%(asctime)s - %(name)s - %(message)s',
         handlers=[
             logging.FileHandler(log_path),

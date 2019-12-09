@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from ..arch_space import genotypes as gt
 from ..arch_space.ops import DropPath_
 from .param_space import ArchParamSpace
-from .nas_modules import NASModule
+from .nas_modules import ArchModuleSpace
 
 class NASController(nn.Module):
     def __init__(self, net, criterion, device_ids=None):
@@ -62,10 +62,14 @@ class NASController(nn.Module):
             org_formatters.append(handler.formatter)
             handler.setFormatter(logging.Formatter("%(message)s"))
 
-        alphas = tuple(F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.alphas())
-        max_num = min(len(alphas)//2, max_num)
-        logger.info("ALPHA: {}\n{}".format(
-            len(alphas), '\n'.join([str(a) for a in (alphas[:max_num]+('...',)+alphas[-max_num:])])))
+        ap_cont = tuple(F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.arch_param_cont())
+        ap_disc = tuple(self.arch_param_disc())
+        max_num = min(len(ap_cont)//2, max_num)
+        if len(ap_cont) != 0: logger.info("CONTINUOUS: {}\n{}".format(
+            len(ap_cont), '\n'.join([str(a) for a in (ap_cont[:max_num]+('...',)+ap_cont[-max_num:])])))
+        max_num = min(len(ap_disc)//2, max_num)
+        if len(ap_disc) != 0: logger.info("DISCRETE: {}\n{}".format(
+            len(ap_disc), '\n'.join([str(a) for a in (ap_disc[:max_num]+('...',)+ap_disc[-max_num:])])))
 
         # restore formats
         for handler, formatter in zip(logger.handlers, org_formatters):
@@ -83,14 +87,14 @@ class NASController(nn.Module):
             return self.to_genotype_ops(*args, **kwargs)
     
     def to_genotype_ops(self, *args, **kwargs):
-        gene_ops = NASModule.to_genotype_all(*args, **kwargs)
+        gene_ops = ArchModuleSpace.to_genotype_all(*args, **kwargs)
         return gt.Genotype(dag=None, ops=gene_ops)
     
     def build_from_genotype(self, gene, *args, **kwargs):
         try:
             self.net.build_from_genotype(gene, *args, **kwargs)
         except AttributeError:
-            NASModule.build_from_genotype_all(gene, *args, **kwargs)
+            ArchModuleSpace.build_from_genotype_all(gene, *args, **kwargs)
 
     def weights(self, check_grad=False):
         for n, p in self.net.named_parameters(recurse=True):
@@ -104,11 +108,17 @@ class NASController(nn.Module):
                 continue
             yield n, p
 
+    def arch_param_cont(self):
+        return ArchParamSpace.continuous_values()
+
+    def arch_param_disc(self):
+        return ArchParamSpace.discrete_values()
+
     def alphas(self):
-        return ArchParamSpace.continuous_params()
+        return self.arch_param_cont()
 
     def mixed_ops(self):
-        return NASModule.modules()
+        return ArchModuleSpace.modules()
     
     def drop_path_prob(self, p):
         """ Set drop path probability """

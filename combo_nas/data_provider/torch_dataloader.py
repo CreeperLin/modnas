@@ -33,6 +33,7 @@ class Cutout(object):
 def get_torch_dataloader(config, metadata):
     dataset, root, MEAN, STD, validation = metadata
     prefetch = config.prefetch
+    size = config.get('size', 1)
     collate_fn = fast_collate if prefetch else None
 
     if dataset == 'cifar10':
@@ -120,11 +121,11 @@ def get_torch_dataloader(config, metadata):
     if not collate_fn is None:
         # backward compatibility for pytorch < 1.2.0
         extra_kwargs['collate_fn'] = collate_fn
+    n_data = int(size * len(data))
+    indices = list(range(n_data))
     if sp_ratio > 0 and sp_ratio < 1.0:
-        n_data = len(data)
         split = int(n_data * sp_ratio)
         logging.info('data_provider: split data: {}/{}'.format(split, n_data-split))
-        indices = list(range(n_data))
         trn_sampler = SubsetRandomSampler(indices[:split])
         val_sampler = SubsetRandomSampler(indices[split:])
         trn_loader = DataLoader(data,
@@ -136,13 +137,15 @@ def get_torch_dataloader(config, metadata):
                         sampler=val_sampler,
                         **extra_kwargs)
     elif validation:
+        val_sampler = SubsetRandomSampler(indices)
         val_loader = DataLoader(data,
             batch_size=config.val_batch_size,
-            shuffle=False, **extra_kwargs)
+            sampler=val_sampler, **extra_kwargs)
     else:
+        trn_sampler = SubsetRandomSampler(indices)
         trn_loader = DataLoader(data,
             batch_size=config.trn_batch_size,
-            shuffle=True, **extra_kwargs)
+            sampler=trn_sampler, **extra_kwargs)
     
     if prefetch:
         if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, MEAN, STD, cutout)

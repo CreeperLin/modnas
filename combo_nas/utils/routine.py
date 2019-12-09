@@ -8,7 +8,7 @@ from .. import utils
 from .visualize import plot
 from .profiling import tprof
 from ..arch_space import genotypes as gt
-from ..core.nas_modules import NASModule
+from ..core.nas_modules import ArchModuleSpace
 from ..estimator import build_estimator
 
 def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_optim, writer, logger, device):
@@ -37,7 +37,7 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
         estim = build_estimator(estim_type, estim_conf, expman, train_loader, valid_loader, model, writer, logger, device)
         estim.load(chkpt_path)
         ret = estim.train()
-        estim.save(-1)
+        estim.save_checkpoint(-1)
     best_top1 = ret
     logger.info("Final best Prec@1 = {:.4%}".format(best_top1))
     return best_top1

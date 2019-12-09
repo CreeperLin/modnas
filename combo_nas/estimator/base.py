@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from .. import utils
 from ..utils.profiling import tprof
-from ..core.nas_modules import NASModule
+from ..core.nas_modules import ArchModuleSpace
 from ..arch_space import genotypes as gt
 
 def train(train_loader, model, writer, logger, w_optim, lr_scheduler, epoch, tot_epochs, device, config):
@@ -103,7 +103,7 @@ def save_checkpoint(expman, model, w_optim, lr_scheduler, epoch, logger):
         save_path = expman.join('chkpt', 'chkpt_{:03d}.pt'.format(epoch+1))
         torch.save({
             'model': model.state_dict(),
-            # 'arch': NASModule.nasmod_state_dict(),
+            # 'arch': ArchModuleSpace.nasmod_state_dict(),
             'w_optim': w_optim.state_dict(),
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,

@@ -28,7 +28,6 @@ class SubNetEstimator(EstimatorBase):
     
     def construct_subnet(self):
         # supernet based
-        ArchParamSpace.param_forward_all()
         return self.model
         # subnet based
         # config = self.config
@@ -90,5 +89,5 @@ class SubNetEstimator(EstimatorBase):
             self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            logger.info('Subnet search: [{:3d}/{}] Prec@1: {} Best: {}'.format(epoch, tot_epochs, val_top1, best_top1))
+            logger.info('Subnet search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))
         return best_top1, best_genotype, genotypes

@@ -2,14 +2,14 @@
 import copy
 import torch
 from ..base import ArchOptimBase
-from ...core.nas_modules import NASModule
+from ...core.nas_modules import ArchModuleSpace
+from ...core.param_space import ArchParamSpace
 from ...utils import get_optim, accuracy
 
 class GradientBasedArchOptim(ArchOptimBase):
     def __init__(self, config, net):
         super().__init__(config, net)
         self.a_optim = get_optim(net.alphas(), config.a_optim)
-        self.a_optim.zero_grad()
 
     def state_dict(self):
         return {
@@ -21,6 +21,8 @@ class GradientBasedArchOptim(ArchOptimBase):
 
     def optim_step(self):
         self.a_optim.step()
+    
+    def optim_reset(self):
         self.a_optim.zero_grad()
 
 
@@ -59,8 +61,8 @@ class DARTSArchitect(GradientBasedArchOptim):
                 m = w_optim.state[w].get('momentum_buffer', 0.) * self.w_momentum
                 vw.copy_(w - lr * (m + g + self.w_weight_decay*w))
             # synchronize alphas
-            for a, va in zip(self.net.alphas(), self.v_net.alphas()):
-                va.copy_(a)
+            # for a, va in zip(self.net.alphas(), self.v_net.alphas()):
+            #     va.copy_(a)
 
     def step(self, estim):
         """ Compute unrolled loss and backward its gradients
@@ -68,9 +70,11 @@ class DARTSArchitect(GradientBasedArchOptim):
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
-        trn_X, trn_y = estim.get_next_trn_batch()
+        # self.optim_reset()
+        trn_X, trn_y = estim.get_cur_trn_batch()
         val_X, val_y = estim.get_next_val_batch()
-        lr, w_optim = estim.lr, estim.w_optim
+        lr = estim.get_lr()
+        w_optim = estim.w_optim
         # do virtual step (calc w`)
         self.virtual_step(trn_X, trn_y, lr, w_optim)
         # calc unrolled loss
@@ -132,22 +136,23 @@ class BinaryGateArchitect(GradientBasedArchOptim):
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
-        val_X, val_y = estim.next_val_batch()
+        self.optim_reset()
+        val_X, val_y = estim.get_next_val_batch()
         # sample k
         if self.sample:
-            NASModule.param_module_call('sample_ops', n_samples=self.n_samples)
+            ArchModuleSpace.module_call('sample_ops', n_samples=self.n_samples)
         # loss
         loss = self.net.loss(val_X, val_y)
         # backward
-        NASModule.backward_all(loss)
+        ArchParamSpace.backward_all(loss)
         # renormalization
         if not self.renorm:
             self.optim_step()
         else:
             with torch.no_grad():
                 prev_pw = []
-                for p, m in NASModule.param_modules():
-                    s_op = m.get_state('s_op')
+                for p, m in ArchParamSpace.continuous_param_modules():
+                    s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
                     if pp.size() == pdt.size(): continue
@@ -157,15 +162,15 @@ class BinaryGateArchitect(GradientBasedArchOptim):
             self.optim_step()
 
             with torch.no_grad():
-                for kprev, (p, m) in zip(prev_pw, NASModule.param_modules()):
-                    s_op = m.get_state('s_op')
+                for kprev, (p, m) in zip(prev_pw, ArchParamSpace.continuous_param_modules()):
+                    s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
                     k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
                     for i in s_op:
                         p[i] += (torch.log(k) - torch.log(kprev))
 
-        NASModule.module_call('reset_ops')
+        ArchModuleSpace.module_call('reset_ops')
 
 
 class DummyArchitect(GradientBasedArchOptim):
@@ -190,10 +195,11 @@ class REINFORCE(GradientBasedArchOptim):
         return total_reward
     
     def step(self, estim):
+        self.optim_reset()
         grad_batch = []
         reward_batch = []
         net_info_batch = []
-        val_X, val_y = estim.next_val_batch()
+        val_X, val_y = estim.get_next_val_batch()
         for i in range(self.batch_size):
             logits = self.net.logits(val_X)
             acc1, acc5 = accuracy(logits, val_y, topk=(1, 5))

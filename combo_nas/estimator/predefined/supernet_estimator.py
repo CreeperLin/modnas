@@ -36,16 +36,48 @@ class SuperNetEstimator(EstimatorBase):
                 self.save_checkpoint(epoch)
         return best_top1, best_genotype, genotypes
     
+    def get_lr(self):
+        return self.lr_scheduler.get_lr()[0]
+
+    def get_next_trn_batch(self):
+        tprof.timer_start('data')
+        try:
+            trn_X, trn_y = next(self.trn_iter)
+        except:
+            self.trn_iter = iter(self.train_loader)
+            trn_X, trn_y = next(self.trn_iter)
+        trn_X, trn_y = trn_X.to(self.device, non_blocking=True), trn_y.to(self.device, non_blocking=True)
+        tprof.timer_stop('data')
+        self.cur_trn_batch = trn_X, trn_y
+        return trn_X, trn_y
+    
+    def get_cur_trn_batch(self):
+        return self.cur_trn_batch
+    
+    def get_next_val_batch(self):
+        tprof.timer_start('data')
+        try:
+            val_X, val_y = next(self.val_iter)
+        except:
+            self.val_iter = iter(self.valid_loader)
+            val_X, val_y = next(self.val_iter)
+        val_X, val_y = val_X.to(self.device, non_blocking=True), val_y.to(self.device, non_blocking=True)
+        tprof.timer_stop('data')
+        self.cur_val_batch = val_X, val_y
+        return val_X, val_y
+    
+    def get_cur_val_batch(self):
+        return self.cur_val_batch
+
     def search_epoch(self, epoch, arch_optim):
         config = self.config
         train_loader = self.train_loader
         valid_loader = self.valid_loader
         writer = self.writer
         logger = self.logger
-        lr = self.lr_scheduler.get_lr()[0]
+        lr = self.get_lr()
         w_optim = self.w_optim
         model = self.model
-        device = self.device
         tot_epochs = config.epochs
 
         top1 = utils.AverageMeter()
@@ -53,11 +85,11 @@ class SuperNetEstimator(EstimatorBase):
         losses = utils.AverageMeter()
 
         n_trn_batch = len(train_loader)
-        cur_step = epoch*n_trn_batch
+        cur_step = epoch * n_trn_batch
         writer.add_scalar('train/lr', lr, cur_step)
         
         if not valid_loader is None:
-            val_iter = iter(valid_loader)
+            self.val_iter = iter(valid_loader)
             n_val_batch = len(valid_loader)
 
         update_arch = False
@@ -76,11 +108,15 @@ class SuperNetEstimator(EstimatorBase):
         model.train()
         eta_m = utils.ETAMeter(tot_epochs, epoch, n_trn_batch)
         eta_m.start()
-        tprof.timer_start('data')
-        for step, (trn_X, trn_y) in enumerate(train_loader):
-            trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
+        for step in range(n_trn_batch):
+            trn_X, trn_y = self.get_next_trn_batch()
             N = trn_X.size(0)
-            tprof.timer_stop('data')
+            # arch_optim step
+            if update_arch and (step+1) % arch_update_intv == 0:
+                for a_batch in range(arch_update_batch):
+                    tprof.timer_start('arch')
+                    arch_optim.step(self)
+                    tprof.timer_stop('arch')
             # supernet step
             tprof.timer_start('train')
             w_optim.zero_grad()
@@ -91,24 +127,6 @@ class SuperNetEstimator(EstimatorBase):
                 nn.utils.clip_grad_norm_(model.weights(), config.w_grad_clip)
             w_optim.step()
             tprof.timer_stop('train')
-            # arch_optim step
-            if update_arch and (step+1) % arch_update_intv == 0:
-                for a_batch in range(arch_update_batch):
-                    if valid_loader is None:
-                        tprof.timer_start('arch')
-                        arch_optim.step(self)
-                    else:
-                        tprof.timer_start('data')
-                        try:
-                            val_X, val_y = next(val_iter)
-                        except:
-                            val_iter = iter(valid_loader)
-                            val_X, val_y = next(val_iter)
-                        val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
-                        tprof.timer_stop('data')
-                        tprof.timer_start('arch')
-                        arch_optim.step(self)
-                    tprof.timer_stop('arch')
 
             prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
             losses.update(loss.item(), N)
@@ -127,7 +145,6 @@ class SuperNetEstimator(EstimatorBase):
             writer.add_scalar('train/top1', prec1.item(), cur_step)
             writer.add_scalar('train/top5', prec5.item(), cur_step)
             cur_step += 1
-            if step < n_trn_batch-1: tprof.timer_start('data')
         logger.info("Train: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
         tprof.print_stat('data')
         tprof.print_stat('train')
