@@ -1,0 +1,1 @@
+Genotype(dag=None, ops=['SC7', 'AVG', 'DC3', 'MAX', 'IDT', 'DC3', 'SC5', 'MAX', 'IDT', 'SC5'])
