@@ -164,7 +164,7 @@ class ResNet(nn.Module):
 
         return x
 
-    def get_default_converter(self):
+    def get_predefined_augment_converter(self):
         return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, stride=slot.stride,
                                             padding=1, bias=False, **slot.kwargs)
 

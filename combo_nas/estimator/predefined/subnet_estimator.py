@@ -11,12 +11,15 @@ class SubNetEstimator(EstimatorBase):
         config = self.config
         tot_epochs = config.subnet_epochs
         subnet = self.construct_subnet()
+        w_optim = utils.get_optim(subnet.weights(), config.w_optim)
+        lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, tot_epochs)
         # train
         best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
-            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
+            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet,
+                                        w_optim=w_optim, lr_scheduler=lr_scheduler)
             # validate
             val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             if val_top1 is None: val_top1 = trn_top1
@@ -27,17 +30,17 @@ class SubNetEstimator(EstimatorBase):
         pass
     
     def construct_subnet(self):
+        config = self.config
         # supernet based
+        self.model.init_model(config.init)
         return self.model
         # subnet based
-        # config = self.config
         # convert_fn = None
         # net = build_arch_space(config.model.type, config.model)
-        # drop_path = config.augment.drop_path_prob > 0.0
+        # drop_path = 0.0
         # genotype = self.model.to_genotype()
         # model = convert_from_genotype(net, genotype, convert_fn, drop_path)
-        # crit = utils.get_net_crit(config.criterion)
-        # model = NASController(model, crit, dev_list=None)
+        # model = NASController(model, self.model.criterion, dev_list=None)
         # model.init_model(config.init)
     
     def train(self):
@@ -80,8 +83,9 @@ class SubNetEstimator(EstimatorBase):
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 arch_optim.step(self)
             # estim step
-            val_top1 = self.step()
             genotype = self.model.to_genotype()
+            logger.info('Evaluating SubNet genotype = {}'.format(genotype))
+            val_top1 = self.step()
             if val_top1 > best_top1:
                 best_top1 = val_top1
                 best_genotype = genotype
@@ -89,5 +93,5 @@ class SubNetEstimator(EstimatorBase):
             self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            logger.info('Subnet search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))
+            logger.info('SubNet Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))
         return best_top1, best_genotype, genotypes

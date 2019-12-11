@@ -3,6 +3,7 @@ from ..utils.exp_manager import ExpManager
 from ..data_provider.dataloader import load_data
 from ..arch_space.constructor import convert_from_predefined_net
 from ..arch_space.constructor import convert_from_genotype
+from ..arch_space.constructor import convert_from_layers
 from ..arch_space.ops import configure_ops
 from ..arch_space import build_arch_space
 from ..arch_space.constructor import Slot
@@ -48,18 +49,27 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     Slot.reset()
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
+    # layers
+    if not isinstance(convert_fn, list):
+        convert_fn = [convert_fn]
+    layer_convert_fn = convert_fn[:-1]
+    layers_conf = config.get('layers', None)
+    if not layers_conf is None:
+        convert_from_layers(net, layers_conf, layer_convert_fn)
+    # mixed_op
     mixed_op_args = config.mixed_op.get('args', {})
     drop_path = config.search.drop_path_prob > 0.0
+    op_convert_fn = convert_fn[-1]
     if genotype is None:
-        if convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
-            convert_fn = net.get_predefined_search_converter()
-        model = convert_from_predefined_net(net, convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+        if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
+            op_convert_fn = net.get_predefined_search_converter()
+        model = convert_from_predefined_net(net, op_convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
     else:
-        if convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
-            convert_fn = net.get_genotype_search_converter()
+        if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
+            op_convert_fn = net.get_genotype_search_converter()
         genotype = gt.get_genotype(config.genotypes, genotype)
-        model = convert_from_genotype(net, genotype, convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
-    # model
+        model = convert_from_genotype(net, genotype, op_convert_fn, drop_path, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+    # controller
     crit = utils.get_net_crit(config.criterion)
     model = NASController(model, crit, dev_list).to(device=dev)
     arch = build_arch_optim(config.arch_optim.type, config.arch_optim, model)
@@ -102,17 +112,26 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
     config.ops.affine = True
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
+    # layers
+    if not isinstance(convert_fn, list):
+        convert_fn = [convert_fn]
+    layer_convert_fn = convert_fn[:-1]
+    layers_conf = config.get('layers', None)
+    if not layers_conf is None:
+        convert_from_layers(net, layers_conf, layer_convert_fn)
+    # op
     drop_path = config.augment.drop_path_prob > 0.0
+    op_convert_fn = convert_fn[-1]
     if genotype is None:
-        if convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
-            convert_fn = net.get_predefined_augment_converter()
-        model = convert_from_predefined_net(net, convert_fn, drop_path)
+        if op_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
+            op_convert_fn = net.get_predefined_augment_converter()
+        model = convert_from_predefined_net(net, op_convert_fn, drop_path)
     else:
-        if convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
-            convert_fn = net.get_genotype_augment_converter()
+        if op_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
+            op_convert_fn = net.get_genotype_augment_converter()
         genotype = gt.get_genotype(config.genotypes, genotype)
-        model = convert_from_genotype(net, genotype, convert_fn, drop_path)
-    # model
+        model = convert_from_genotype(net, genotype, op_convert_fn, drop_path)
+    # controller
     crit = utils.get_net_crit(config.criterion)
     model = NASController(model, crit, dev_list).to(device=dev)
     # init

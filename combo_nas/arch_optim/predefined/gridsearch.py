@@ -1,5 +1,6 @@
 import logging
 import time
+import random
 import numpy as np
 from ..base import ArchOptimBase
 from ...utils import accuracy
@@ -28,14 +29,12 @@ class RandomSearch(DiscreteSpaceArchOptim):
         super().__init__(config, net)
         self.visited = set()
         seed = int(time.time()) if seed is None else seed
-        rng = np.random.RandomState()
-        rng.seed(seed)
-        self.np_random = rng
+        random.seed(seed)
     
     def step(self, estim):
         if len(self.visited) >= self.space_size: return None
-        index = self.np_random.randint(self.space_size)
+        index = random.randint(0,self.space_size)
         while index in self.visited:
-            index = self.np_random.randint(self.space_size)
+            index = random.randint(0,self.space_size)
         self.visited.add(index)
         ArchParamSpace.set_discrete(index)

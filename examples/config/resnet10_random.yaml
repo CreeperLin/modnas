@@ -15,7 +15,7 @@ search:
       jitter: True
   estimator:
     search:
-      type: 'SuperNet'
+      type: 'SubNet'
       w_optim:
         type: 'sgd'
         lr: 0.035
@@ -29,14 +29,14 @@ search:
       aux_weight: 0.0
       w_grad_clip: 0.0
       drop_path_prob: 0.0
-      warmup_epochs: 30
+      subnet_epochs: 50
       epochs: 200
       print_freq: 200
       save_freq: 0
       arch_update_epoch_start: 0
       arch_update_epoch_intv: 1
-      arch_update_intv: -1
-      arch_update_batch: 1
+      init:
+        type: 'he_normal_fout'
 augment:
   data:
     type: 'CIFAR10'
@@ -72,18 +72,9 @@ augment:
       print_freq: 200
       save_freq: 0
 arch_optim:
-  type: 'BinGate'
-  n_samples: 2
-  renorm: True
-  a_optim:
-    type: 'adam'
-    lr: 0.006
-    betas: 
-      - 0.0
-      - 0.999
-    weight_decay: 0
+  type: 'Random'
 mixed_op:
-  type: 'BinGate'
+  type: 'Index'
 ops:
   ops_order: 'weight'
   affine: False
@@ -91,7 +82,7 @@ criterion:
   type: 'LS'
   eta: 0.1
 model:
-  type: 'ResNet-50'
+  type: 'ResNet-10'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3   
   channel_init: 16

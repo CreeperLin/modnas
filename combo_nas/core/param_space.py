@@ -33,7 +33,10 @@ class ArchParamSpace():
     @staticmethod
     def discrete_size():
         if ArchParamSpace._discrete_length is None:
-            ArchParamSpace._discrete_length = int(np.prod([len(x) for x in ArchParamSpace.discrete_params()]))
+            prod = 1
+            for x in ArchParamSpace.discrete_params():
+                prod *= len(x)
+            ArchParamSpace._discrete_length = prod
         return ArchParamSpace._discrete_length
     
     @staticmethod

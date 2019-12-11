@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from .ops import build_op, Identity, DropPath_
 from .mixed_ops import build_mixed_op
+from .layers import build_layer
 from . import genotypes as gt
 
 class Slot(nn.Module):
@@ -22,6 +23,7 @@ class Slot(nn.Module):
         self.gene = None
         self.args = args
         self.kwargs = kwargs
+        self.fixed = False
         logging.debug('slot {} {} {}: declared {} {} {}'.format(
             self.sid, self.arch_param_map, self.name, self.chn_in, self.chn_out, self.stride))
     
@@ -36,16 +38,14 @@ class Slot(nn.Module):
         return Slot._slot_id
     
     def set_entity(self, ent):
+        if self.fixed: return
         self.ent = ent
         self.forward = ent.forward
         self.__call__ = ent.__call__
         logging.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
     
     def forward(self, x):
-        if self.ent is None:
-            raise ValueError('Undefined entity in slot {}'.format(self.sid))
-        x = x[0] if isinstance(x, list) else x
-        return self.ent(x)
+        raise ValueError('Undefined entity in slot {}'.format(self.sid))
 
     def to_genotype(self, *args, **kwargs):
         if hasattr(self.ent, 'to_genotype'):
@@ -94,6 +94,7 @@ def default_genotype_converter(slot, gene):
 def convert_from_predefined_net(model, convert_fn=None, drop_path=False, *args, **kwargs):
     convert_fn = default_predefined_converter if convert_fn is None else convert_fn
     for m in slots(model):
+        if m.fixed: continue
         ent = apply_drop_path(convert_fn(m, *args, **kwargs), drop_path)
         m.set_entity(ent)
     return model
@@ -105,12 +106,45 @@ def convert_from_genotype(model, genotype, convert_fn=None, drop_path=False, *ar
         Slot._convert_fn = convert_fn
         model.build_from_genotype(genotype, *args, **kwargs)
     except AttributeError:
-        for i, m in enumerate(slots(model)):
-            gene = genotype.ops[i]
+        idx = 0
+        for m in slots(model):
+            if m.fixed: continue
+            gene = genotype.ops[idx]
             ent = convert_fn(m, gene, *args, **kwargs)
             m.set_entity(ent)
+            idx += 1
     if drop_path:
         for m in slots(model):
+            if m.fixed: continue
             ent = apply_drop_path(m.ent, drop_path)
             m.set_entity(ent)
     return model
+
+def default_layer_converter(slot, layer_cls, *args, **kwargs):
+    ent = build_layer(layer_cls, 
+                    chn_in=slot.chn_in, 
+                    chn_out=slot.chn_out, 
+                    stride=slot.stride, 
+                    edge_cls=Slot,
+                    edge_kwargs={
+                        'chn_in': None,
+                        'chn_out': None,
+                        'stride': None,
+                    },
+                    *args, **kwargs)
+    return ent
+
+def convert_from_layers(model, layers_conf, convert_fn=None, *args, **kwargs):
+    logging.info('building net layers')
+    for i, layer_conf in enumerate(layers_conf):
+        layer_convert_fn = default_layer_converter if i >= len(convert_fn) else convert_fn[i]
+        if layer_convert_fn is None: layer_convert_fn = default_layer_converter
+        layer_cls = layer_conf.type
+        layer_args = layer_conf.get('args', {})
+        cur_slots = list(slots(model))
+        for m in cur_slots:
+            if m.ent is None:
+                m.set_entity(layer_convert_fn(m, layer_cls, *args, **kwargs, **layer_args))
+                m.fixed = True
+        new_slots = [m for m in slots(model) if m.ent is None]
+        logging.debug('new slots from layer: {}'.format(len(new_slots)))

@@ -128,7 +128,7 @@ class NASController(nn.Module):
 
     def init_model(self, config):
         init_type = config.type
-        init_div_groups = config.conv_div_groups
+        init_div_groups = config.get('conv_div_groups', False)
         if init_type == 'none': return
         a = 0.
         gain = math.sqrt(2. / (1 + a**2))

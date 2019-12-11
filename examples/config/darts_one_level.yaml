@@ -13,55 +13,30 @@ search:
       workers: 2
       cutout: 0
       jitter: True
-  w_optim:
-    type: 'sgd'
-    lr: 0.025
-    momentum: 0.9
-    weight_decay: 0.0003
-    nesterov: True
-  lr_scheduler:
-    type: 'cosine'
-    args:
-      eta_min: 0.001
-  aux_weight: 0.0
-  drop_path_prob: 0.0
-  w_grad_clip: 5.
-  warmup_epochs: 0
-  epochs: 50
-  print_freq: 200
-  save_freq: 25
-  plot: False
-augment:
-  data:
-    type: 'CIFAR10'
-    # type: 'MNIST'
-    # type: 'ImageNet'
-    train_root: './data'
-    valid_root: './data'
-    dloader:
-      type: 'pytorch'
-      split_ratio: 0
-      trn_batch_size: 96
-      val_batch_size: 96
-      workers: 2
-      cutout: 16
-      jitter: True
-  w_optim:
-    type: 'sgd'
-    lr: 0.025
-    momentum: 0.9
-    weight_decay: 0.0003
-    nesterov: True
-  lr_scheduler:
-    type: 'cosine'
-    args:
-      eta_min: 0.001
-  aux_weight: 0.4
-  drop_path_prob: 0.2
-  w_grad_clip: 5.
-  epochs: 600
-  print_freq: 200
-  save_freq: 200
+  estimator:
+    search:
+      type: 'SuperNet'
+      w_optim:
+        type: 'sgd'
+        lr: 0.025
+        momentum: 0.9
+        weight_decay: 0.0003
+        nesterov: True
+      lr_scheduler:
+        type: 'cosine'
+        args:
+          eta_min: 0.001
+      aux_weight: 0.0
+      drop_path_prob: 0.0
+      w_grad_clip: 5.
+      epochs: 50
+      print_freq: 200
+      save_freq: 25
+      plot: False
+      arch_update_epoch_start: 0
+      arch_update_epoch_intv: 1
+      arch_update_intv: -1
+      arch_update_batch: 1
 arch_optim:
   type: 'Dummy'
   a_optim:
@@ -71,9 +46,8 @@ arch_optim:
     momentum: 0.9
     weight_decay: 0.001
 mixed_op:
-  type: 'DARTS'
+  type: 'WeightedSum'
 ops:
-  sepconv_stack: True
   ops_order: 'act_weight_bn'
   affine: False
 criterion:

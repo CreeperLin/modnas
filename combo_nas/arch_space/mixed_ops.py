@@ -15,8 +15,8 @@ get_mixed_op_builder = partial(get_builder, mixed_op_registry)
 build_mixed_op = partial(build, mixed_op_registry)
 register = partial(register_wrapper, mixed_op_registry)
 
-class DARTSMixedOp(NASModule):
-    """ Mixed operation as in DARTS """
+class WeightedSumMixedOp(NASModule):
+    """ Mixed operation as weighted sum """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
         if arch_param_map is None:
             params_shape = (len(ops), )
@@ -33,8 +33,7 @@ class DARTSMixedOp(NASModule):
         for primitive in ops:
             op = build_op(primitive, self.chn_in, self.chn_out, stride)
             self._ops.append(op)
-        self.params_shape = params_shape
-        self.chn_out = self.chn_in
+        self.params_shape = arch_param_map['p'].shape
     
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
@@ -73,8 +72,7 @@ class BinGateMixedOp(NASModule):
         self.reset_ops()
         self.s_path_f = None
         # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
-        self.params_shape = params_shape
-        self.chn_out = self.chn_in
+        self.params_shape = arch_param_map['p'].shape
     
     def sample(self):
         p = self.arch_param('p')
@@ -95,8 +93,8 @@ class BinGateMixedOp(NASModule):
         self.s_op = s_op
     
     def forward(self, x):
+        self.sample()
         x = x[0] if isinstance(x, list) else x
-        if self.s_path_f is None: self.sample()
         dev_id = ArchModuleSpace.get_dev_id(x.device.index)
         self.set_state('x_f'+dev_id, x.detach())
         s_path_f = self.s_path_f
@@ -108,7 +106,8 @@ class BinGateMixedOp(NASModule):
 
     def swap_ops(self, samples):
         for i in samples:
-            self._ops[i].requires_grad_(True)
+            for p in self._ops[i].parameters():
+                p.requires_grad_(True)
         for i in self.last_samples:
             for p in self._ops[i].parameters():
                 p.requires_grad = False
@@ -180,7 +179,6 @@ class IndexMixedOp(NASModule):
         ])
         self.reset_ops()
         # logging.debug("IndexMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
-        self.chn_out = self.chn_in
     
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
@@ -195,7 +193,8 @@ class IndexMixedOp(NASModule):
 
     def swap_ops(self, samples):
         for i in samples:
-            self._ops[i].requires_grad_(True)
+            for p in self._ops[i].parameters():
+                p.requires_grad_(True)
         for i in self.last_samples:
             for p in self._ops[i].parameters():
                 p.requires_grad = False
@@ -225,7 +224,7 @@ class DummyMixedOp(NASModule):
     def to_genotype(self, k=1):
         return 0, self.ops[self.arch_param('ops')]
 
-register_mixed_op(DARTSMixedOp, 'DARTS')
+register_mixed_op(WeightedSumMixedOp, 'WeightedSum')
 register_mixed_op(BinGateMixedOp, 'BinGate')
 register_mixed_op(BinGateUniformMixedOp, 'BinGateUniform')
 register_mixed_op(IndexMixedOp, 'Index')

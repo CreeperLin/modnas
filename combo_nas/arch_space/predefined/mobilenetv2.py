@@ -125,7 +125,7 @@ class MobileNetV2(nn.Module):
         x = self.fc(x)
         return x
     
-    def get_default_converter(self):
+    def get_predefined_augment_converter(self):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
 

@@ -100,6 +100,9 @@ class NASModule(nn.Module):
     
     def arch_param(self, name):
         return (ArchModuleSpace._params_map[self.id]).get(name).value()
+    
+    def arch_param_map(self):
+        return ArchModuleSpace._params_map[self.id]
 
     def nas_state_dict(self):
         if not self.id in ArchModuleSpace._module_state_dict:

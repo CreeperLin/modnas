@@ -19,8 +19,8 @@ def main():
     args = parser.parse_args()
 
     config.model.type = 'CustomNet'
-    config.arch_optim.type = 'DARTS'
-    config.mixed_op.type = 'DARTS'
+    config.arch_optim.type = 'WeightedSum'
+    config.mixed_op.type = 'WeightedSum'
 
     register_custom_ops()
     exp_root_dir = os.path.join('exp', args.name)

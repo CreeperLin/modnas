@@ -10,19 +10,11 @@ class GroupConv(nn.Module):
         if chn_out is None:
             chn_out = chn_in
         self.chn_out = chn_out
-        C = chn_in
-        nets = []
-        OPS_ORDER = ['bn', 'act', 'weight']
-        for i in OPS_ORDER:
-            if i=='bn':
-                nets.append(nn.BatchNorm2d(C, affine=affine))
-            elif i=='act' and relu:
-                nets.append(nn.ReLU(inplace=False if OPS_ORDER[0]=='act' else True))
-            elif i=='weight':
-                bias = False if OPS_ORDER[-1] == 'bn' else True
-                nets.append(nn.Conv2d(chn_in, chn_out, kernel_size, stride, padding, groups=groups, bias=bias))
-                C = chn_out
-        self.net = nn.Sequential(*nets)
+        self.net = nn.Sequential(
+            nn.BatchNorm2d(chn_in, affine=affine),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(chn_in, chn_out, kernel_size, stride, padding, groups=groups, bias=True),
+        )
 
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
@@ -91,11 +83,10 @@ class PyramidNet(nn.Module):
             groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride))
         self.pyramid = nn.Sequential(*groups)
         
-        self.chn_fin = int(round(self.chn_cur)) * self.bneck_ratio
-        self.bn_final= nn.BatchNorm2d(self.chn_fin)
+        self.chn_fin = int(self.chn_cur) * self.bneck_ratio
+        self.bn_final = nn.BatchNorm2d(self.chn_fin)
         self.relu_final = nn.ReLU(inplace=True)
-        self.avgpool = nn.AvgPool2d(8)
-        # self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(self.chn_fin, self.n_classes)
 
     def pyramidal_make_layer(self, block, n_blocks, stride):
@@ -134,7 +125,7 @@ class PyramidNet(nn.Module):
     
         return x
 
-    def get_default_converter(self):
+    def get_predefined_augment_converter(self):
         return lambda slot: GroupConv(slot.chn_in, slot.chn_out, 3, slot.stride, 1, **slot.kwargs)
 
 

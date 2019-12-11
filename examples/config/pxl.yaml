@@ -13,25 +13,33 @@ search:
       workers: 2
       cutout: 0
       jitter: True
-  w_optim:
-    type: 'sgd'
-    lr: 0.035
-    momentum: 0.9
-    nesterov: True
-    weight_decay: 0.0001
-    # type: 'adabound'
-    # lr: 0.001
-    # final_lr: 0.05
-  lr_scheduler:
-    type: 'cosine'
-    args:
-      eta_min: 0.001
-  w_grad_clip: 0.0
-  drop_path_prob: 0.0
-  warmup_epochs: 30
-  epochs: 200
-  print_freq: 200
-  save_freq: 100
+  estimator:
+    search:
+      type: 'SuperNet'
+      w_optim:
+        type: 'sgd'
+        lr: 0.035
+        momentum: 0.9
+        nesterov: True
+        weight_decay: 0.0001
+        # type: 'adabound'
+        # lr: 0.001
+        # final_lr: 0.05
+      lr_scheduler:
+        type: 'cosine'
+        args:
+          eta_min: 0.0
+      aux_weight: 0.0
+      w_grad_clip: 0.0
+      drop_path_prob: 0.0
+      warmup_epochs: 30
+      epochs: 200
+      print_freq: 200
+      save_freq: 100
+      arch_update_epoch_start: 0
+      arch_update_epoch_intv: 1
+      arch_update_intv: -1
+      arch_update_batch: 1
 augment:
   data:
     type: 'CIFAR10'
@@ -47,25 +55,27 @@ augment:
       workers: 2
       cutout: 16
       jitter: True
-  epochs: 600
-  w_optim:
-    type: 'sgd'
-    lr: 0.1
-    momentum: 0.9
-    weight_decay: 0.0001
-    nesterov: True
-  lr_scheduler:
-    type: 'cosine'
-    args:
-      eta_min: 0.0
-  drop_path_prob: 0.0
-  w_grad_clip: 0.0
-  print_freq: 200
-  save_freq: 300
+  estimator:
+    train:
+      type: 'Default'
+      epochs: 600
+      w_optim:
+        type: 'sgd'
+        lr: 0.1
+        momentum: 0.9
+        weight_decay: 0.0001
+        nesterov: True
+      lr_scheduler:
+        type: 'cosine'
+        args:
+          eta_min: 0.0
+      aux_weight: 0.0
+      drop_path_prob: 0.0
+      w_grad_clip: 0.0
+      print_freq: 200
+      save_freq: 300
 arch_optim:
-  # type: 'DARTS'
   type: 'BinGate'
-  # type: 'REINFORCE'
   n_samples: 2
   renorm: True
   a_optim:
@@ -77,9 +87,7 @@ arch_optim:
     weight_decay: 0
 mixed_op:
   type: 'BinGate'
-  # type: 'DARTS'
 ops:
-  sepconv_stack: False
   ops_order: 'bn_act_weight'
   affine: False
 criterion:
@@ -105,9 +113,9 @@ primitives:
   - 'AVG'
   - 'MAX'
   - 'IDT'
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
+  - 'SS3'
+  - 'SS5'
+  - 'SS7'
   - 'DC3'
 log:
   writer: False

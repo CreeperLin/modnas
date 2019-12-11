@@ -26,7 +26,7 @@ class GradientBasedArchOptim(ArchOptimBase):
         self.a_optim.zero_grad()
 
 
-class DARTSArchitect(GradientBasedArchOptim):
+class WeightedSumArchitect(GradientBasedArchOptim):
     """ Compute gradients of alphas """
     def __init__(self, config, net):
         super().__init__(config, net)
@@ -61,6 +61,7 @@ class DARTSArchitect(GradientBasedArchOptim):
                 m = w_optim.state[w].get('momentum_buffer', 0.) * self.w_momentum
                 vw.copy_(w - lr * (m + g + self.w_weight_decay*w))
             # synchronize alphas
+            # (no need, same reference to alphas)
             # for a, va in zip(self.net.alphas(), self.v_net.alphas()):
             #     va.copy_(a)
 
@@ -70,7 +71,7 @@ class DARTSArchitect(GradientBasedArchOptim):
             lr: learning rate for virtual gradient step (same as net lr)
             w_optim: weights optimizer - for virtual step
         """
-        # self.optim_reset()
+        self.optim_reset()
         trn_X, trn_y = estim.get_cur_trn_batch()
         val_X, val_y = estim.get_next_val_batch()
         lr = estim.get_lr()

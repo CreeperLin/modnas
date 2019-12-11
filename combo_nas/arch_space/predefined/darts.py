@@ -3,10 +3,10 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..layers import DAGLayer
+from ..layers import build_layer
 from ..ops import FactorizedReduce, StdConv
 from ..defs import ConcatMerger, SumMerger, CombinationEnumerator, ReplicateAllocator
-from ..constructor import Slot
+from ..constructor import Slot, default_predefined_converter
 
 class PreprocLayer(StdConv):
     def __init__(self, C_in, C_out):
@@ -51,6 +51,7 @@ class DARTSLikeNet(nn.Module):
         self.n_inputs_layer = n_inputs_layer
         self.n_inputs_node = n_inputs_node
         self.aux_pos = 2*n_layers//3 if auxiliary else -1
+        self.shared_a = shared_a
 
         chn_cur = self.chn * channel_multiplier
         self.conv_first = nn.Sequential(
@@ -63,8 +64,6 @@ class DARTSLikeNet(nn.Module):
         self.cells = nn.ModuleList()
         self.cell_group = [[],[] if shared_a else []]
         reduction_p = False
-        normal_cell_pid = None
-        reduce_cell_pid = None
         for i in range(n_layers):
             stride = 1
             cell_kwargs['preproc'] = (PreprocLayer, PreprocLayer)
@@ -72,24 +71,17 @@ class DARTSLikeNet(nn.Module):
                 reduction = True
                 stride = 2
                 chn_cur *= 2
-                cell_pid = reduce_cell_pid
             else:
                 reduction = False
-                cell_pid = normal_cell_pid
             if reduction_p:
                 cell_kwargs['preproc'] = (FactorizedReduce, PreprocLayer)
             cell_kwargs['chn_in'] = (chn_pp, chn_p)
-            cell_kwargs['edge_kwargs']['chn_in'] = (chn_cur, )
             cell_kwargs['stride'] = stride
-            # cell_kwargs['pid'] = cell_pid if shared_a else None
-            cell = cell_cls(**cell_kwargs)
-            # if reduction:
-                # reduce_cell_pid = cell.pid
-            # else:
-                # normal_cell_pid = cell.pid
+            cell_kwargs['name'] = 'reduce' if reduction else 'normal'
+            cell_kwargs['edge_kwargs']['chn_in'] = (chn_cur, )
+            cell = build_layer(cell_cls, **cell_kwargs)
             self.cells.append(cell)
-            group = self.cell_group[1 if reduction else 0]
-            group.append(cell)
+            self.cell_group[1 if reduction else 0].append(cell)
             chn_out = chn_cur * cell_kwargs['n_nodes']
             chn_pp, chn_p = chn_p, chn_out
             reduction_p = reduction
@@ -125,7 +117,6 @@ class DARTSLikeNet(nn.Module):
                 c.build_from_genotype(g, *args, **kwargs)
     
     def to_genotype(self):
-        # assert ops[-1] == 'none' # assume last PRIMITIVE is 'none'
         gene = []
         for cells in self.cell_group:
             gene.append(cells[0].to_genotype(k=2)[1])
@@ -134,6 +125,19 @@ class DARTSLikeNet(nn.Module):
     def dags(self):
         for cell in self.cells:
             yield cell
+    
+    def get_predefined_search_converter(self):
+        if not self.shared_a: return default_predefined_converter
+        def convert_fn(slot, mixed_op_cls, *args, **kwargs):
+            if not hasattr(convert_fn, 'param_map'):
+                convert_fn.param_map = {}
+            if slot.name in convert_fn.param_map:
+                kwargs['arch_param_map'] = convert_fn.param_map[slot.name]
+            ent = default_predefined_converter(slot, mixed_op_cls, *args, **kwargs)
+            if not slot.name in convert_fn.param_map:
+                convert_fn.param_map[slot.name] = ent.arch_param_map()
+            return ent
+        return convert_fn
 
     
 def build_from_config(config):
@@ -156,14 +160,16 @@ def build_from_config(config):
         'shared_a': config.shared_a,
         'channel_multiplier': config.channel_multiplier, 
         'auxiliary': config.auxiliary,
-        'cell_cls': DAGLayer,
+        'cell_cls': 'DAG',
         'cell_kwargs': {
-            'n_nodes': n_nodes,
             'chn_in': None,
-            'allocator': ReplicateAllocator,
-            'merger_state': SumMerger,
-            'merger_out': ConcatMerger,
-            'enumerator': CombinationEnumerator,
+            'chn_out': None,
+            'stride': None,
+            'n_nodes': n_nodes,
+            'allocator': 'ReplicateAllocator',
+            'merger_state': 'SumMerger',
+            'merger_out': 'ConcatMerger',
+            'enumerator': 'CombinationEnumerator',
             'preproc': None,
             'edge_cls': Slot,
             'edge_kwargs': {

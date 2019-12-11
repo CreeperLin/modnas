@@ -4,6 +4,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import itertools
 
+def get_merger(name):
+    for sc in MergerBase.__subclasses__():
+        if sc.__name__ == name:
+            return sc
+    raise NotImplementedError('unsupported merger: {}'.format(name))
+
+
 class MergerBase():
     def __init__(self):
         pass
@@ -16,6 +23,7 @@ class MergerBase():
 
     def merge_range(self, num_states):
         pass
+
 
 class ConcatMerger(MergerBase):
     def __init__(self, start=0):
@@ -61,6 +69,7 @@ class SumMerger(MergerBase):
     def merge_range(self, num_states):
         return range(self.start, num_states)
 
+
 class LastMerger(MergerBase):
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -78,6 +87,13 @@ class LastMerger(MergerBase):
         return (num_states-1, )
 
 
+def get_enumerator(name):
+    for sc in EnumeratorBase.__subclasses__():
+        if sc.__name__ == name:
+            return sc
+    raise NotImplementedError('unsupported enumerator: {}'.format(name))
+
+
 class EnumeratorBase():
     def __init__(self):
         pass
@@ -88,7 +104,8 @@ class EnumeratorBase():
     def len_enum(self, n_states, n_inputs):
         pass
 
-class CombinationEnumerator():
+
+class CombinationEnumerator(EnumeratorBase):
     def __init__(self, *args, **kwargs):
         super().__init__()
     
@@ -101,7 +118,7 @@ class CombinationEnumerator():
         return len(list(itertools.combinations(range(n_states), n_inputs)))
 
 
-class LastNEnumerator():
+class LastNEnumerator(EnumeratorBase):
     def __init__(self, *args, **kwargs):
         super().__init__()
     
@@ -113,7 +130,8 @@ class LastNEnumerator():
     def len_enum(n_states, n_inputs):
         return 1
 
-class FirstNEnumerator():
+
+class FirstNEnumerator(EnumeratorBase):
     def __init__(self, *args, **kwargs):
         super().__init__()
     
@@ -125,7 +143,8 @@ class FirstNEnumerator():
     def len_enum(n_states, n_inputs):
         return 1
 
-class TreeEnumerator():
+
+class TreeEnumerator(EnumeratorBase):
     def __init__(self, width=2, *args, **kwargs):
         super().__init__()
         self.width = width
@@ -136,7 +155,8 @@ class TreeEnumerator():
     def len_enum(self, n_states, n_inputs):
         return 1
 
-class N2OneEnumerator():
+
+class N2OneEnumerator(EnumeratorBase):
     def __init__(self, *args, **kwargs):
         super().__init__()
     
@@ -145,6 +165,13 @@ class N2OneEnumerator():
 
     def len_enum(self, n_states, n_inputs):
         return 1
+
+
+def get_allocator(name):
+    for sc in AllocatorBase.__subclasses__():
+        if sc.__name__ == name:
+            return sc
+    raise NotImplementedError('unsupported allocator: {}'.format(name))
 
 
 class AllocatorBase():

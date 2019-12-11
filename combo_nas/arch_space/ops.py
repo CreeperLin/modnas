@@ -20,10 +20,11 @@ get_op_builder = partial(get_builder, op_registry)
 build_op = partial(build, op_registry)
 register = partial(register_wrapper, op_registry)
 
-register_op(lambda C_in, C_out, stride: Zero(stride), 'none', 'NIL')
+register_op(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'none', 'NIL')
 register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, 3, stride, 1), 'avg_pool_3x3', 'AVG')
 register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, 3, stride, 1), 'max_pool_3x3', 'MAX')
-register_op(lambda C_in, C_out, stride: Identity() if stride == 1 else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
+register_op(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
+                                        else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
 register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 3, stride, 1), 'sep_conv_3x3', 'SC3')
 register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 5, stride, 2), 'sep_conv_5x5', 'SC5')
 register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 7, stride, 3), 'sep_conv_7x7', 'SC7')
@@ -255,16 +256,17 @@ class Identity(nn.Module):
 
 
 class Zero(nn.Module):
-    def __init__(self, stride):
+    def __init__(self, C_in, C_out, stride):
         super().__init__()
         self.stride = stride
+        self.C_out = C_out
 
     def forward(self, x):
         if self.stride == 1:
             return x * 0.
 
         # re-sizing by stride
-        return x[:, :, ::self.stride, ::self.stride] * 0.
+        return x[:, :self.C_out, ::self.stride, ::self.stride] * 0.
 
 
 class FactorizedReduce(nn.Module):

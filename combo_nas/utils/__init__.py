@@ -65,7 +65,6 @@ def check_config(hp, name, excludes=[]):
         'search.drop_path_prob': 0.0,
         'augment.drop_path_prob': 0.0,
         'ops.ops_order': 'act_weight_bn',
-        'ops.sepconv_stack': False,
         'ops.affine': False,
         'log.writer': False,
         'genotypes.disable_dag': False,
@@ -100,7 +99,7 @@ def check_config(hp, name, excludes=[]):
 def init_device(config, ovr_gpus):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
-    if not ovr_gpus:
+    if ovr_gpus is None:
         config.gpus = parse_gpus(config.gpus)
     else:
         config.gpus = parse_gpus(ovr_gpus)
