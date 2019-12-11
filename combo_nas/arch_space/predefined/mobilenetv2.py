@@ -1,16 +1,25 @@
+import math
 import torch
 import torch.nn as nn
 from ...arch_space.constructor import Slot
 from collections import OrderedDict
 
-def _make_divisible(v, divisor, min_value=None):
-    if min_value is None:
-        min_value = divisor
-    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
-    # Make sure that round down does not go down by more than 10%.
-    if new_v < 0.9 * v:
-        new_v += divisor
-    return new_v
+def round_filters(filters, width_coeff, divisor, min_depth=None):
+    multiplier = width_coeff
+    if not multiplier:
+        return filters
+    filters *= multiplier
+    min_depth = min_depth or divisor
+    new_filters = max(min_depth, int(filters + divisor / 2) // divisor * divisor)
+    if new_filters < 0.9 * filters:  # prevent rounding by more than 10%
+        new_filters += divisor
+    return int(new_filters)
+
+def round_repeats(repeats, depth_coeff):
+    multiplier = depth_coeff
+    if not multiplier:
+        return repeats
+    return int(math.ceil(multiplier * repeats))
 
 def MobileInvertedConv(chn_in, chn_out, C, stride, activation):
     return nn.Sequential(
@@ -43,30 +52,31 @@ class MobileInvertedResidualBlock(nn.Module):
 
 class MobileNetV2(nn.Module):
 
-    def __init__(self, chn_in=3, scale=1.0, t=6, n_classes=1000, activation=nn.ReLU6):
+    def __init__(self, chn_in, n_classes, t=6,
+                 width_coeff=1.0, depth_coeff=1.0, resolution=None, dropout_rate=0.2, activation=nn.ReLU6):
         super(MobileNetV2, self).__init__()
 
-        self.scale = scale
         self.t = t
         self.activation_type = activation
         self.activation = activation(inplace=True)
         self.n_classes = n_classes
 
-        self.num_of_channels = [32, 16, 24, 32, 64, 96, 160, 320]
+        base_channels = [32, 16, 24, 32, 64, 96, 160, 320]
+        base_repeats = [1, 1, 2, 3, 4, 3, 3, 1]
 
-        self.c = [_make_divisible(ch * self.scale, 8) for ch in self.num_of_channels]
-        self.n = [1, 1, 2, 3, 4, 3, 3, 1]
+        divisor = 8
+        self.c = [round_filters(ch, width_coeff, divisor) for ch in base_channels]
+        self.n = [round_repeats(r, depth_coeff) for r in base_repeats]
         self.s = [2, 1, 2, 2, 2, 1, 2, 1]
         self.conv1 = nn.Conv2d(chn_in, self.c[0], kernel_size=3, bias=False, stride=self.s[0], padding=1)
         self.bn1 = nn.BatchNorm2d(self.c[0])
         self.bottlenecks = self._make_bottlenecks()
 
-        # Last convolution has 1280 output channels for scale <= 1
-        self.last_conv_out_ch = 1280 if self.scale <= 1 else _make_divisible(1280 * self.scale, 8)
+        self.last_conv_out_ch = round_filters(1280, width_coeff, divisor)
         self.conv_last = nn.Conv2d(self.c[-1], self.last_conv_out_ch, kernel_size=1, bias=False)
         self.bn_last = nn.BatchNorm2d(self.last_conv_out_ch)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.dropout = nn.Dropout(p=0.2, inplace=True)  # confirmed by paper authors
+        self.dropout = nn.Dropout(p=dropout_rate, inplace=True)
         self.fc = nn.Linear(self.last_conv_out_ch, self.n_classes)
 
     def _make_stage(self, chn_in, chn_out, n, stride, t, stage):
