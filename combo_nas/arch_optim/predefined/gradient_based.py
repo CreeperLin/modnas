@@ -213,8 +213,9 @@ class REINFORCE(GradientBasedArchOptim):
             # loss term
             obj_term = 0
             for m in self.net.mixed_ops():
-                if m.arch_param.grad is not None:
-                    m.arch_param.grad.data.zero_()
+                p = m.arch_param('p')
+                if p.grad is not None:
+                    p.grad.data.zero_()
                 path_prob = m.w_path_f
                 smpl = m.s_path_f
                 path_prob_f = path_prob.index_select(-1, torch.tensor(smpl).to(path_prob.device))
@@ -225,7 +226,8 @@ class REINFORCE(GradientBasedArchOptim):
             # take out gradient dict
             grad_list = []
             for m in self.net.mixed_ops():
-                grad_list.append(m.arch_param.grad.data.clone())
+                p = m.arch_param('p')
+                grad_list.append(p.grad.data.clone())
             grad_batch.append(grad_list)
             reward_batch.append(reward)
 
@@ -237,9 +239,10 @@ class REINFORCE(GradientBasedArchOptim):
             self.baseline += self.baseline_decay_weight * (avg_reward - self.baseline)
         # assign gradients
         for idx, m in enumerate(self.net.mixed_ops()):
-            m.arch_param.grad.data.zero_()
+            p = m.arch_param('p')
+            p.grad.data.zero_()
             for j in range(self.batch_size):
-                m.arch_param.grad.data += (reward_batch[j] - self.baseline) * grad_batch[j][idx]
-            m.arch_param.grad.data /= self.batch_size
+                p.grad.data += (reward_batch[j] - self.baseline) * grad_batch[j][idx]
+            p.grad.data /= self.batch_size
         # apply gradients
         self.optim_step()
