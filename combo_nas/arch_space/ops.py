@@ -38,6 +38,15 @@ register_op(lambda C_in, C_out, stride: DilConv(C_in, C_out, 3, stride, 2, 2), '
 register_op(lambda C_in, C_out, stride: DilConv(C_in, C_out, 5, stride, 4, 2), 'dil_conv_5x5', 'DC5')
 register_op(lambda C_in, C_out, stride: FacConv(C_in, C_out, 7, stride, 3), 'conv_7x1_1x7', 'FC7')
 register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 1, stride, 0), 'conv_1x1', 'C11')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 3, stride, 1, 1), 'mbconv3x3_e1', 'MB3E1')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 3, stride, 1, 3), 'mbconv3x3_e3', 'MB3E3')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 3, stride, 1, 6), 'mbconv3x3_e6', 'MB3E6')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 5, stride, 2, 1), 'mbconv5x5_e1', 'MB5E1')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 5, stride, 2, 3), 'mbconv5x5_e3', 'MB5E3')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 5, stride, 2, 6), 'mbconv5x5_e6', 'MB5E6')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 7, stride, 3, 1), 'mbconv7x7_e1', 'MB7E1')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 7, stride, 3, 3), 'mbconv7x7_e3', 'MB7E3')
+register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 7, stride, 3, 6), 'mbconv7x7_e6', 'MB7E6')
 
 OPS_ORDER = ['bn','act','weight']
 AFFINE = True

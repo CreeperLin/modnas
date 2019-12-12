@@ -143,9 +143,10 @@ class BinaryGateArchitect(GradientBasedArchOptim):
         if self.sample:
             ArchModuleSpace.module_call('sample_ops', n_samples=self.n_samples)
         # loss
+        ArchModuleSpace.module_call('arch_param_grad', enabled=True)
         loss = self.net.loss(val_X, val_y)
         # backward
-        ArchParamSpace.backward_all(loss)
+        loss.backward()
         # renormalization
         if not self.renorm:
             self.optim_step()
@@ -171,6 +172,7 @@ class BinaryGateArchitect(GradientBasedArchOptim):
                     for i in s_op:
                         p[i] += (torch.log(k) - torch.log(kprev))
 
+        ArchModuleSpace.module_call('arch_param_grad', enabled=False)
         ArchModuleSpace.module_call('reset_ops')
 
 
@@ -185,7 +187,7 @@ class DummyArchitect(GradientBasedArchOptim):
 class REINFORCE(GradientBasedArchOptim):
     def __init__(self, config, net):
         super().__init__(config, net)
-        self.batch_size = config.architect.batch_size
+        self.batch_size = config.batch_size
         self.baseline = None
         self.baseline_decay_weight = 0.99
 
@@ -213,9 +215,9 @@ class REINFORCE(GradientBasedArchOptim):
             for m in self.net.mixed_ops():
                 if m.arch_param.grad is not None:
                     m.arch_param.grad.data.zero_()
-                path_prob = m.get_state('w_path_f')
-                smpl = m.get_state('s_path_f')
-                path_prob_f = path_prob.index_select(-1, smpl)
+                path_prob = m.w_path_f
+                smpl = m.s_path_f
+                path_prob_f = path_prob.index_select(-1, torch.tensor(smpl).to(path_prob.device))
                 obj_term = obj_term + torch.log(path_prob_f)
             loss = -obj_term
             # backward

@@ -148,6 +148,7 @@ class SuperNetEstimator(EstimatorBase):
         logger.info("Train: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
         tprof.print_stat('data')
         tprof.print_stat('train')
+        tprof.print_stat('arch')
         # torch > 1.2.0
         self.lr_scheduler.step()
         return top1.avg

@@ -71,15 +71,18 @@ class BinGateMixedOp(NASModule):
             self._ops.append(op)
         self.reset_ops()
         self.s_path_f = None
+        self.a_grad_enabled = False
         # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
         self.params_shape = arch_param_map['p'].shape
+    
+    def arch_param_grad(self, enabled):
+        self.a_grad_enabled = enabled
     
     def sample(self):
         p = self.arch_param('p')
         s_op = self.s_op
-        w_path = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
-        samples = w_path.multinomial(self.n_samples)
-        self.set_state('w_path_f', w_path, True)
+        self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
+        samples = self.w_path_f.multinomial(self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
     
     def sample_ops(self, n_samples):
@@ -95,13 +98,24 @@ class BinGateMixedOp(NASModule):
     def forward(self, x):
         self.sample()
         x = x[0] if isinstance(x, list) else x
-        dev_id = ArchModuleSpace.get_dev_id(x.device.index)
-        self.set_state('x_f'+dev_id, x.detach())
+
         s_path_f = self.s_path_f
-        if self.training: self.swap_ops(s_path_f)
+        ops = self._ops
+        if self.training: 
+            self.swap_ops(s_path_f)
+        if self.a_grad_enabled:
+            p = self.arch_param('p')
+            ctx_dict = {
+                's_op': self.s_op,
+                's_path_f': self.s_path_f,
+                'w_path_f': self.w_path_f,
+                'ops': ops,
+            }
+            m_out = BinGateFunction.apply(x, p, ctx_dict)
+        else:
+            if len(s_path_f) == 1: m_out = ops[s_path_f[0]](x)
+            else: m_out = sum(ops[i](x) for i in s_path_f)
         self.last_samples = s_path_f
-        m_out = sum(self._ops[i](x) for i in s_path_f)
-        self.set_state('m_out'+dev_id, m_out)
         return m_out
 
     def swap_ops(self, samples):
@@ -113,28 +127,6 @@ class BinGateMixedOp(NASModule):
                 p.requires_grad = False
                 p.grad = None
 
-    def param_grad_dev(self, m_grad, dev_id):
-        with torch.no_grad():
-            s_op = self.s_op
-            a_grad = torch.zeros(self.params_shape)
-            m_out = self.get_state('m_out'+dev_id, True)
-            if m_out is None: return a_grad
-            x_f = self.get_state('x_f'+dev_id)
-            w_path_f = self.get_state('w_path_f', True)
-            s_path_f = self.s_path_f
-            for j, oj in enumerate(s_op):
-                if oj in s_path_f:
-                    op_out = m_out
-                else:
-                    op = self._ops[oj].to(device=x_f.device)
-                    op_out = op(x_f).detach()
-                g_grad = torch.sum(torch.mul(m_grad, op_out)).detach()
-                for i, oi in enumerate(s_op):
-                    kron = 1 if i==j else 0
-                    a_grad[oi] += g_grad * w_path_f[j] * (kron - w_path_f[i])
-            a_grad.detach_()
-        return a_grad
-    
     def to_genotype(self, k=1):
         ops = self.ops
         p = self.arch_param('p')
@@ -145,6 +137,42 @@ class BinGateMixedOp(NASModule):
         return w_max, gene
 
 
+class BinGateFunction(torch.autograd.function.Function):
+    @staticmethod
+    def forward(ctx, x, alpha, ctx_dict):
+        ctx.__dict__.update(ctx_dict)
+        ctx.param_shape = alpha.shape
+        ops = ctx.ops
+        s_path_f = ctx.s_path_f
+        with torch.enable_grad():
+            if len(s_path_f) == 1: m_out = ops[s_path_f[0]](x)
+            else: m_out = sum(ops[i](x) for i in s_path_f)
+        ctx.save_for_backward(x, m_out)
+        return m_out.data
+
+    @staticmethod
+    def backward(ctx, m_grad):
+        x_f, m_out = ctx.saved_tensors
+        grad_x = torch.autograd.grad(m_out, x_f, m_grad, only_inputs=True)
+        with torch.no_grad():
+            a_grad = torch.zeros(ctx.param_shape)
+            s_op = ctx.s_op
+            w_path_f = ctx.w_path_f
+            s_path_f = ctx.s_path_f
+            ops = ctx.ops
+            for j, oj in enumerate(s_op):
+                if oj in s_path_f:
+                    op_out = m_out.data
+                else:
+                    op = ops[oj]
+                    op_out = op(x_f.data)
+                g_grad = torch.sum(m_grad * op_out)
+                for i, oi in enumerate(s_op):
+                    kron = 1 if i==j else 0
+                    a_grad[oi] += g_grad * w_path_f[j] * (kron - w_path_f[i])
+        return grad_x[0], a_grad, None
+
+
 class BinGateUniformMixedOp(BinGateMixedOp):
     """ Mixed operation controlled by binary gate """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None, n_samples=1):
@@ -153,12 +181,12 @@ class BinGateUniformMixedOp(BinGateMixedOp):
     def sample(self):
         p = self.arch_param('p')
         s_op = self.s_op
-        w_path = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
-        self.set_state('w_path_f', w_path)
-        prob = F.softmax(torch.empty(w_path.shape, device=w_path.device).uniform_(0, 1), dim=-1)
+        w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
+        self.w_path_f = w_path_f
+        prob = F.softmax(torch.empty(w_path_f.shape, device=w_path_f.device).uniform_(0, 1), dim=-1)
         samples = prob.multinomial(self.n_samples)
         s_path_f = [s_op[i] for i in samples]
-        self.set_state('s_path_f', s_path_f)
+        self.s_path_f = s_path_f
 
 
 class IndexMixedOp(NASModule):

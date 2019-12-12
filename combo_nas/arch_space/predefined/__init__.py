@@ -6,6 +6,7 @@ from .resnet import resnet10, resnet18, resnet32, resnet34, \
                     resnet50, resnet56, resnet101, resnet152, \
                     resnext50_32x4d, resnext101_32x8d
 from .mobilenetv2 import mobilenetv2
+from .mobilenetv3 import mobilenetv3_small, mobilenetv3_large
 from ...utils.registration import Registry, build, get_builder, register, register_wrapper
 from functools import partial
 
@@ -30,3 +31,5 @@ register_arch_space(resnet152, 'ResNet-152')
 register_arch_space(resnext50_32x4d, 'ResNeXt-50')
 register_arch_space(resnext101_32x8d, 'ResNeXt-101')
 register_arch_space(mobilenetv2, 'MobileNetV2')
+register_arch_space(mobilenetv3_small, 'MobileNetV3_small')
+register_arch_space(mobilenetv3_large, 'MobileNetV3_large')

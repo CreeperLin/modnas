@@ -111,6 +111,7 @@ class ResNet(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(chn_in, self.chn, kernel_size=3, stride=1, padding=1, bias=False),
             norm_layer(self.chn),
+            nn.ReLU(inplace=True),
         )
         # self.conv1 = nn.Sequential(
         #     nn.Conv2d(chn_in, self.chn, kernel_size=7, stride=2, padding=3, bias=False),

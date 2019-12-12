@@ -122,31 +122,6 @@ class ArchParamSpace():
             for m in p.modules():
                 yield (p.value(), m)
 
-    @staticmethod
-    def backward_all(loss):
-        m_out_all = []
-        m_out_len = []
-        for dev_id in ArchModuleSpace.get_device():
-            m_out = [m.get_state('m_out'+dev_id) for m in ArchModuleSpace.modules()]
-            m_out_all.extend(m_out)
-            m_out_len.append(len(m_out))
-        m_grad = torch.autograd.grad(loss, m_out_all)
-        for i, dev_id in enumerate(ArchModuleSpace.get_device()):
-            ArchParamSpace.param_backward_from_grad(m_grad[sum(m_out_len[:i]) : sum(m_out_len[:i+1])], dev_id)
-
-    @staticmethod
-    def param_backward_from_grad(m_grad, dev_id):
-        pmap = ArchParamSpace.continuous_params()
-        for p in pmap:
-            p_grad = sum([
-                ArchModuleSpace.get_module(mid).param_grad_dev(m_grad[mid], dev_id)
-                for mid in p.mids])
-            pv = p.value()
-            if pv.grad is None:
-                pv.grad = p_grad
-            else:
-                pv.grad += p_grad
-    
                 
 class ArchParam():
     def __init__(self):
