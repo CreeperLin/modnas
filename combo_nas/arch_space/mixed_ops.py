@@ -187,6 +187,11 @@ class BinGateUniformMixedOp(BinGateMixedOp):
         samples = prob.multinomial(self.n_samples)
         s_path_f = [s_op[i] for i in samples]
         self.s_path_f = s_path_f
+    
+    def sample_ops(self, n_samples):
+        prob = F.softmax(torch.empty(self.w_path_f.shape, device=self.w_path_f.device).uniform_(0, 1), dim=-1)
+        samples = prob.multinomial(n_samples).detach()
+        self.s_op = list(samples.flatten().cpu().numpy())
 
 
 class IndexMixedOp(NASModule):

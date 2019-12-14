@@ -28,19 +28,6 @@ class ArchModuleSpace():
         pass
 
     @staticmethod
-    def set_device(dev_list):
-        dev_list = dev_list if len(dev_list)>0 else [None]
-        ArchModuleSpace._dev_list = [ArchModuleSpace.get_dev_id(d) for d in dev_list]
-    
-    @staticmethod
-    def get_device():
-        return ArchModuleSpace._dev_list    
-    
-    @staticmethod
-    def get_dev_id(index):
-        return 'cpu' if index is None else 'cuda:{}'.format(index)
-
-    @staticmethod
     def get_new_id():
         ArchModuleSpace._module_id += 1
         return ArchModuleSpace._module_id
@@ -66,13 +53,6 @@ class ArchModuleSpace():
     @staticmethod
     def module_call(func, **kwargs):
         return [getattr(m, func)(**kwargs) for m in ArchModuleSpace._modules]
-    
-    @staticmethod
-    def build_from_genotype_all(gene, *args, **kwargs):
-        if gene.ops is None: return
-        assert len(ArchModuleSpace._modules) == len(gene.ops)
-        for m, g in zip(ArchModuleSpace._modules, gene.ops):
-            m.build_from_genotype(g, *args, **kwargs)
     
     @staticmethod
     def to_genotype_all(*args, **kwargs):

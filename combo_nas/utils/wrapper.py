@@ -45,7 +45,6 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     # net
     ArchParamSpace.reset()
     ArchModuleSpace.reset()
-    ArchModuleSpace.set_device(dev_list)
     Slot.reset()
     configure_ops(config.ops)
     net = build_arch_space(config.model.type, config.model)
@@ -76,6 +75,8 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     # genotype
     if config.genotypes.disable_dag:
         model.to_genotype = model.to_genotype_ops
+    if config.genotypes.use_slot:
+        model.to_genotype_ops = model.to_genotype_slots
     # init
     model.init_model(config.init)
     # chkpt

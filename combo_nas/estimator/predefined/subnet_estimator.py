@@ -17,6 +17,8 @@ class SubNetEstimator(EstimatorBase):
         best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
+            # droppath
+            self.apply_drop_path(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             # train
             trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet,
                                         w_optim=w_optim, lr_scheduler=lr_scheduler)

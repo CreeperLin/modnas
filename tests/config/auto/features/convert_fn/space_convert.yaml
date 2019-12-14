@@ -1,38 +1,3 @@
-augment:
-  data:
-    type: 'CIFAR10'
-    # type: 'MNIST'
-    # type: 'ImageNet'
-    train_root: './data'
-    valid_root: './data'
-    dloader:
-      type: 'pytorch'
-      size: 0.002
-      split_ratio: 0
-      trn_batch_size: 4
-      val_batch_size: 4
-      workers: 2
-      cutout: 16
-      jitter: True
-  estimator:
-    train:
-      type: 'Default'
-      epochs: 2
-      w_optim:
-        type: 'sgd'
-        lr: 0.1
-        momentum: 0.9
-        weight_decay: 0.0001
-        nesterov: True
-      lr_scheduler:
-        type: 'cosine'
-        args:
-          eta_min: 0.0
-      drop_path_prob: 0.0
-      w_grad_clip: 0.0
-      aux_weight: 0.0
-      print_freq: 200
-      save_freq: 0
 search:
   data:
     type: 'CIFAR10'
@@ -68,8 +33,8 @@ search:
       print_freq: 200
       save_freq: 0
       aux_weight: 0.0
-    subnet:
-      type: 'SubNet'
+    supernet:
+      type: 'SuperNet'
       w_optim:
         type: 'sgd'
         lr: 0.035
@@ -83,43 +48,33 @@ search:
       w_grad_clip: 0.0
       drop_path_prob: 0.0
       epochs: 3
-      subnet_epochs: 1
       print_freq: 200
       save_freq: 0
       arch_update_epoch_start: 0
       arch_update_epoch_intv: 1
+      arch_update_intv: -1
+      arch_update_batch: 1
       plot: False
       aux_weight: 0.0
-      init:
-        type: 'he_normal_fout'
 arch_optim:
-  type: 'Random'
-layers:
-  - 
-    type: 'MultiChain'
-    args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
-      preproc: 
-  - 
-    type: 'MultiChain'
-    args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
-      preproc: 
+  type: 'WeightedSum'
+  w_momentum: 0.9
+  w_weight_decay: 0.0003
+  a_optim:
+    type: 'adam'
+    lr: 0.0003
+    betas: [0.5, 0.999]
+    momentum: 0.9
+    weight_decay: 0.001
 mixed_op:
-  type: 'Index'
+  type: 'WeightedSum'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
 criterion:
   type: 'CE'
 model:
-  type: 'TestNet'
+  type: 'TestNetSpace'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
@@ -129,8 +84,9 @@ primitives:
   - 'IDT'
   - 'SC3'
   - 'SC5'
-  - 'SC7'
   - 'DC3'
+  - 'DC5'
+  - 'NIL'
 log:
   writer: False
 device:

@@ -181,6 +181,11 @@ class EstimatorBase():
         va_kwargs.update(kwargs)
         return validate(**va_kwargs)
     
+    def apply_drop_path(self, epoch, tot_epochs, model=None):
+        model = self.model if model is None else model
+        drop_prob = self.config.drop_path_prob * epoch / tot_epochs
+        model.drop_path_prob(drop_prob)
+    
     def save(self, epoch):
         self.save_genotype(epoch)
         self.save_checkpoint(epoch)

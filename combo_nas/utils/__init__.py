@@ -68,6 +68,7 @@ def check_config(hp, name, excludes=[]):
         'ops.affine': False,
         'log.writer': False,
         'genotypes.disable_dag': False,
+        'genotypes.use_slot': True,
         'genotypes.gt_str': '',
         'genotypes.gt_path': '',
         'init.type': 'he_normal_fout',
@@ -115,7 +116,7 @@ def init_device(config, ovr_gpus):
     return device, config.gpus
 
 
-def get_logger(log_dir, name, level=logging.INFO):
+def get_logger(log_dir, name, level=logging.DEBUG):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     log_path = os.path.join(log_dir, '%s-%d.log' % (name, time.time()))

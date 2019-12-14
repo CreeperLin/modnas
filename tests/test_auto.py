@@ -24,11 +24,15 @@ class TestAuto():
                     conf = yaml.load(open(conf_path, 'r'), Loader=yaml.Loader)
                     if 'search' in conf:
                         print('name: {} search'.format(casename))
-                        search_kwargs = init_all_search(conf_path, casename, exp_root_dir, None, None, convert_fn=None)
+                        gt_file = os.path.join(root_dir, 'genotype', 'search', casename+'.gt')
+                        if not os.path.isfile(gt_file):
+                            gt_file = None
+                        else: print('gt_file: {}'.format(gt_file))
+                        search_kwargs = init_all_search(conf_path, casename, exp_root_dir, None, None, genotype=gt_file)
                         best_top1, best_genotype, genotypes = search(**search_kwargs)
                     if 'augment' in conf:
                         print('name: {} augment'.format(casename))
-                        gt_file = os.path.join(root_dir, 'genotype', casename+'.gt')
+                        gt_file = os.path.join(root_dir, 'genotype', 'augment', casename+'.gt')
                         if not os.path.isfile(gt_file):
                             gt_file = None
                         else: print('gt_file: {}'.format(gt_file))

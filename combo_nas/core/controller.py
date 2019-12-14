@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ..arch_space import genotypes as gt
 from ..arch_space.ops import DropPath_
+from ..arch_space.constructor import Slot
 from .param_space import ArchParamSpace
 from .nas_modules import ArchModuleSpace
 
@@ -80,22 +81,20 @@ class NASController(nn.Module):
         return self.net.dags()
 
     def to_genotype(self, *args, **kwargs):
-        try:
+        if hasattr(self.net, 'to_genotype'):
             gene_dag = self.net.to_genotype(*args, **kwargs)
             return gt.Genotype(dag=gene_dag, ops=None)
-        except AttributeError:
+        else:
             return self.to_genotype_ops(*args, **kwargs)
     
     def to_genotype_ops(self, *args, **kwargs):
         gene_ops = ArchModuleSpace.to_genotype_all(*args, **kwargs)
         return gt.Genotype(dag=None, ops=gene_ops)
     
-    def build_from_genotype(self, gene, *args, **kwargs):
-        try:
-            self.net.build_from_genotype(gene, *args, **kwargs)
-        except AttributeError:
-            ArchModuleSpace.build_from_genotype_all(gene, *args, **kwargs)
-
+    def to_genotype_slots(self, *args, **kwargs):
+        gene_ops = Slot.to_genotype_all(*args, **kwargs)
+        return gt.Genotype(dag=None, ops=gene_ops)
+    
     def weights(self, check_grad=False):
         for n, p in self.net.named_parameters(recurse=True):
             if check_grad and not p.requires_grad:

@@ -22,10 +22,12 @@ class DAGLayer(nn.Module):
         super().__init__()
         self.n_nodes = n_nodes
         self.stride = stride
+        chn_in = (chn_in, ) if isinstance(chn_in, int) else chn_in
         self.chn_in = chn_in
         self.n_input = len(chn_in)
         self.n_states = self.n_input + self.n_nodes
-        self.n_input_e = 1 if isinstance(edge_kwargs['chn_in'], int) else len(edge_kwargs['chn_in'])
+        e_chn_in = edge_kwargs['chn_in']
+        self.n_input_e = 1 if e_chn_in is None or isinstance(e_chn_in, int) else len(e_chn_in)
         self.allocator = get_allocator(allocator)(self.n_input, self.n_nodes)
         self.merger_state = get_merger(merger_state)()
         self.merger_out = get_merger(merger_out)(start=self.n_input)
@@ -68,10 +70,9 @@ class DAGLayer(nn.Module):
         self.chn_states = chn_states
 
     def forward(self, x):
-        if self.preprocs is None:
-            states = [st for st in x]
-        else:
-            states = [self.preprocs[i](x[i]) for i in range(self.n_input)]
+        states = x if isinstance(x, list) else [x]
+        if not self.preprocs is None:
+            states = [prep(s) for prep, s in zip(self.preprocs, states)]
 
         for nidx, edges in enumerate(self.dag):
             res = []
@@ -80,6 +81,7 @@ class DAGLayer(nn.Module):
             for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if not topo is None and not eidx in topo: continue
                 e_in = self.allocator.alloc([states[i] for i in sidx], sidx, n_states)
+                e_in = e_in[0] if isinstance(e_in, list) and len(e_in) == 1 else e_in
                 res.append(edges[eidx](e_in))
             s_cur = self.merger_state.merge(res)
             states.append(s_cur)
@@ -87,7 +89,7 @@ class DAGLayer(nn.Module):
         out = self.merger_out.merge(states)
         return out
 
-    def to_genotype(self, k):
+    def to_genotype(self, k=2):
         gene = []
         for nidx, edges in enumerate(self.dag):
             topk_genes = []
@@ -180,6 +182,8 @@ class MultiChainLayer(nn.Module):
             for j in range(self.n_chain_nodes[i]):
                 edge_kwargs['chn_in'] = e_chn_in
                 edge_kwargs['stride'] = stride
+                if not name is None:
+                    edge_kwargs['name'] = '{}_{}_{}'.format(name, i, j)
                 e = edge_cls(**edge_kwargs)
                 e_chn_in = e.chn_out
                 edges.append(e)
@@ -199,16 +203,16 @@ class MultiChainLayer(nn.Module):
         sidx = range(self.n_input)
         for chain in self.chains:
             out = self.allocator.alloc([states[i] for i in sidx], sidx, n_states)
-            out = out[0] if isinstance(out, list) else out
+            out = out[0] if isinstance(out, list) and len(out)==1 else out
             out = chain(out)
             states.append(out)
         out = self.merger_out.merge(states)
         return out
 
-    def to_genotype(self, k):
+    def to_genotype(self, *args, **kwargs):
         gene = []
         for chain in self.chains:
-            g_chain = [e.to_genotype(k)[1] for e in chain]
+            g_chain = [e.to_genotype(*args, **kwargs)[1] for e in chain]
             gene.append(g_chain)
         return 0, gene
     
@@ -256,6 +260,8 @@ class TreeLayer(nn.Module):
             elif not edge_cls is None:
                 edge_kwargs['chn_in'] = e_chn_in
                 edge_kwargs['stride'] = stride
+                if not name is None:
+                    edge_kwargs['name'] = '{}_{}'.format(name, len(self.edges))
                 e = edge_cls(**edge_kwargs)
                 self.edges.append(e)
                 c_chn_in = e.chn_out
@@ -292,9 +298,11 @@ class TreeLayer(nn.Module):
         out = self.merger_out.merge(states)
         return out
     
-    def build_from_genotype(self, gene):
+    def build_from_genotype(self, gene, *args, **kwargs):
         pass
 
+    def to_genotype(self, *args, **kwargs):
+        pass
 
 register_layer(DAGLayer, 'DAG')
 register_layer(MultiChainLayer, 'MultiChain')

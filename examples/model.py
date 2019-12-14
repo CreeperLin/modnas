@@ -168,10 +168,8 @@ def custom_backbone_cvt(slot, mixed_op_cls):
 
 def custom_genotype_cvt(slot, gene):
     if isinstance(gene, list): gene=gene[0]
-    chn_in = slot.chn_in if isinstance(slot.chn_in, int) else slot.chn_in[0]
-    chn_out = slot.chn_out if isinstance(slot.chn_out, int) else slot.chn_out[0]
     op_name = gene
-    ent = build_op(op_name, chn_in, chn_out, slot.stride)
+    ent = build_op(op_name, slot.chn_in, slot.chn_out, slot.stride)
     return ent
 
 ops_map = {
@@ -187,8 +185,8 @@ ops_map = {
 def custom_genotype_space_cvt(slot, gene, mixed_op_cls):
     idx = slot.sid
     if isinstance(gene, list): gene=gene[0]
-    chn_in = slot.chn_in if isinstance(slot.chn_in, int) else slot.chn_in[0]
-    chn_out = slot.chn_out if isinstance(slot.chn_out, int) else slot.chn_out[0]
+    chn_in = slot.chn_in
+    chn_out = slot.chn_out
     op_name = gene
     if op_name == 'NIL' or op_name == 'IDT':
         ent = build_op(op_name, chn_in, chn_out, slot.stride)

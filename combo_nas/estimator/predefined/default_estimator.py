@@ -19,6 +19,8 @@ class DefaultEstimator(EstimatorBase):
         best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
+            # droppath
+            self.apply_drop_path(epoch, tot_epochs)
             # train
             trn_top1 = self.train_epoch(epoch, tot_epochs)
             # validate

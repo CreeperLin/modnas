@@ -21,6 +21,7 @@ class SuperNetEstimator(EstimatorBase):
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
+            self.model.print_arch_params(self.logger)
             trn_top1 = self.search_epoch(epoch, arch_optim)
             # validate
             val_top1 = self.validate_epoch(epoch, tot_epochs)

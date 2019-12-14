@@ -103,14 +103,6 @@ layers:
       allocator: 'EvenSplitAllocator'
       merger_out: 'ConcatMerger'
       preproc: 
-  - 
-    type: 'MultiChain'
-    args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
-      preproc: 
 mixed_op:
   type: 'Index'
 ops:

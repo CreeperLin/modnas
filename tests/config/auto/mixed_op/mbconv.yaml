@@ -1,38 +1,3 @@
-augment:
-  data:
-    type: 'CIFAR10'
-    # type: 'MNIST'
-    # type: 'ImageNet'
-    train_root: './data'
-    valid_root: './data'
-    dloader:
-      type: 'pytorch'
-      size: 0.002
-      split_ratio: 0
-      trn_batch_size: 4
-      val_batch_size: 4
-      workers: 2
-      cutout: 16
-      jitter: True
-  estimator:
-    train:
-      type: 'Default'
-      epochs: 2
-      w_optim:
-        type: 'sgd'
-        lr: 0.1
-        momentum: 0.9
-        weight_decay: 0.0001
-        nesterov: True
-      lr_scheduler:
-        type: 'cosine'
-        args:
-          eta_min: 0.0
-      drop_path_prob: 0.0
-      w_grad_clip: 0.0
-      aux_weight: 0.0
-      print_freq: 200
-      save_freq: 0
 search:
   data:
     type: 'CIFAR10'
@@ -46,7 +11,7 @@ search:
       split_ratio: 0.8
       trn_batch_size: 4
       val_batch_size: 4
-      workers: 0
+      workers: 2
       cutout: 0
       jitter: False
   estimator:
@@ -92,25 +57,43 @@ search:
       aux_weight: 0.0
       init:
         type: 'he_normal_fout'
+augment:
+  data:
+    type: 'CIFAR10'
+    # type: 'MNIST'
+    # type: 'ImageNet'
+    train_root: './data'
+    valid_root: './data'
+    dloader:
+      type: 'pytorch'
+      size: 0.002
+      split_ratio: 0
+      trn_batch_size: 4
+      val_batch_size: 4
+      workers: 2
+      cutout: 16
+      jitter: True
+  estimator:
+    train:
+      type: 'Default'
+      epochs: 2
+      w_optim:
+        type: 'sgd'
+        lr: 0.1
+        momentum: 0.9
+        weight_decay: 0.0001
+        nesterov: True
+      lr_scheduler:
+        type: 'cosine'
+        args:
+          eta_min: 0.0
+      drop_path_prob: 0.0
+      w_grad_clip: 0.0
+      aux_weight: 0.0
+      print_freq: 200
+      save_freq: 0
 arch_optim:
   type: 'Random'
-layers:
-  - 
-    type: 'MultiChain'
-    args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
-      preproc: 
-  - 
-    type: 'MultiChain'
-    args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
-      preproc: 
 mixed_op:
   type: 'Index'
 ops:
@@ -119,18 +102,18 @@ ops:
 criterion:
   type: 'CE'
 model:
-  type: 'TestNet'
+  type: 'mobilenetv3_small'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 16        # init channel
 primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
-  - 'DC3'
+  - 'MB3E1'
+  - 'MB3E3'
+  - 'MB3E6'
+  - 'MB5E1'
+  - 'MB5E3'
+  - 'MB5E6'
+  - 'MB7E1'
+  - 'MB7E3'
 log:
   writer: False
 device:

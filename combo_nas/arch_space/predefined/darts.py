@@ -98,7 +98,7 @@ class DARTSLikeNet(nn.Module):
         aux_logits = None
         s0 = s1 = self.conv_first(x)
         for i, cell in enumerate(self.cells):
-            s0, s1 = s1, cell((s0, s1))
+            s0, s1 = s1, cell([s0, s1])
             if i == self.aux_pos and self.training:
                 aux_logits = self.aux_head(s1)
 
@@ -140,7 +140,7 @@ class DARTSLikeNet(nn.Module):
         return convert_fn
 
     
-def build_from_config(config):
+def build_from_config(config, darts_cls=DARTSLikeNet):
     chn_in = config.channel_in
     chn = config.channel_init
     n_classes = config.classes
@@ -179,4 +179,4 @@ def build_from_config(config):
             },
         },
     }
-    return DARTSLikeNet(**darts_kwargs)
+    return darts_cls(**darts_kwargs)

@@ -96,20 +96,13 @@ arch_optim:
   type: 'Random'
 layers:
   - 
-    type: 'MultiChain'
+    type: 'DAG'
     args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
-      preproc: 
-  - 
-    type: 'MultiChain'
-    args:
-      n_chain: 2
-      n_chain_nodes: 2
-      allocator: 'EvenSplitAllocator'
-      merger_out: 'ConcatMerger'
+      n_nodes: 2
+      allocator: 'ReplicateAllocator'
+      merger_state: 'SumMerger'
+      merger_out: 'SumMerger'
+      enumerator: 'CombinationEnumerator'
       preproc: 
 mixed_op:
   type: 'Index'
