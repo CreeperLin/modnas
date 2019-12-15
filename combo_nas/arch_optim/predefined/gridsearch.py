@@ -12,16 +12,29 @@ class DiscreteSpaceArchOptim(ArchOptimBase):
         self.space_size = ArchParamSpace.discrete_size()
         logging.debug('arch space size: {}'.format(self.space_size))
 
+    def _next(self):
+        pass
+
+    def next(self, batch_size):
+        batch = []
+        for i in range(batch_size):
+            if self.has_next():
+                batch.append(self._next())
+        return batch
+
+
 class GridSearch(DiscreteSpaceArchOptim):
     def __init__(self, config, net):
         super().__init__(config, net)
         self.counter = 0
     
-    def step(self, estim):
-        if self.counter >= self.space_size: return None
+    def _next(self, batch_size):
         index = self.counter
         self.counter = self.counter + 1
-        return ArchParamSpace.get_discrete(index)
+        return ArchParamSpace.get_discrete_map(index)
+    
+    def has_next(self):
+        return self.counter >= self.space_size
 
 
 class RandomSearch(DiscreteSpaceArchOptim):
@@ -31,10 +44,12 @@ class RandomSearch(DiscreteSpaceArchOptim):
         seed = int(time.time()) if seed is None else seed
         random.seed(seed)
     
-    def step(self, estim):
-        if len(self.visited) >= self.space_size: return None
+    def _next(self, batch_size):
         index = random.randint(0,self.space_size)
         while index in self.visited:
             index = random.randint(0,self.space_size)
         self.visited.add(index)
-        ArchParamSpace.set_discrete(index)
+        return ArchParamSpace.get_discrete_map(index)
+    
+    def has_next(self):
+        return len(self.visited) >= self.space_size

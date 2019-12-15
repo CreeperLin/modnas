@@ -37,13 +37,13 @@ class WeightedSumMixedOp(NASModule):
     
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
-        p = self.arch_param('p')
+        p = self.arch_param_value('p')
         w_path = F.softmax(p.to(device=x.device), dim=-1)
         return sum(w * op(x) for w, op in zip(w_path, self._ops))
     
     def to_genotype(self, k=1):
         ops = self.ops
-        w = F.softmax(self.arch_param('p').detach(), dim=-1)
+        w = F.softmax(self.arch_param_value('p').detach(), dim=-1)
         w_max, prim_idx = torch.topk(w[:-1], 1)
         gene = [ops[i] for i in prim_idx]
         if gene == []: return -1, [None]
@@ -79,14 +79,14 @@ class BinGateMixedOp(NASModule):
         self.a_grad_enabled = enabled
     
     def sample(self):
-        p = self.arch_param('p')
+        p = self.arch_param_value('p')
         s_op = self.s_op
         self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
         samples = self.w_path_f.multinomial(self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
     
     def sample_ops(self, n_samples):
-        p = self.arch_param('p')
+        p = self.arch_param_value('p')
         samples = F.softmax(p, dim=-1).multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
     
@@ -104,7 +104,7 @@ class BinGateMixedOp(NASModule):
         if self.training: 
             self.swap_ops(s_path_f)
         if self.a_grad_enabled:
-            p = self.arch_param('p')
+            p = self.arch_param_value('p')
             ctx_dict = {
                 's_op': self.s_op,
                 's_path_f': self.s_path_f,
@@ -129,7 +129,7 @@ class BinGateMixedOp(NASModule):
 
     def to_genotype(self, k=1):
         ops = self.ops
-        p = self.arch_param('p')
+        p = self.arch_param_value('p')
         w = F.softmax(p.detach(), dim=-1)
         w_max, prim_idx = torch.topk(w, 1)
         gene = [ops[i] for i in prim_idx]
@@ -179,7 +179,7 @@ class BinGateUniformMixedOp(BinGateMixedOp):
         super().__init__(chn_in, chn_out, stride, ops, arch_param_map, n_samples)
     
     def sample(self):
-        p = self.arch_param('p')
+        p = self.arch_param_value('p')
         s_op = self.s_op
         w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
         self.w_path_f = w_path_f
@@ -199,7 +199,7 @@ class IndexMixedOp(NASModule):
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
-                'ops': ArchParamDiscrete(list(range(len(ops)))),
+                'ops': ArchParamDiscrete(ops),
                 # 'ksize': ArchParamDiscrete(['3','5','7']),
             }
         super().__init__(arch_param_map)
@@ -215,7 +215,7 @@ class IndexMixedOp(NASModule):
     
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
-        smp = self.arch_param('ops')
+        smp = self.arch_param('ops').index()
         if self.training: self.swap_ops([smp])
         self.last_samples = [smp]
         return self._ops[smp](x)
@@ -234,14 +234,14 @@ class IndexMixedOp(NASModule):
                 p.grad = None
 
     def to_genotype(self, k=1):
-        return 0, self.ops[self.arch_param('ops')]
+        return 0, self.arch_param_value('ops')
 
 class DummyMixedOp(NASModule):
     """ dummy mixed op for non-supernet-based methods """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
-                'ops': ArchParamDiscrete(list(range(len(ops)))),
+                'ops': ArchParamDiscrete(ops),
                 # 'ksize': ArchParamDiscrete(['3','5','7']),
             }
         super().__init__(arch_param_map)
@@ -255,7 +255,7 @@ class DummyMixedOp(NASModule):
         return None
 
     def to_genotype(self, k=1):
-        return 0, self.ops[self.arch_param('ops')]
+        return 0, self.arch_param_value('ops')
 
 register_mixed_op(WeightedSumMixedOp, 'WeightedSum')
 register_mixed_op(BinGateMixedOp, 'BinGate')

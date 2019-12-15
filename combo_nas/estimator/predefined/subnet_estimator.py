@@ -76,6 +76,7 @@ class SubNetEstimator(EstimatorBase):
 
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
+        arch_batch_size = config.get('arch_update_batch', 1)
         best_top1 = 0.
         best_genotype = None
         genotypes = []
@@ -84,13 +85,17 @@ class SubNetEstimator(EstimatorBase):
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 arch_optim.step(self)
-            # estim step
-            genotype = self.model.to_genotype()
-            logger.info('Evaluating SubNet genotype = {}'.format(genotype))
-            val_top1 = self.step()
-            if val_top1 > best_top1:
-                best_top1 = val_top1
-                best_genotype = genotype
+            next_batch = arch_optim.next(batch_size=arch_batch_size)
+            val_top1 = 0.
+            for params in next_batch:
+                ArchParamSpace.set_params_map(params)
+                # estim step
+                genotype = self.model.to_genotype()
+                logger.info('Evaluating SubNet genotype = {}'.format(genotype))
+                val_top1 = self.step()
+                if val_top1 > best_top1:
+                    best_top1 = val_top1
+                    best_genotype = genotype
             # save
             self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:

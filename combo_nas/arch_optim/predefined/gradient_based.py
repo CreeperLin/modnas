@@ -213,7 +213,7 @@ class REINFORCE(GradientBasedArchOptim):
             # loss term
             obj_term = 0
             for m in self.net.mixed_ops():
-                p = m.arch_param('p')
+                p = m.arch_param_value('p')
                 if p.grad is not None:
                     p.grad.data.zero_()
                 path_prob = m.w_path_f
@@ -226,7 +226,7 @@ class REINFORCE(GradientBasedArchOptim):
             # take out gradient dict
             grad_list = []
             for m in self.net.mixed_ops():
-                p = m.arch_param('p')
+                p = m.arch_param_value('p')
                 grad_list.append(p.grad.data.clone())
             grad_batch.append(grad_list)
             reward_batch.append(reward)
@@ -239,7 +239,7 @@ class REINFORCE(GradientBasedArchOptim):
             self.baseline += self.baseline_decay_weight * (avg_reward - self.baseline)
         # assign gradients
         for idx, m in enumerate(self.net.mixed_ops()):
-            p = m.arch_param('p')
+            p = m.arch_param_value('p')
             p.grad.data.zero_()
             for j in range(self.batch_size):
                 p.grad.data += (reward_batch[j] - self.baseline) * grad_batch[j][idx]

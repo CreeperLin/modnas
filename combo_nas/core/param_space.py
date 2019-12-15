@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+from collections import OrderedDict
 import torch
 import torch.nn as nn
 from .nas_modules import ArchModuleSpace
@@ -7,28 +8,41 @@ from .nas_modules import ArchModuleSpace
 class ArchParamSpace():
     _param_id = -1
     _params = []
+    _params_map = OrderedDict()
     _discrete_length = None
 
     @staticmethod
     def reset():
         ArchParamSpace._param_id = -1
-        ArchParamSpace._params = []
+        ArchParamSpace._params_map = OrderedDict()
         ArchParamSpace._discrete_length = None
 
     @staticmethod
-    def register(param):
-        ArchParamSpace._params.append(param)
+    def register(param, name):
         param.pid = ArchParamSpace.new_param_id()
+        if name is None:
+            name = ArchParamSpace.new_param_name(param)
+        param.name = name
+        ArchParamSpace._params_map[name] = param
     
     @staticmethod
     def new_param_id():
         ArchParamSpace._param_id += 1
         return ArchParamSpace._param_id
-    
+
+    @staticmethod
+    def new_param_name(param):
+        init = 'c' if isinstance(param, ArchParamContinuous) else 'd'
+        return '{}_{}'.format(init, ArchParamSpace._param_id)
+
     @staticmethod
     def params():
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace._params_map.values():
             yield p
+    
+    @staticmethod
+    def get(name):
+        return ArchParamSpace.get(name, None)
     
     @staticmethod
     def discrete_size():
@@ -41,25 +55,25 @@ class ArchParamSpace():
     
     @staticmethod
     def discrete_params():
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace.params():
             if isinstance(p, ArchParamDiscrete):
                 yield p
     
     @staticmethod
     def continuous_params():
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace.params():
             if isinstance(p, ArchParamContinuous):
                 yield p
 
     @staticmethod
     def discrete_values():
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace.params():
             if isinstance(p, ArchParamDiscrete):
                 yield p.value()
     
     @staticmethod
     def continuous_values():
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace.params():
             if isinstance(p, ArchParamContinuous):
                 yield p.value()
 
@@ -80,33 +94,38 @@ class ArchParamSpace():
         return list(self.continuous_params())[idx].value()
 
     @staticmethod
-    def get_discrete(idx):
-        arch_param = []
+    def get_discrete_map(idx):
+        arch_param = {}
         for ap in ArchParamSpace.discrete_params():
             ap_dim = len(ap)
-            arch_param.append(ap.get_value(idx % ap_dim))
+            arch_param[ap.name] = ap.get_value(idx % ap_dim)
             idx //= ap_dim
         return arch_param
 
     @staticmethod
-    def set_discrete(idx):
+    def set_discrete_params(idx):
         for ap in ArchParamSpace.discrete_params():
             ap_dim = len(ap)
             ap.set_value(idx % ap_dim)
             idx //= ap_dim
 
     @staticmethod
+    def set_params_map(pmap):
+        for k, v in pmap.items():
+            ArchParamSpace.get(k).set_value(v)
+
+    @staticmethod
     def param_call(func, *args, **kwargs):
-        return [getattr(p, func)(*args, **kwargs) for p in ArchParamSpace._params]
+        return [getattr(p, func)(*args, **kwargs) for p in ArchParamSpace.params()]
     
     @staticmethod
     def param_module_call(func, *args, **kwargs):
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace.params():
             p.param_module_call(func, *args, **kwargs)
     
     @staticmethod
     def param_modules():
-        for p in ArchParamSpace._params:
+        for p in ArchParamSpace.params():
             for m in p.modules():
                 yield (p.value(), m)
 
@@ -124,8 +143,8 @@ class ArchParamSpace():
 
                 
 class ArchParam():
-    def __init__(self):
-        ArchParamSpace.register(self)
+    def __init__(self, name):
+        ArchParamSpace.register(self, name)
         self.mids = []
         self._length = None
         self.val = None
@@ -151,22 +170,26 @@ class ArchParam():
 
 
 class ArchParamDiscrete(ArchParam):
-    def __init__(self, valrange, sampler=None):
-        super().__init__()
+    def __init__(self, valrange, name=None, sampler=None):
+        super().__init__(name)
         self.valrange = valrange
         if not sampler is None: self.sample = sampler
         logging.debug('discrete arch param {} defined: {}'.format(self.pid, self.valrange))
 
     def sample(self):
-        return self.valrange[np.random.randint(len(self))]
+        return np.random.randint(len(self))
 
     def get_value(self, index):
         return self.valrange[index]
     
-    def set_value(self, index):
+    def set_value(self, value):
+        index = self.get_index(value)
         self.val = self.valrange[index]
     
     def value(self):
+        return self.valrange[self.index()]
+    
+    def index(self):
         if self.val is None:
             self.val = self.sample()
         return self.val
@@ -182,8 +205,8 @@ class ArchParamDiscrete(ArchParam):
 
 class ArchParamContinuous(ArchParam):
 
-    def __init__(self, shape, sampler=None):
-        super().__init__()
+    def __init__(self, shape, name=None, sampler=None):
+        super().__init__(name)
         self.shape = shape
         self.val = self.sample()
         if not sampler is None: self.sample = sampler

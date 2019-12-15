@@ -9,6 +9,15 @@ class ArchOptimBase():
     
     def load_state_dict(self, sd):
         pass
+    
+    def has_next(self):
+        pass
+    
+    def next(self, batch_size):
+        pass
+
+    def step(self, estim):
+        pass
 
     def update(self, estim):
         pass

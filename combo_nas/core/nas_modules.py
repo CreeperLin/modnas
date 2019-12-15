@@ -79,6 +79,9 @@ class NASModule(nn.Module):
         # logging.debug('reg nas module: {} mid: {} p: {}'.format(self.__class__.__name__, self.id, arch_param_map))
     
     def arch_param(self, name):
+        return (ArchModuleSpace._params_map[self.id]).get(name)
+    
+    def arch_param_value(self, name):
         return (ArchModuleSpace._params_map[self.id]).get(name).value()
     
     def arch_param_map(self):

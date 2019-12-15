@@ -28,7 +28,7 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     config = load_config(config, name, excludes=['augment'])
     # dir
     expman = ExpManager(exp_root_dir)
-    logger = utils.get_logger(expman.logs_path, name)
+    logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
     # device
@@ -99,7 +99,7 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
     config = load_config(config, name, excludes=['search'])
     # dir
     expman = ExpManager(exp_root_dir)
-    logger = utils.get_logger(expman.logs_path, name)
+    logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     # device
     dev, dev_list = utils.init_device(config.device, device)
