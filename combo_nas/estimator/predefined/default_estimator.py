@@ -17,7 +17,6 @@ class DefaultEstimator(EstimatorBase):
         tot_epochs = config.epochs
         self.apply_drop_path()
         best_val_top1 = 0.
-        print(self.model)
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # droppath

@@ -202,7 +202,7 @@ class EstimatorBase():
                     DropPath_()
                 )
             slot.set_entity(ent)
-        Slot.apply_all(apply, gen=Slot.slots_model(model))
+        Slot.apply_all(apply, gen=(lambda:Slot.slots_model(model)))
     
     def save(self, epoch):
         self.save_genotype(epoch)
