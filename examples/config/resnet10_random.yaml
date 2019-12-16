@@ -82,7 +82,7 @@ criterion:
   type: 'LS'
   eta: 0.1
 model:
-  type: 'ResNet-10'
+  type: 'CIFAR-ResNet-10'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3   
   channel_init: 16
