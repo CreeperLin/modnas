@@ -15,12 +15,13 @@ class DefaultEstimator(EstimatorBase):
     def train(self):
         config = self.config
         tot_epochs = config.epochs
-
+        self.apply_drop_path()
         best_val_top1 = 0.
+        print(self.model)
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # droppath
-            self.apply_drop_path(epoch, tot_epochs)
+            self.update_drop_path_prob(epoch, tot_epochs)
             # train
             trn_top1 = self.train_epoch(epoch, tot_epochs)
             # validate

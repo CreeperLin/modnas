@@ -13,12 +13,13 @@ class SubNetEstimator(EstimatorBase):
         subnet = self.construct_subnet()
         w_optim = utils.get_optim(subnet.weights(), config.w_optim)
         lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, tot_epochs)
-        # train
+        # train subnet
+        self.apply_drop_path(model=subnet)
         best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # droppath
-            self.apply_drop_path(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
+            self.update_drop_path_prob(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             # train
             trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet,
                                         w_optim=w_optim, lr_scheduler=lr_scheduler)

@@ -4,6 +4,8 @@ import torch.nn as nn
 from .. import utils
 from ..utils.profiling import tprof
 from ..core.nas_modules import ArchModuleSpace
+from ..arch_space.ops import build_op, Identity, DropPath_
+from ..arch_space.constructor import Slot
 from ..arch_space import genotypes as gt
 
 def train(train_loader, model, writer, logger, w_optim, lr_scheduler, epoch, tot_epochs, device, config):
@@ -181,10 +183,26 @@ class EstimatorBase():
         va_kwargs.update(kwargs)
         return validate(**va_kwargs)
     
-    def apply_drop_path(self, epoch, tot_epochs, model=None):
+    def update_drop_path_prob(self, epoch, tot_epochs, model=None):
         model = self.model if model is None else model
         drop_prob = self.config.drop_path_prob * epoch / tot_epochs
         model.drop_path_prob(drop_prob)
+        self.logger.debug('drop path prob: {:.5f}'.format(drop_prob))
+    
+    def apply_drop_path(self, model=None):
+        if self.config.drop_path_prob <= 0.0: return
+        model = self.model if model is None else model
+        def apply(slot):
+            ent = slot.ent
+            if slot.fixed: return
+            if ent is None: return
+            if not isinstance(ent, Identity):
+                ent = nn.Sequential(
+                    ent,
+                    DropPath_()
+                )
+            slot.set_entity(ent)
+        Slot.apply_all(apply, gen=Slot.slots_model(model))
     
     def save(self, epoch):
         self.save_genotype(epoch)
