@@ -41,8 +41,8 @@ class ArchParamSpace():
             yield p
     
     @staticmethod
-    def get(name):
-        return ArchParamSpace.get(name, None)
+    def get_param(name):
+        return ArchParamSpace._params_map.get(name, None)
     
     @staticmethod
     def discrete_size():
@@ -112,7 +112,7 @@ class ArchParamSpace():
     @staticmethod
     def set_params_map(pmap):
         for k, v in pmap.items():
-            ArchParamSpace.get(k).set_value(v)
+            ArchParamSpace.get_param(k).set_value(v)
 
     @staticmethod
     def param_call(func, *args, **kwargs):
@@ -184,7 +184,7 @@ class ArchParamDiscrete(ArchParam):
     
     def set_value(self, value):
         index = self.get_index(value)
-        self.val = self.valrange[index]
+        self.val = index
     
     def value(self):
         return self.valrange[self.index()]
@@ -196,6 +196,9 @@ class ArchParamDiscrete(ArchParam):
     
     def get_index(self, value):
         return self.valrange.index(value)
+    
+    def set_index(self, index):
+        self.val = index
     
     def __len__(self):
         if self._length is None:

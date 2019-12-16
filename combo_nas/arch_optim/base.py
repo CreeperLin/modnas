@@ -13,8 +13,15 @@ class ArchOptimBase():
     def has_next(self):
         pass
     
-    def next(self, batch_size):
+    def _next(self):
         pass
+    
+    def next(self, batch_size):
+        batch = []
+        for i in range(batch_size):
+            if self.has_next():
+                batch.append(self._next())
+        return batch
 
     def step(self, estim):
         pass
