@@ -71,7 +71,7 @@ class BinGateMixedOp(NASModule):
             self._ops.append(op)
         self.reset_ops()
         self.s_path_f = None
-        self.a_grad_enabled = False
+        self.a_grad_enabled = True
         # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
         self.params_shape = arch_param_map['p'].shape
     

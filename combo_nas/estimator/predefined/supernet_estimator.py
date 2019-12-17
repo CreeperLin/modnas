@@ -56,6 +56,11 @@ class SuperNetEstimator(EstimatorBase):
         return self.cur_trn_batch
     
     def get_next_val_batch(self):
+        if self.valid_loader is None:
+            if not hasattr(self, 'no_valid_warn'):
+                self.logger.warning('no valid loader, returning training batch instead')
+                self.no_valid_warn = False
+            return self.get_next_trn_batch()
         tprof.timer_start('data')
         try:
             val_X, val_y = next(self.val_iter)
