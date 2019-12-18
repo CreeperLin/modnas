@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
 import argparse
 from combo_nas.utils.routine import search
 from combo_nas.utils.wrapper import init_all_search
@@ -17,8 +16,7 @@ def main():
                         help="override device ids")
     args = parser.parse_args()
 
-    exp_root_dir = os.path.join('exp', args.name)
-
+    exp_root_dir = 'exp'
     search_kwargs = init_all_search(args.config, args.name, exp_root_dir, args.chkpt, args.device, convert_fn=None)
     search(**search_kwargs)
 

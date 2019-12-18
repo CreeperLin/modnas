@@ -92,6 +92,7 @@ class SubNetEstimator(EstimatorBase):
                 ArchParamSpace.set_params_map(params)
                 # estim step
                 genotype = self.model.to_genotype()
+                genotypes.append(genotype)
                 logger.info('Evaluating SubNet genotype = {}'.format(genotype))
                 val_top1 = self.step()
                 if val_top1 > best_top1:

@@ -19,10 +19,11 @@ search:
       type: 'Default'
       w_optim:
         type: 'sgd'
-        lr: 0.1
-        momentum: 0.9
-        nesterov: True
-        weight_decay: 0.0001
+        args:
+          lr: 0.1
+          momentum: 0.9
+          nesterov: True
+          weight_decay: 0.0001
       lr_scheduler:
         type: 'cosine'
         args:
@@ -37,10 +38,11 @@ search:
       type: 'SubNet'
       w_optim:
         type: 'sgd'
-        lr: 0.035
-        momentum: 0.9
-        nesterov: True
-        weight_decay: 0.0001
+        args:
+          lr: 0.035
+          momentum: 0.9
+          nesterov: True
+          weight_decay: 0.0001
       lr_scheduler:
         type: 'cosine'
         args:
@@ -79,10 +81,11 @@ augment:
       epochs: 2
       w_optim:
         type: 'sgd'
-        lr: 0.1
-        momentum: 0.9
-        weight_decay: 0.0001
-        nesterov: True
+        args:
+          lr: 0.1
+          momentum: 0.9
+          weight_decay: 0.0001
+          nesterov: True
       lr_scheduler:
         type: 'cosine'
         args:

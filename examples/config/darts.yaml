@@ -18,10 +18,11 @@ search:
       type: 'SuperNet'
       w_optim:
         type: 'sgd'
-        lr: 0.025
-        momentum: 0.9
-        weight_decay: 0.0003
-        nesterov: True
+        args:
+          lr: 0.025
+          momentum: 0.9
+          weight_decay: 0.0003
+          nesterov: True
       lr_scheduler:
         type: 'cosine'
         args:
@@ -43,10 +44,10 @@ arch_optim:
   w_weight_decay: 0.0003
   a_optim:
     type: 'adam'
-    lr: 0.0003
-    betas: [0.5, 0.999]
-    momentum: 0.9
-    weight_decay: 0.001
+    args:
+      lr: 0.0003
+      betas: [0.5, 0.999]
+      weight_decay: 0.001
 mixed_op:
   type: 'WeightedSum'
 ops:

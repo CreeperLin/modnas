@@ -319,6 +319,7 @@ def resnet(resnet_cls, config, **kwargs):
     block = Bottleneck if bottleneck else BasicBlock
     model = resnet_cls(chn_in, chn, block, layers, num_classes=n_classes,
                     groups=groups, width_per_group=width_per_group, **kwargs)
+    return model
 
 
 for resnet_cls in [CIFARResNet, ImageNetResNet]:

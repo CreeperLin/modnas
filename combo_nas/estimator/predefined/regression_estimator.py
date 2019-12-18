@@ -1,5 +1,3 @@
-import torch
-import torch.nn as nn
 import itertools
 from ..base import EstimatorBase
 from ... import utils
@@ -7,20 +5,24 @@ from ...utils.profiling import tprof
 from ..base import train
 from ...core.param_space import ArchParamSpace
 
+class ArchPredictor():
+    def __init__(self):
+        pass
+    
+    def fit(self, ):
+        pass
+    
+    def predict(self, ):
+        pass
+
+
 class RegressionEstimator(EstimatorBase):
     def step(self):
-        config = self.config
-        train_loader = self.train_loader
-        valid_loader = self.valid_loader
-        writer = self.writer
-        logger = self.logger
-        lr = self.lr_scheduler.get_lr()[0]
+        predictor = self.predictor
         model = self.model
-        device = self.device
-        tot_epochs = config.epochs
         # train
         genotype = model.to_genotype()
-        best_val_top1 = self.predictor.predict(genotype)
+        best_val_top1 = predictor.predict(genotype)
         return best_val_top1
 
     def predict(self, ):
@@ -61,15 +63,30 @@ class RegressionEstimator(EstimatorBase):
 
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
-        best_val_top1 = 0.
+        arch_batch_size = config.get('arch_update_batch', 1)
+        best_top1 = 0.
+        best_genotype = None
+        genotypes = []
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 arch_optim.step(self)
-            # estim step
-            self.step()
+            next_batch = arch_optim.next(batch_size=arch_batch_size)
+            val_top1 = 0.
+            for params in next_batch:
+                ArchParamSpace.set_params_map(params)
+                # estim step
+                genotype = self.model.to_genotype()
+                genotypes.append(genotype)
+                logger.info('Evaluating genotype = {}'.format(genotype))
+                val_top1 = self.step()
+                if val_top1 > best_top1:
+                    best_top1 = val_top1
+                    best_genotype = genotype
             # save
+            self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
-                self.save()
+                self.save_checkpoint(epoch)
+            logger.info('Regression Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))
         return best_top1, best_genotype, genotypes

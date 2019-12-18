@@ -2,8 +2,8 @@ import json
 import os
 
 class ExpManager():
-    def __init__(self, root_dir):
-        self.root_dir = os.path.realpath(root_dir)
+    def __init__(self, root_dir, name):
+        self.root_dir = os.path.realpath(os.path.join(root_dir, name))
         os.makedirs(self.root_dir, exist_ok=True)
     
     def exp_subdir(self, name):

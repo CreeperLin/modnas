@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
 import argparse
 from model import *
 from combo_nas.utils.routine import search
@@ -20,7 +19,7 @@ def main():
                         help="override genotype file")
     args = parser.parse_args()
 
-    exp_root_dir = os.path.join('exp', args.name)
+    exp_root_dir = 'exp'
     convert_fn = custom_genotype_space_cvt
     search_kwargs = init_all_search(args.config, args.name, exp_root_dir, args.chkpt, args.device, args.genotype, convert_fn=convert_fn)
     search(**search_kwargs)

@@ -29,7 +29,7 @@ def parse_gpus(gpus):
     else:
         return [int(s) for s in gpus.split(',')]
 
-def check_config(hp, name, excludes=[]):
+def check_config(hp, excludes=[]):
     required = (
         'search.data.type',
         'augment.data.type',
@@ -163,22 +163,14 @@ def get_net_crit(config):
     return crit
 
 def get_optim(params, config):
+    optim_args = config.get('args', {})
     if config.type == 'adam':
-        optimizer = torch.optim.Adam(params,
-                            lr=config.lr,
-                            betas=config.betas,
-                            weight_decay=config.weight_decay)
+        optimizer = torch.optim.Adam(params, **optim_args)
     elif config.type == 'adabound':
         import adabound
-        optimizer = adabound.AdaBound(params,
-                            lr=config.lr,
-                            final_lr=config.final_lr)
+        optimizer = adabound.AdaBound(params, **optim_args)
     elif config.type == 'sgd':
-        optimizer = torch.optim.SGD(params,
-                            lr=config.lr,
-                            momentum=config.momentum,
-                            weight_decay=config.weight_decay,
-                            nesterov=config.nesterov)
+        optimizer = torch.optim.SGD(params, **optim_args)
     else:
         raise Exception("Optimizer not supported: %s" % config.optimizer)
     return optimizer

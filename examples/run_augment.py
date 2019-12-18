@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
 import random
 import time
 import torch
@@ -22,7 +21,7 @@ def main():
                         help="override genotype file")
     args = parser.parse_args()
 
-    exp_root_dir = os.path.join('exp', args.name)
+    exp_root_dir = 'exp'
     augment_kwargs = init_all_augment(args.config, args.name, exp_root_dir, args.chkpt, args.device, args.genotype)
     augment(**augment_kwargs)
 

@@ -20,7 +20,7 @@ class TestAuto():
                 if ext != '.yaml': continue
                 print(os.path.join(root, name), testname)
                 def case_fn(casename, conf_path, *args, **kwargs):
-                    exp_root_dir = os.path.join('exp', casename)
+                    exp_root_dir = 'exp'
                     conf = yaml.load(open(conf_path, 'r'), Loader=yaml.Loader)
                     if 'search' in conf:
                         print('name: {} search'.format(casename))

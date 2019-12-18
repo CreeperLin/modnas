@@ -15,19 +15,19 @@ from .. import utils as utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt
 
-def load_config(conf, name, excludes):
+def load_config(conf, excludes):
     if isinstance(conf, Config):
         config = conf
     else:
         config = Config(conf)
-    if utils.check_config(config, name, excludes):
+    if utils.check_config(config, excludes):
         raise Exception("config error.")
     return config
 
 def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, convert_fn=None):
-    config = load_config(config, name, excludes=['augment'])
+    config = load_config(config, excludes=['augment'])
     # dir
-    expman = ExpManager(exp_root_dir)
+    expman = ExpManager(exp_root_dir, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
@@ -95,9 +95,9 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
 
 
 def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, convert_fn=None):
-    config = load_config(config, name, excludes=['search'])
+    config = load_config(config, excludes=['search'])
     # dir
-    expman = ExpManager(exp_root_dir)
+    expman = ExpManager(exp_root_dir, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     # device

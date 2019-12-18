@@ -19,10 +19,11 @@ search:
       type: 'Default'
       w_optim:
         type: 'sgd'
-        lr: 0.1
-        momentum: 0.9
-        nesterov: True
-        weight_decay: 0.0001
+        args:
+          lr: 0.1
+          momentum: 0.9
+          nesterov: True
+          weight_decay: 0.0001
       lr_scheduler:
         type: 'cosine'
         args:
@@ -37,10 +38,11 @@ search:
       type: 'SuperNet'
       w_optim:
         type: 'sgd'
-        lr: 0.035
-        momentum: 0.9
-        nesterov: True
-        weight_decay: 0.0001
+        args:
+          lr: 0.035
+          momentum: 0.9
+          nesterov: True
+          weight_decay: 0.0001
       lr_scheduler:
         type: 'cosine'
         args:
@@ -62,9 +64,10 @@ arch_optim:
   renorm: True
   a_optim:
     type: 'adam'
-    lr: 0.006
-    betas: [0.0, 0.999]
-    weight_decay: 0.0
+    args:
+      lr: 0.006
+      betas: [0.0, 0.999]
+      weight_decay: 0.0
 mixed_op:
   type: 'BinGate'
 ops:

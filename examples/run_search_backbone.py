@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
 import argparse
 from model import *
 from combo_nas.utils.routine import search
@@ -23,7 +22,7 @@ def main():
     config.mixed_op.type = 'WeightedSum'
 
     register_custom_ops()
-    exp_root_dir = os.path.join('exp', args.name)
+    exp_root_dir = 'exp'
     search_kwargs = init_all_search(args.config, args.name, exp_root_dir, args.chkpt, args.device, convert_fn=custom_backbone_cvt)
     search(**search_kwargs)
 

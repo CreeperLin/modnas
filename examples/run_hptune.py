@@ -38,7 +38,7 @@ def main():
         trial_config = copy.deepcopy(config)
         Config.apply(trial_config, hp)
         trial_name = '{}_{}'.format(args.name, trial_index)
-        exp_root_dir = os.path.join('exp', trial_name)
+        exp_root_dir = 'exp'
         trial_index += 1
         try:
             search_kwargs = init_all_search(trial_config, trial_name, exp_root_dir, args.chkpt, args.device, convert_fn=None)
