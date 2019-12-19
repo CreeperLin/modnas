@@ -24,6 +24,8 @@ class ArchParamSpace():
             name = ArchParamSpace.new_param_name(param)
         param.name = name
         ArchParamSpace._params_map[name] = param
+        if isinstance(param, ArchParamDiscrete):
+            ArchParamSpace._discrete_length = None
     
     @staticmethod
     def new_param_id():

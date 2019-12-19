@@ -135,9 +135,13 @@ class EstimatorBase():
         self.logger = logger
         self.device = device
         self.init_epoch = -1
+        self.w_optim = None
+        self.lr_scheduler = None
 
-        self.w_optim = utils.get_optim(self.model.weights(), config.w_optim)
-        self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, config.lr_scheduler, config.epochs)
+        if 'w_optim' in config:
+            self.w_optim = utils.get_optim(self.model.weights(), config.w_optim)
+        if 'lr_scheduler' in config:
+            self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, config.lr_scheduler, config.epochs)
     
     def predict(self, ):
         pass
@@ -216,10 +220,10 @@ class EstimatorBase():
         logger = self.logger
         save_checkpoint(expman, model, w_optim, lr_scheduler, epoch, logger)
     
-    def save_genotype(self, epoch):
+    def save_genotype(self, epoch, genotype=None):
         expman = self.expman
-        genotype = self.model.to_genotype()
         logger = self.logger
+        genotype = self.model.to_genotype() if genotype is None else genotype
         save_genotype(expman, genotype, epoch, logger)
     
     def load(self, chkpt_path):

@@ -18,15 +18,16 @@ class CostModel():
     
 
 class ModelOptimizer():
-    def __init__(self, cost_model):
+    def __init__(self):
         pass
     
-    def get_maximums(self,):
+    def get_maximums(self, model, size, ):
         pass
 
 
 class ModelBasedArchOptim(ArchOptimBase):
     def __init__(self, cost_model, model_optimizer):
+        super().__init__(config, None)
         self.cost_model = cost_model
         self.model_optimizer = model_optimizer
     
@@ -39,3 +40,6 @@ class ModelBasedArchOptim(ArchOptimBase):
             if self.has_next():
                 batch.append(self._next())
         return batch
+    
+    def step(self, estim):
+        pass

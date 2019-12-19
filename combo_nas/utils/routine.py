@@ -12,7 +12,8 @@ from ..core.nas_modules import ArchModuleSpace
 from ..estimator import build_estimator
 
 def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_optim, writer, logger, device):
-    logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
+    if not model is None:
+        logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
     estimators = config.estimator
     for estim_name, estim_conf in estimators.items():
         estim_type = estim_conf.type
@@ -28,7 +29,8 @@ def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_o
 
 
 def augment(config, chkpt_path, expman, train_loader, valid_loader, model, writer, logger, device):
-    logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
+    if not model is None:
+        logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
     estimators = config.estimator
     for estim_name, estim_conf in estimators.items():
         estim_type = estim_conf.type

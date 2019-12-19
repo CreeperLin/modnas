@@ -30,6 +30,7 @@ def parse_gpus(gpus):
         return [int(s) for s in gpus.split(',')]
 
 def check_config(hp, excludes=[]):
+    flag = False
     required = (
         'search.data.type',
         'augment.data.type',
@@ -39,7 +40,6 @@ def check_config(hp, excludes=[]):
         'augment.data.valid_root',
     )
     
-    flag = False
     for i in required:
         try:
             ddict = hp
@@ -50,6 +50,9 @@ def check_config(hp, excludes=[]):
                 flag = True
         except:
             if a in excludes: continue
+            if a != i.split('.')[-1]:
+                logging.warning('check_config: node {} in field {} missing'.format(a, i))
+                continue
             logging.error('check_config: field {} is missing'.format(i))
             flag = True
 
@@ -60,10 +63,6 @@ def check_config(hp, excludes=[]):
         'augment.data.dloader.cutout': 16,
         'search.data.dloader.jitter': True,
         'augment.data.dloader.jitter': True,
-        'search.aux_weight': 0.0,
-        'augment.aux_weight': 0.0,
-        'search.drop_path_prob': 0.0,
-        'augment.drop_path_prob': 0.0,
         'ops.ops_order': 'act_weight_bn',
         'ops.affine': False,
         'log.writer': False,
@@ -84,8 +83,7 @@ def check_config(hp, excludes=[]):
         except:
             if a in excludes: continue
             if a != i.split('.')[-1]:
-                flag = True
-                logging.error('check_config: node {} in field {} missing'.format(a, i))
+                logging.warning('check_config: node {} in field {} missing'.format(a, i))
                 continue
             else:
                 logging.warning('check_config: setting field {} to default: {}'.format(i, defaults[i]))

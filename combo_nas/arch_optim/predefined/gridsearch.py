@@ -7,10 +7,10 @@ from ...utils import accuracy
 from ...core.param_space import ArchParamSpace
 
 class DiscreteSpaceArchOptim(ArchOptimBase):
-    def __init__(self, config, net):
-        super().__init__(config, net)
-        self.space_size = ArchParamSpace.discrete_size()
-        logging.debug('arch space size: {}'.format(self.space_size))
+    def __init__(self, config):
+        super().__init__(config)
+        self.space_size = ArchParamSpace.discrete_size
+        logging.debug('arch space size: {}'.format(self.space_size()))
 
     def _next(self):
         pass
@@ -24,8 +24,8 @@ class DiscreteSpaceArchOptim(ArchOptimBase):
 
 
 class GridSearch(DiscreteSpaceArchOptim):
-    def __init__(self, config, net):
-        super().__init__(config, net)
+    def __init__(self, config):
+        super().__init__(config)
         self.counter = 0
     
     def _next(self):
@@ -34,22 +34,22 @@ class GridSearch(DiscreteSpaceArchOptim):
         return ArchParamSpace.get_discrete_map(index)
     
     def has_next(self):
-        return self.counter < self.space_size
+        return self.counter < self.space_size()
 
 
 class RandomSearch(DiscreteSpaceArchOptim):
-    def __init__(self, config, net, seed=None):
-        super().__init__(config, net)
+    def __init__(self, config, seed=None):
+        super().__init__(config)
         self.visited = set()
         seed = int(time.time()) if seed is None else seed
         random.seed(seed)
     
     def _next(self):
-        index = random.randint(0,self.space_size)
+        index = random.randint(0, self.space_size())
         while index in self.visited:
-            index = random.randint(0,self.space_size)
+            index = random.randint(0, self.space_size())
         self.visited.add(index)
         return ArchParamSpace.get_discrete_map(index)
     
     def has_next(self):
-        return len(self.visited) < self.space_size
+        return len(self.visited) < self.space_size()

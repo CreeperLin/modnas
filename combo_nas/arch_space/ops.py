@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..utils.registration import Registry, build, get_builder, register_wrapper
+from ..utils import get_same_padding
 from functools import partial
 
 op_registry = Registry('op')
@@ -21,32 +22,28 @@ build_op = partial(build, op_registry)
 register = partial(register_wrapper, op_registry)
 
 register_op(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'none', 'NIL')
-register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, 3, stride, 1), 'avg_pool_3x3', 'AVG')
-register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, 3, stride, 1), 'max_pool_3x3', 'MAX')
+register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, 3, stride, 1), 'avg_pool', 'AVG')
+register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, 3, stride, 1), 'max_pool', 'MAX')
 register_op(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
                                         else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
-register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 3, stride, 1), 'sep_conv_3x3', 'SC3')
-register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 5, stride, 2), 'sep_conv_5x5', 'SC5')
-register_op(lambda C_in, C_out, stride: SepConv(C_in, C_out, 7, stride, 3), 'sep_conv_7x7', 'SC7')
-register_op(lambda C_in, C_out, stride: SepConvSingle(C_in, C_out, 3, stride, 1), 'sepsingle_3x3', 'SS3')
-register_op(lambda C_in, C_out, stride: SepConvSingle(C_in, C_out, 5, stride, 2), 'sepsingle_5x5', 'SS5')
-register_op(lambda C_in, C_out, stride: SepConvSingle(C_in, C_out, 7, stride, 3), 'sepsingle_7x7', 'SS7')
-register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 3, stride, 1), 'std_conv_3x3', 'NC3')
-register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 5, stride, 2), 'std_conv_5x5', 'NC5')
-register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 7, stride, 3), 'std_conv_7x7', 'NC7')
-register_op(lambda C_in, C_out, stride: DilConv(C_in, C_out, 3, stride, 2, 2), 'dil_conv_3x3', 'DC3')
-register_op(lambda C_in, C_out, stride: DilConv(C_in, C_out, 5, stride, 4, 2), 'dil_conv_5x5', 'DC5')
-register_op(lambda C_in, C_out, stride: FacConv(C_in, C_out, 7, stride, 3), 'conv_7x1_1x7', 'FC7')
-register_op(lambda C_in, C_out, stride: StdConv(C_in, C_out, 1, stride, 0), 'conv_1x1', 'C11')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 3, stride, 1, 1), 'mbconv3x3_e1', 'MB3E1')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 3, stride, 1, 3), 'mbconv3x3_e3', 'MB3E3')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 3, stride, 1, 6), 'mbconv3x3_e6', 'MB3E6')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 5, stride, 2, 1), 'mbconv5x5_e1', 'MB5E1')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 5, stride, 2, 3), 'mbconv5x5_e3', 'MB5E3')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 5, stride, 2, 6), 'mbconv5x5_e6', 'MB5E6')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 7, stride, 3, 1), 'mbconv7x7_e1', 'MB7E1')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 7, stride, 3, 3), 'mbconv7x7_e3', 'MB7E3')
-register_op(lambda C_in, C_out, stride: MBConv(C_in, C_out, 7, stride, 3, 6), 'mbconv7x7_e6', 'MB7E6')
+kernel_sizes = [1, 3, 5, 7, 9]
+for k in kernel_sizes:
+    p = get_same_padding(k)
+    p2 = get_same_padding(2*k-1)
+    p3 = get_same_padding(3*k-2)
+    kstr = '_{k}x{k}'.format(k=k)
+    kabbr = str(k)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, ks, stride, pd), 'avg_pool'+kstr, 'AP'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, ks, stride, pd), 'max_pool'+kstr, 'MP'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: SepConv(C_in, C_out, ks, stride, pd), 'sep_conv'+kstr, 'SC'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: SepSingle(C_in, C_out, ks, stride, pd), 'sep_sing'+kstr, 'SS'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: StdConv(C_in, C_out, ks, stride, pd), 'std_conv'+kstr, 'NC'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p2: DilConv(C_in, C_out, ks, stride, pd, 2), 'dil_conv'+kstr, 'DC'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'dil2_conv'+kstr, 'DD'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'fac_conv_{}'.format(k), 'FC'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 1), 'mbconv_{}_e1'.format(k), 'MB{}E1'.format(k))
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 3), 'mbconv_{}_e3'.format(k), 'MB{}E3'.format(k))
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 6), 'mbconv_{}_e6'.format(k), 'MB{}E6'.format(k))
 
 OPS_ORDER = ['bn','act','weight']
 AFFINE = True
@@ -232,7 +229,7 @@ class SepConv(nn.Module):
         return self.net(x)
 
 
-class SepConvSingle(nn.Module):
+class SepSingle(nn.Module):
     """ Depthwise separable conv
     DilConv(dilation=1)
     """

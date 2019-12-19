@@ -25,6 +25,10 @@ def load_config(conf, excludes):
     return config
 
 def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, convert_fn=None):
+    trn_loader = val_loader = model = None
+    ArchParamSpace.reset()
+    ArchModuleSpace.reset()
+    Slot.reset()
     config = load_config(config, excludes=['augment'])
     # dir
     expman = ExpManager(exp_root_dir, name)
@@ -34,50 +38,51 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    sp_ratio = config.search.data.dloader.split_ratio
-    if sp_ratio > 0:
-        trn_loader, val_loader = load_data(config.search.data, validation=False)
-    else:
-        trn_loader = load_data(config.search.data, validation=False)
-        val_loader = None
-    # primitives
-    gt.set_primitives(config.primitives)
-    # net
-    ArchParamSpace.reset()
-    ArchModuleSpace.reset()
-    Slot.reset()
-    configure_ops(config.ops)
-    net = build_arch_space(config.model.type, config.model)
-    # layers
-    if not isinstance(convert_fn, list):
-        convert_fn = [convert_fn]
-    layer_convert_fn = convert_fn[:-1]
-    layers_conf = config.get('layers', None)
-    if not layers_conf is None:
-        convert_from_layers(net, layers_conf, layer_convert_fn)
-    # mixed_op
-    mixed_op_args = config.mixed_op.get('args', {})
-    op_convert_fn = convert_fn[-1]
-    if genotype is None:
-        if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
-            op_convert_fn = net.get_predefined_search_converter()
-        model = convert_from_predefined_net(net, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
-    else:
-        if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
-            op_convert_fn = net.get_genotype_search_converter()
-        genotype = gt.get_genotype(config.genotypes, genotype)
-        model = convert_from_genotype(net, genotype, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
-    # controller
-    crit = utils.get_net_crit(config.criterion)
-    model = NASController(model, crit, dev_list).to(device=dev)
-    arch = build_arch_optim(config.arch_optim.type, config.arch_optim, model)
-    # genotype
-    if config.genotypes.disable_dag:
-        model.to_genotype = model.to_genotype_ops
-    if config.genotypes.use_slot:
-        model.to_genotype_ops = model.to_genotype_slots
-    # init
-    model.init_model(config.init)
+    if 'data' in config.search:
+        sp_ratio = config.search.data.dloader.split_ratio
+        if sp_ratio > 0:
+            trn_loader, val_loader = load_data(config.search.data, validation=False)
+        else:
+            trn_loader = load_data(config.search.data, validation=False)
+            val_loader = None
+    if 'model' in config:
+        # primitives
+        gt.set_primitives(config.primitives)
+        # ops
+        configure_ops(config.ops)
+        # net
+        net = build_arch_space(config.model.type, config.model)
+        # layers
+        if not isinstance(convert_fn, list):
+            convert_fn = [convert_fn]
+        layer_convert_fn = convert_fn[:-1]
+        layers_conf = config.get('layers', None)
+        if not layers_conf is None:
+            convert_from_layers(net, layers_conf, layer_convert_fn)
+        # mixed_op
+        mixed_op_args = config.mixed_op.get('args', {})
+        op_convert_fn = convert_fn[-1]
+        if genotype is None:
+            if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
+                op_convert_fn = net.get_predefined_search_converter()
+            model = convert_from_predefined_net(net, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+        else:
+            if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
+                op_convert_fn = net.get_genotype_search_converter()
+            genotype = gt.get_genotype(config.genotypes, genotype)
+            model = convert_from_genotype(net, genotype, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+        # controller
+        crit = utils.get_net_crit(config.criterion)
+        model = NASController(model, crit, dev_list).to(device=dev)
+        # genotype
+        if config.genotypes.disable_dag:
+            model.to_genotype = model.to_genotype_ops
+        if config.genotypes.use_slot:
+            model.to_genotype_ops = model.to_genotype_slots
+        # init
+        model.init_model(config.init)
+    # arch
+    arch = build_arch_optim(config.arch_optim.type, config.arch_optim)
     # chkpt
     chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {

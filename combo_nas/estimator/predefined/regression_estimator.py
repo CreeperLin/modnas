@@ -20,10 +20,9 @@ class RegressionEstimator(EstimatorBase):
     def step(self):
         predictor = self.predictor
         model = self.model
-        # train
         genotype = model.to_genotype()
         best_val_top1 = predictor.predict(genotype)
-        return best_val_top1
+        return genotype, best_val_top1
 
     def predict(self, ):
         pass
@@ -60,6 +59,7 @@ class RegressionEstimator(EstimatorBase):
     def search(self, arch_optim):
         config = self.config
         tot_epochs = config.epochs
+        logger = self.logger
 
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
@@ -73,20 +73,22 @@ class RegressionEstimator(EstimatorBase):
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 arch_optim.step(self)
             next_batch = arch_optim.next(batch_size=arch_batch_size)
-            val_top1 = 0.
+            best_top1_batch = 0.
+            best_gt_batch = None
             for params in next_batch:
                 ArchParamSpace.set_params_map(params)
                 # estim step
-                genotype = self.model.to_genotype()
-                genotypes.append(genotype)
-                logger.info('Evaluating genotype = {}'.format(genotype))
-                val_top1 = self.step()
+                genotype, val_top1 = self.step()
                 if val_top1 > best_top1:
                     best_top1 = val_top1
                     best_genotype = genotype
+                if val_top1 > best_top1_batch:
+                    best_top1_batch = val_top1
+                    best_gt_batch = genotype
+            genotypes.append(best_gt_batch)
             # save
-            self.save_genotype(epoch)
+            self.save_genotype(epoch, genotype=best_gt_batch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            logger.info('Regression Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))
+            logger.info('Regression Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, best_top1_batch, best_top1))
         return best_top1, best_genotype, genotypes

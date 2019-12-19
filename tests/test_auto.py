@@ -13,7 +13,7 @@ class TestAuto():
     @staticmethod
     def create_testcases():
         root_dir = os.path.dirname(__file__)
-        for root, dirs, files in os.walk(os.path.join(root_dir, 'config'), topdown=True):
+        for root, dirs, files in os.walk(os.path.join(root_dir, 'config', 'auto'), topdown=True):
             for name in files:
                 config_path = os.path.join(root, name)
                 testname, ext = os.path.splitext(name)
