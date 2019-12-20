@@ -184,6 +184,7 @@ class DummyArchitect(GradientBasedArchOptim):
     
     def step(self, estim):
         self.optim_step()
+        self.optim_reset()
 
 
 class REINFORCE(GradientBasedArchOptim):

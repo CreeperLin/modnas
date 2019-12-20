@@ -1,7 +1,10 @@
 import itertools
 from .regression_estimator import RegressionEstimator, ArchPredictor
 from ...core.param_space import ArchParamSpace, ArchParamDiscrete, ArchParamContinuous
-from nasbench import api
+try:
+    from nasbench import api
+except:
+    api = None
 
 INPUT = 'input'
 OUTPUT = 'output'
@@ -34,6 +37,8 @@ class NASBenchNet():
 class NASBenchPredictor(ArchPredictor):
     def __init__(self, record_path):
         super().__init__()
+        if api is None:
+            raise RuntimeError('nasbench api is not installed')
         self.nasbench = api.NASBench(record_path)
         self.max_nodes = 7
     

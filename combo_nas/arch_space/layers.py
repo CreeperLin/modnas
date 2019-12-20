@@ -176,14 +176,15 @@ class MultiChainLayer(nn.Module):
         self.fixed = False
         chains = nn.ModuleList()
         sidx = range(self.n_input)
-        for i in range(self.n_chain):
+        for cidx in range(self.n_chain):
             edges = []
-            e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, i)
-            for j in range(self.n_chain_nodes[i]):
+            cur_state = self.n_input + cidx
+            e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
+            for ndix in range(self.n_chain_nodes[cidx]):
                 edge_kwargs['chn_in'] = e_chn_in
                 edge_kwargs['stride'] = stride
                 if not name is None:
-                    edge_kwargs['name'] = '{}_{}_{}'.format(name, i, j)
+                    edge_kwargs['name'] = '{}_{}_{}'.format(name, cidx, nidx)
                 e = edge_cls(**edge_kwargs)
                 e_chn_in = e.chn_out
                 edges.append(e)
@@ -194,15 +195,14 @@ class MultiChainLayer(nn.Module):
         self.chn_states = chn_states
     
     def forward(self, x):
-        x = [x] if not isinstance(x, list) else x
-        if self.preprocs is None:
-            states = [st for st in x]
-        else:
+        states = x if isinstance(x, list) else [x]
+        if not self.preprocs is None:
             states = [self.preprocs[i](x[i]) for i in range(self.n_input)]
         n_states = self.n_input
         sidx = range(self.n_input)
-        for chain in self.chains:
-            out = self.allocator.alloc([states[i] for i in sidx], sidx, n_states)
+        for cidx, chain in enumerate(self.chains):
+            cur_state = self.n_input + cidx
+            out = self.allocator.alloc([states[i] for i in sidx], sidx, cur_state)
             out = out[0] if isinstance(out, list) and len(out)==1 else out
             out = chain(out)
             states.append(out)
