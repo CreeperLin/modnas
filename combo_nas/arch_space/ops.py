@@ -175,8 +175,8 @@ class FacConv(nn.Module):
                 nets.append(nn.BatchNorm2d(C, affine=AFFINE))
             elif i=='weight':
                 bias = False if OPS_ORDER[-1] == 'bn' else True
-                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, padding, bias=bias))
-                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), stride, padding, bias=bias))
+                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), bias=bias))
+                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), bias=bias))
                 C = C_out
             elif i=='act':
                 nets.append(nn.ReLU(inplace=False if OPS_ORDER[0]=='act' else True))

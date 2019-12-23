@@ -180,9 +180,11 @@ class MultiChainLayer(nn.Module):
             edges = []
             cur_state = self.n_input + cidx
             e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
-            for ndix in range(self.n_chain_nodes[cidx]):
+            for nidx in range(self.n_chain_nodes[cidx]):
                 edge_kwargs['chn_in'] = e_chn_in
-                edge_kwargs['stride'] = stride
+                edge_kwargs['stride'] = stride if nidx == 0 else 1
+                if nidx == 0:
+                    edge_kwargs['chn_out'] = sum([chn_out * e // s for e, s in zip(e_chn_in, self.chn_in)])
                 if not name is None:
                     edge_kwargs['name'] = '{}_{}_{}'.format(name, cidx, nidx)
                 e = edge_cls(**edge_kwargs)

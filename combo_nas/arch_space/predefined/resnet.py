@@ -312,8 +312,8 @@ def resnet(resnet_cls, config, **kwargs):
     chn_in = config.channel_in
     chn = config.channel_init
     n_classes = config.classes
-    groups = config.groups
-    width_per_group = config.width_per_group
+    groups = config.get('groups', 1)
+    width_per_group = config.get('width_per_group', None)
     layers = config.layers
     bottleneck = config.bottleneck
     block = Bottleneck if bottleneck else BasicBlock
