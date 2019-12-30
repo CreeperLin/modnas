@@ -22,8 +22,8 @@ build_op = partial(build, op_registry)
 register = partial(register_wrapper, op_registry)
 
 register_op(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'none', 'NIL')
-register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, 3, stride, 1), 'avg_pool', 'AVG')
-register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, 3, stride, 1), 'max_pool', 'MAX')
+register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'avg_pool', 'AVG')
+register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'max_pool', 'MAX')
 register_op(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
                                         else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
 kernel_sizes = [1, 3, 5, 7, 9]
@@ -33,8 +33,8 @@ for k in kernel_sizes:
     p3 = get_same_padding(3*k-2)
     kstr = '_{k}x{k}'.format(k=k)
     kabbr = str(k)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, ks, stride, pd), 'avg_pool'+kstr, 'AP'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, ks, stride, pd), 'max_pool'+kstr, 'MP'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, C_out, ks, stride, pd), 'avg_pool'+kstr, 'AP'+kabbr)
+    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, C_out, ks, stride, pd), 'max_pool'+kstr, 'MP'+kabbr)
     register_op(lambda C_in, C_out, stride, ks=k, pd=p: SepConv(C_in, C_out, ks, stride, pd), 'sep_conv'+kstr, 'SC'+kabbr)
     register_op(lambda C_in, C_out, stride, ks=k, pd=p: SepSingle(C_in, C_out, ks, stride, pd), 'sep_sing'+kstr, 'SS'+kabbr)
     register_op(lambda C_in, C_out, stride, ks=k, pd=p: StdConv(C_in, C_out, ks, stride, pd), 'std_conv'+kstr, 'NC'+kabbr)
@@ -111,23 +111,25 @@ class PoolBN(nn.Module):
     """
     AvgPool or MaxPool - BN
     """
-    def __init__(self, pool_type, C, kernel_size, stride, padding):
+    def __init__(self, pool_type, C_in, C_out, kernel_size, stride, padding):
         """
         Args:
             pool_type: 'max' or 'avg'
         """
         super().__init__()
+        if C_in != C_out:
+            raise ValueError('invalid channel in pooling layer')
         if pool_type.lower() == 'max':
             pool = nn.MaxPool2d(kernel_size, stride, padding)
         elif pool_type.lower() == 'avg':
             pool = nn.AvgPool2d(kernel_size, stride, padding, count_include_pad=False)
         else:
-            raise ValueError()
+            raise ValueError('invalid pooling layer type')
 
         nets = []
         for i in OPS_ORDER:
             if i=='bn':
-                nets.append(nn.BatchNorm2d(C, affine=AFFINE))
+                nets.append(nn.BatchNorm2d(C_in, affine=AFFINE))
             elif i=='weight':
                 nets.append(pool)
             elif i=='act':
@@ -264,6 +266,8 @@ class Identity(nn.Module):
 class Zero(nn.Module):
     def __init__(self, C_in, C_out, stride):
         super().__init__()
+        if C_in != C_out:
+            raise ValueError('invalid channel in zero layer')
         self.stride = stride
         self.C_out = C_out
 
@@ -272,7 +276,7 @@ class Zero(nn.Module):
             return x * 0.
 
         # re-sizing by stride
-        return x[:, :self.C_out, ::self.stride, ::self.stride] * 0.
+        return x[:, :, ::self.stride, ::self.stride] * 0.
 
 
 class FactorizedReduce(nn.Module):

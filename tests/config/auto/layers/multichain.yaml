@@ -119,9 +119,6 @@ model:
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
 primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
   - 'SC3'
   - 'SC5'
   - 'SC7'

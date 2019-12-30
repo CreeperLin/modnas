@@ -3,13 +3,12 @@ import copy
 import torch
 from ..base import ArchOptimBase
 from ...core.nas_modules import ArchModuleSpace
-from ...core.param_space import ArchParamSpace
 from ...utils import get_optim, accuracy
 
 class GradientBasedArchOptim(ArchOptimBase):
-    def __init__(self, config):
-        super().__init__(config)
-        self.a_optim = get_optim(ArchParamSpace.continuous_values(), config.a_optim)
+    def __init__(self, space, a_optim):
+        super().__init__(space)
+        self.a_optim = get_optim(self.space.continuous_values(), a_optim)
 
     def state_dict(self):
         return {
@@ -26,13 +25,13 @@ class GradientBasedArchOptim(ArchOptimBase):
         self.a_optim.zero_grad()
 
 
-class WeightedSumArchitect(GradientBasedArchOptim):
+class DARTSArchOptim(GradientBasedArchOptim):
     """ Compute gradients of alphas """
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, space, a_optim, w_momentum, w_weight_decay):
+        super().__init__(space, a_optim)
         self.v_net = None
-        self.w_momentum = config.w_momentum
-        self.w_weight_decay = config.w_weight_decay
+        self.w_momentum = w_momentum
+        self.w_weight_decay = w_weight_decay
 
     def virtual_step(self, trn_X, trn_y, lr, w_optim, model):
         """
@@ -125,13 +124,13 @@ class WeightedSumArchitect(GradientBasedArchOptim):
         return hessian
 
 
-class BinaryGateArchitect(GradientBasedArchOptim):
+class BinaryGateArchOptim(GradientBasedArchOptim):
     """ Compute gradients of alphas """
-    def __init__(self, config):
-        super().__init__(config)
-        self.n_samples = config.n_samples
+    def __init__(self, space, a_optim, n_samples, renorm):
+        super().__init__(space, a_optim)
+        self.n_samples = n_samples
         self.sample = (self.n_samples!=0)
-        self.renorm = config.renorm and self.sample
+        self.renorm = renorm and self.sample
 
     def step(self, estim):
         """ Compute unrolled loss and backward its gradients
@@ -155,7 +154,7 @@ class BinaryGateArchitect(GradientBasedArchOptim):
         else:
             with torch.no_grad():
                 prev_pw = []
-                for p, m in ArchParamSpace.continuous_param_modules():
+                for p, m in self.space.continuous_param_modules():
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
@@ -166,7 +165,7 @@ class BinaryGateArchitect(GradientBasedArchOptim):
             self.optim_step()
 
             with torch.no_grad():
-                for kprev, (p, m) in zip(prev_pw, ArchParamSpace.continuous_param_modules()):
+                for kprev, (p, m) in zip(prev_pw, self.space.continuous_param_modules()):
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
@@ -178,19 +177,19 @@ class BinaryGateArchitect(GradientBasedArchOptim):
         ArchModuleSpace.module_call('reset_ops')
 
 
-class DummyArchitect(GradientBasedArchOptim):
-    def __init__(self, config):
-        super().__init__(config)
+class DirectGradArchOptim(GradientBasedArchOptim):
+    def __init__(self, space, a_optim):
+        super().__init__(space, a_optim)
     
     def step(self, estim):
         self.optim_step()
         self.optim_reset()
 
 
-class REINFORCE(GradientBasedArchOptim):
-    def __init__(self, config):
-        super().__init__(config)
-        self.batch_size = config.batch_size
+class REINFORCEArchOptim(GradientBasedArchOptim):
+    def __init__(self, space, a_optim, batch_size):
+        super().__init__(space, a_optim)
+        self.batch_size = batch_size
         self.baseline = None
         self.baseline_decay_weight = 0.99
 

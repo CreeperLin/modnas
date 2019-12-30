@@ -1,8 +1,8 @@
 """ arch_optim base """
 
 class ArchOptimBase():
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, space):
+        self.space = space
 
     def state_dict(self):
         return {}

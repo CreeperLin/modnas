@@ -25,6 +25,7 @@ class Slot(nn.Module):
         self.kwargs = kwargs
         self.fixed = False
         self.visited = False
+        self.built = False
         logging.debug('slot {} {} {}: declared {} {} {}'.format(
             self.sid, self.arch_param_map, self.name, self.chn_in, self.chn_out, self.stride))
     
@@ -59,6 +60,7 @@ class Slot(nn.Module):
         for m in Slot._slots:
             yield m
     
+    @staticmethod
     def slots_model(model):
         for m in model.modules():
             if isinstance(m, Slot):
@@ -117,9 +119,14 @@ class Slot(nn.Module):
             convert_fn = default_genotype_converter if Slot._convert_fn is None else Slot._convert_fn
             ent = convert_fn(self, gene, *args, **kwargs)
             self.set_entity(ent)
-        else:
+        elif not self.built:
             self.ent.build_from_genotype(gene, *args, **kwargs)
         self.built = True
+    
+    def extra_repr(self):
+        expr =  '{}, {}, {}, '.format(self.chn_in, self.chn_out, self.stride)+\
+                ', '.join(['{}={}'.format(k, v) for k, v in self.kwargs.items()])
+        return expr
 
 
 def default_predefined_converter(slot, mixed_op_cls, *args, **kwargs):

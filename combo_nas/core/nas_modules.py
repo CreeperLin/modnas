@@ -3,79 +3,60 @@ import logging
 import torch
 import torch.nn as nn
 
-class ArchModuleSpace():
-    _modules = []
-    _module_id = -1
-    _module_state_dict = {}
-    _params_map = []
-    _dev_list = []
+class ArchModuleSpaceClass():
+    def __init__(self, ):
+        self.reset()
 
-    @staticmethod
-    def reset():
-        ArchModuleSpace._modules = []
-        ArchModuleSpace._module_id = -1
-        ArchModuleSpace._module_state_dict = {}
-        ArchModuleSpace._dev_list = []
-        ArchModuleSpace._params_map = []
+    def reset(self, ):
+        self._modules = []
+        self._module_id = -1
+        self._module_state_dict = {}
+        self._params_map = []
 
-    @staticmethod
-    def nasmod_state_dict():
+    def nasmod_state_dict(self, ):
         return {
         }
     
-    @staticmethod
-    def nasmod_load_state_dict(sd):
+    def nasmod_load_state_dict(self, sd):
         pass
 
-    @staticmethod
-    def get_new_id():
-        ArchModuleSpace._module_id += 1
-        return ArchModuleSpace._module_id
+    def get_new_id(self, ):
+        self._module_id += 1
+        return self._module_id
     
-    @staticmethod
-    def register(module, mid, arch_param_map):
-        ArchModuleSpace._modules.append(module)
-        ArchModuleSpace._params_map.append(arch_param_map)
+    def register(self, module, arch_param_map):
+        module.id = self.get_new_id()
+        self._modules.append(module)
+        self._params_map.append(arch_param_map)
     
-    @staticmethod
-    def get_module(mid):
-        return ArchModuleSpace._modules[mid]
+    def get_module(self, mid):
+        return self._modules[mid]
     
-    @staticmethod
-    def modules():
-        for m in ArchModuleSpace._modules:
+    def modules(self, ):
+        for m in self._modules:
             yield m
 
-    @staticmethod
-    def module_apply(func, **kwargs):
-        return [func(m, **kwargs) for m in ArchModuleSpace._modules]
+    def module_apply(self, func, **kwargs):
+        return [func(m, **kwargs) for m in self.modules()]
     
-    @staticmethod
-    def module_call(func, **kwargs):
-        return [getattr(m, func)(**kwargs) for m in ArchModuleSpace._modules]
+    def module_call(self, func, **kwargs):
+        return [getattr(m, func)(**kwargs) for m in self.modules()]
     
-    @staticmethod
-    def to_genotype_all(*args, **kwargs):
+    def to_genotype_all(self, *args, **kwargs):
         gene = []
-        for m in ArchModuleSpace._modules:
+        for m in self.modules():
             _, g_module = m.to_genotype(*args, **kwargs)
             gene.append(g_module)
         return gene
 
-    def build_from_genotype(self, gene, *args, **kwargs):
-        raise NotImplementedError
-    
-    def to_genotype(self, *args, **kwargs):
-        raise NotImplementedError
-
+ArchModuleSpace = ArchModuleSpaceClass()
 
 class NASModule(nn.Module):
     def __init__(self, arch_param_map):
         super().__init__()
-        self.id = ArchModuleSpace.get_new_id()
+        ArchModuleSpace.register(self, arch_param_map)
         for ap in arch_param_map.values():
             ap.add_module(self.id)
-        ArchModuleSpace.register(self, self.id, arch_param_map)
         # logging.debug('reg nas module: {} mid: {} p: {}'.format(self.__class__.__name__, self.id, arch_param_map))
     
     def arch_param(self, name):
@@ -110,3 +91,9 @@ class NASModule(nn.Module):
     def del_state(self, name):
         if not name in self.nas_state_dict(): return
         del self.nas_state_dict()[name]
+    
+    def build_from_genotype(self, gene, *args, **kwargs):
+        raise NotImplementedError
+    
+    def to_genotype(self, *args, **kwargs):
+        raise NotImplementedError

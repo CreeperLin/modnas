@@ -57,6 +57,8 @@ class DAGLayer(nn.Module):
                 e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
                 edge_kwargs['chn_in'] = e_chn_in
                 edge_kwargs['stride'] = stride if all(s < self.n_input for s in sidx) else 1
+                if not chn_out is None:
+                    edge_kwargs['chn_out'] = chn_out
                 if not name is None:
                     edge_kwargs['name'] = '{}_{}'.format(name, self.num_edges)
                 e = edge_cls(**edge_kwargs)

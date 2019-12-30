@@ -100,15 +100,19 @@ arch_optim:
 mixed_op:
   type: 'Index'
 ops:
-  ops_order: 'bn_act_weight'
+  ops_order: 'weight'
   affine: False
 criterion:
   type: 'CE'
 model:
-  type: 'CIFAR-resnext-50'
+  type: 'CIFAR-ResNet'
   classes: 10             # use 10 for MNIST, CIFAR10
-  channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 16        # init channel
+  channel_in: 3   
+  channel_init: 32
+  layers: [3,3,3]
+  bottleneck: True
+  groups: 4
+  width_per_group: 8
 primitives:
   - 'SC3'
   - 'SC5'

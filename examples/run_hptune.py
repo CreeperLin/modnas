@@ -10,7 +10,8 @@ import combo_nas.utils as utils
 from combo_nas.utils.config import Config
 from combo_nas.utils.routine import search
 from combo_nas.utils.wrapper import init_all_search
-from combo_nas.hparam import build_hparam_tuner, build_hparam_space
+from combo_nas.hparam import build_hparam_space, HParamSpace, tune
+from combo_nas.arch_optim import build_arch_optim
 
 trial_index = 0
 
@@ -30,8 +31,12 @@ def main():
     if utils.check_config(config, args.name):
         raise Exception("config error.")
 
-    hp_space = build_hparam_space('hparams.json')
-    tuner = build_hparam_tuner(config.tune.tuner, hp_space)
+    build_hparam_space('hparams.json')
+    optim_kwargs = dict(config.tune.copy())
+    del optim_kwargs['type']
+    optim_kwargs = config.tune.get('args', optim_kwargs)
+    optim = build_arch_optim(config.tune.type, space=HParamSpace, **optim_kwargs)
+    optim_batch_size = config.get('batch_size', 1)
 
     def measure(hp):
         global trial_index
@@ -57,7 +62,7 @@ def main():
         }
         return result
 
-    tuner.tune(measure, n_trial=2000, early_stopping=100)
+    tune(optim, measure, n_trial=2000, bsize=optim_batch_size, early_stopping=100)
 
 
 if __name__ == '__main__':

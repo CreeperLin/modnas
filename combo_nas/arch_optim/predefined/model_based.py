@@ -27,8 +27,8 @@ class ModelOptimizer():
 
 
 class ModelBasedArchOptim(DiscreteSpaceArchOptim):
-    def __init__(self, cost_model, model_optimizer):
-        super().__init__(config)
+    def __init__(self, space, cost_model, model_optimizer):
+        super().__init__(space)
         self.cost_model = cost_model
         self.model_optimizer = model_optimizer
         self.visited = set()

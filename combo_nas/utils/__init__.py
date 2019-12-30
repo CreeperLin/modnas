@@ -151,40 +151,42 @@ def get_writer(log_dir, enabled):
     return writer
 
 def get_net_crit(config):
+    net_crit_args = config.get('args', {})
     crit_type = config.type
     if crit_type == 'LS':
-        crit = CrossEntropyLossLS(config.eta)
+        crit = CrossEntropyLossLS
     elif crit_type == 'CE':
-        crit = nn.CrossEntropyLoss()
+        crit = nn.CrossEntropyLoss
     else:
         raise ValueError('Unsupported loss function: {}'.format(crit_type))
-    return crit
+    return crit(**net_crit_args)
 
 def get_optim(params, config):
     optim_args = config.get('args', {})
     if config.type == 'adam':
-        optimizer = torch.optim.Adam(params, **optim_args)
+        optimizer = torch.optim.Adam
     elif config.type == 'adabound':
         import adabound
-        optimizer = adabound.AdaBound(params, **optim_args)
+        optimizer = adabound.AdaBound
     elif config.type == 'sgd':
-        optimizer = torch.optim.SGD(params, **optim_args)
+        optimizer = torch.optim.SGD
     else:
         raise Exception("Optimizer not supported: %s" % config.optimizer)
-    return optimizer
+    return optimizer(params, **optim_args)
 
-def get_lr_scheduler(w_optim, config, epochs, last_epoch=-1):
+def get_lr_scheduler(optim, config, epochs, last_epoch=-1):
     lr_type = config.type
     lr_args = config.get('args', {})
     if lr_type == 'cosine':
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(w_optim, T_max=epochs, **lr_args)
+        if not 'T_max' in lr_args: lr_args['T_max'] = epochs
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR
     elif lr_type == 'step':
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(w_optim, **lr_args)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR
     elif lr_type == 'multistep':
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(w_optim, **lr_args)
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR
     else:
         raise ValueError('unsupported lr scheduler: {}'.format(lr_type))
-    return lr_scheduler
+    return lr_scheduler(optim, **lr_args)
 
 def get_same_padding(kernel_size):
     if isinstance(kernel_size, tuple):

@@ -99,17 +99,16 @@ class SuperNetEstimator(EstimatorBase):
             n_val_batch = len(valid_loader)
 
         update_arch = False
-        if not arch_optim is None:
-            arch_epoch_start = config.arch_update_epoch_start
-            arch_epoch_intv = config.arch_update_epoch_intv
-            if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
-                update_arch = True
-                arch_update_intv = config.arch_update_intv
-                if arch_update_intv == -1: # update proportionally
-                    arch_update_intv = n_trn_batch // n_val_batch if not valid_loader is None else 1
-                elif arch_update_intv == 0: # update every step
-                    arch_update_intv = n_trn_batch
-                arch_update_batch = config.arch_update_batch
+        arch_epoch_start = config.arch_update_epoch_start
+        arch_epoch_intv = config.arch_update_epoch_intv
+        if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
+            update_arch = True
+            arch_update_intv = config.arch_update_intv
+            if arch_update_intv == -1: # update proportionally
+                arch_update_intv = n_trn_batch // n_val_batch if not valid_loader is None else 1
+            elif arch_update_intv == 0: # update every step
+                arch_update_intv = n_trn_batch
+            arch_update_batch = config.arch_update_batch
 
         model.train()
         eta_m = utils.ETAMeter(tot_epochs, epoch, n_trn_batch)

@@ -65,15 +65,15 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
         if genotype is None:
             if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
                 op_convert_fn = net.get_predefined_search_converter()
-            model = convert_from_predefined_net(net, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+            convert_from_predefined_net(net, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
         else:
             if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
                 op_convert_fn = net.get_genotype_search_converter()
             genotype = gt.get_genotype(config.genotypes, genotype)
-            model = convert_from_genotype(net, genotype, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+            convert_from_genotype(net, genotype, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
         # controller
         crit = utils.get_net_crit(config.criterion)
-        model = NASController(model, crit, dev_list).to(device=dev)
+        model = NASController(net, crit, dev_list).to(device=dev)
         # genotype
         if config.genotypes.disable_dag:
             model.to_genotype = model.to_genotype_ops
@@ -82,7 +82,10 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
         # init
         model.init_model(config.init)
     # arch
-    arch = build_arch_optim(config.arch_optim.type, config.arch_optim)
+    arch_kwargs = dict(config.arch_optim.copy())
+    del arch_kwargs['type']
+    arch_kwargs = config.arch_optim.get('args', arch_kwargs)
+    arch = build_arch_optim(config.arch_optim.type, space=ArchParamSpace, **arch_kwargs)
     # chkpt
     chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
@@ -100,6 +103,7 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
 
 
 def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, convert_fn=None):
+    Slot.reset()
     config = load_config(config, excludes=['search'])
     # dir
     expman = ExpManager(exp_root_dir, name)
@@ -112,10 +116,10 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
     trn_loader = load_data(config.augment.data, validation=False)
     # primitives
     gt.set_primitives(config.primitives)
-    # net
-    Slot.reset()
+    # ops
     config.ops.affine = True
     configure_ops(config.ops)
+    # net
     net = build_arch_space(config.model.type, config.model)
     # layers
     if not isinstance(convert_fn, list):
@@ -129,15 +133,15 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
     if genotype is None:
         if op_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
             op_convert_fn = net.get_predefined_augment_converter()
-        model = convert_from_predefined_net(net, op_convert_fn)
+        convert_from_predefined_net(net, op_convert_fn)
     else:
         if op_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
             op_convert_fn = net.get_genotype_augment_converter()
         genotype = gt.get_genotype(config.genotypes, genotype)
-        model = convert_from_genotype(net, genotype, op_convert_fn)
+        convert_from_genotype(net, genotype, op_convert_fn)
     # controller
     crit = utils.get_net_crit(config.criterion)
-    model = NASController(model, crit, dev_list).to(device=dev)
+    model = NASController(net, crit, dev_list).to(device=dev)
     # init
     model.init_model(config.init)
     # chkpt
