@@ -14,6 +14,8 @@ from ..arch_optim import build_arch_optim
 from .. import utils as utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt
+from ..hparam.space import build_hparam_space_from_dict, build_hparam_space_from_json, HParamSpace
+from .routine import search, augment, hptune
 
 def load_config(conf, excludes):
     if isinstance(conf, Config):
@@ -157,3 +159,73 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
         'logger': logger,
         'device': dev,
     }
+
+
+def init_all_hptune(config, name, exp_root_dir, chkpt, device, measure_fn=None):
+    config = load_config(config, excludes=['search', 'augment'])
+    # dir
+    expman = ExpManager(exp_root_dir, name)
+    logger = utils.get_logger(expman.logs_path, name, config.log)
+    writer = utils.get_writer(expman.writer_path, config.log.writer)
+    # device
+    dev, dev_list = utils.init_device(config.device, device)
+    # hpspace
+    hp_path = config.hpspace.get('hp_path', None)
+    if hp_path is None:
+        build_hparam_space_from_dict(config.hpspace.hp_dict)
+    else:
+        build_hparam_space_from_json(hp_path)
+    # optim
+    optim_kwargs = dict(config.hptuner.copy())
+    del optim_kwargs['type']
+    optim_kwargs = config.hptuner.get('args', optim_kwargs)
+    optim = build_arch_optim(config.hptuner.type, space=HParamSpace, **optim_kwargs)
+    # measure_fn
+    if measure_fn is None:
+        measure_fn = default_measure_fn
+    return {
+        'config': config.hptune,
+        'chkpt_path': chkpt,
+        'expman': expman,
+        'optim': optim,
+        'writer': writer,
+        'logger': logger,
+        'device': dev,
+        'measure_fn': measure_fn,
+    }
+
+
+def default_measure_fn(proc, *args, **kwargs):
+    if proc == 'search':
+        return default_search_measure_fn(*args, **kwargs)
+    elif proc == 'augment':
+        return default_augment_measure_fn(*args, **kwargs)
+    elif proc == 'hptune':
+        return default_hptune_measure_fn(*args, **kwargs)
+
+
+def default_search_measure_fn(*args, **kwargs):
+    best_top1, best_gt, gts = run_search(*args, **kwargs)
+    return best_top1
+
+
+def default_augment_measure_fn(*args, **kwargs):
+    best_top1 = run_augment(*args, **kwargs)
+    return best_top1
+
+
+def default_hptune_measure_fn(*args, **kwargs):
+    best_iter, best_score, best_hparams = run_hptune(*args, **kwargs)
+    return best_hparams
+
+
+def run_search(*args, **kwargs):
+    return search(**init_all_search(*args, **kwargs))
+
+
+def run_augment(*args, **kwargs):
+    return augment(**init_all_augment(*args, **kwargs))
+
+
+def run_hptune(*args, **kwargs):
+    return hptune(**init_all_hptune(*args, **kwargs))

@@ -7,7 +7,8 @@ from ...utils.profiling import tprof
 from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
-    def step(self):
+    def step(self, params):
+        ArchParamSpace.set_params_map(params)
         config = self.config
         tot_epochs = config.subnet_epochs
         subnet = self.construct_subnet()
@@ -89,12 +90,11 @@ class SubNetEstimator(EstimatorBase):
             next_batch = arch_optim.next(batch_size=arch_batch_size)
             val_top1 = 0.
             for params in next_batch:
-                ArchParamSpace.set_params_map(params)
                 # estim step
                 genotype = self.model.to_genotype()
                 genotypes.append(genotype)
                 logger.info('Evaluating SubNet genotype = {}'.format(genotype))
-                val_top1 = self.step()
+                val_top1 = self.step(params)
                 if val_top1 > best_top1:
                     best_top1 = val_top1
                     best_genotype = genotype

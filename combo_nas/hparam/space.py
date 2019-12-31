@@ -43,9 +43,13 @@ class HParamContinuous(ParamContinuous, Param):
         else: return None
 
 
-def build_hparam_space(path):
+def build_hparam_space_from_json(path):
     hp_json = json.load(open(path, 'r'))
-    for k, v in hp_json.items():
+    build_hparam_space_from_dict(dict(hp_json))
+
+
+def build_hparam_space_from_dict(hp_dict):
+    for k, v in hp_dict.items():
         if isinstance(v, list):
             hp = HParamDiscrete(name=k, valrange=v)
         elif not k=='//':

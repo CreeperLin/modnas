@@ -1,17 +1,12 @@
 from .default_estimator import DefaultEstimator
 from .supernet_estimator import SuperNetEstimator
 from .subnet_estimator import SubNetEstimator
+from .hptune_estimator import HPTuneEstimator
 from .nasbench_estimator import NASBenchEstimator
-from ...utils.registration import Registry, build, get_builder, register, register_wrapper
-from functools import partial
 
-estimator_registry = Registry('estimator')
-register_estimator = partial(register, estimator_registry)
-get_estimator_builder = partial(get_builder, estimator_registry)
-build_estimator = partial(build, estimator_registry)
-register = partial(register_wrapper, estimator_registry)
-
+from .. import register_estimator
 register_estimator(DefaultEstimator, 'Default')
 register_estimator(SuperNetEstimator, 'SuperNet')
 register_estimator(SubNetEstimator, 'SubNet')
+register_estimator(HPTuneEstimator, 'HPTune')
 register_estimator(NASBenchEstimator, 'NASBench')

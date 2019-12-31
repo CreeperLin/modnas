@@ -1,14 +1,6 @@
 # -*- coding: utf-8 -*-
-import os
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import itertools
 from .. import utils
-from .visualize import plot
-from .profiling import tprof
 from ..arch_space import genotypes as gt
-from ..core.nas_modules import ArchModuleSpace
 from ..estimator import build_estimator
 
 def search(config, chkpt_path, expman, train_loader, valid_loader, model, arch_optim, writer, logger, device):
@@ -41,3 +33,15 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
     best_top1 = ret
     logger.info("Final best Prec@1 = {:.4%}".format(best_top1))
     return best_top1
+
+
+def hptune(config, chkpt_path, expman, optim, writer, logger, device, measure_fn):
+    estimators = config.estimator
+    for estim_name, estim_conf in estimators.items():
+        estim_type = estim_conf.type
+        logger.info('running estimator: {} type: {}'.format(estim_name, estim_type))
+        estim = build_estimator(estim_type, estim_conf, expman, writer, logger, device, measure_fn)
+        ret = estim.search(optim)
+    best_iter, best_score, best_hparams = ret
+    logger.info('hptune: finished: best iter: {} score: {} config: {}'.format(best_iter, best_score, best_hparams))
+    return ret
