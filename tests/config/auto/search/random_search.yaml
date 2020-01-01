@@ -92,8 +92,6 @@ log:
 device:
   gpus: 'all'
   seed: 2
-tune:
-  tuner: 'Random'
 genotypes:
   gt_str: ''
   gt_path: ''

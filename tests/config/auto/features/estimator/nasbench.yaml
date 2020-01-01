@@ -1,0 +1,21 @@
+search:
+  estimator:
+    nasbench:
+      type: 'NASBench'
+      epochs: 3
+      save_freq: 0
+      record_path: './data/nasbench101/nasbench_only108.tfrecord'
+      arch_update_epoch_start: 0
+      arch_update_epoch_intv: 1
+      arch_update_batch: 1
+arch_optim:
+  type: 'Random'
+log:
+  writer: False
+  debug: True
+device:
+  gpus: 'all'
+  seed: 2
+genotypes:
+  gt_str: ''
+  gt_path: ''

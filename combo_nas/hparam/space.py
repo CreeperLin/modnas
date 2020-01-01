@@ -52,6 +52,6 @@ def build_hparam_space_from_dict(hp_dict):
     for k, v in hp_dict.items():
         if isinstance(v, list):
             hp = HParamDiscrete(name=k, valrange=v)
-        elif not k=='//':
+        else:
             raise ValueError('support hparam in list format only')
     logging.debug('hparam: space size: {}'.format(HParamSpace.discrete_size()))

@@ -3,10 +3,7 @@ import os
 import yaml
 from functools import partial
 import combo_nas
-from combo_nas.utils.routine import search
-from combo_nas.utils.wrapper import init_all_search
-from combo_nas.utils.routine import augment
-from combo_nas.utils.wrapper import init_all_augment
+from combo_nas.utils.wrapper import run_search, run_augment, run_hptune
 import testnet
 
 class TestAuto():
@@ -28,16 +25,17 @@ class TestAuto():
                         if not os.path.isfile(gt_file):
                             gt_file = None
                         else: print('gt_file: {}'.format(gt_file))
-                        search_kwargs = init_all_search(conf_path, casename, exp_root_dir, None, None, genotype=gt_file)
-                        best_top1, best_genotype, genotypes = search(**search_kwargs)
+                        best_top1, best_genotype, genotypes = run_search(conf_path, casename, exp_root_dir, None, None, genotype=gt_file)
                     if 'augment' in conf:
                         print('name: {} augment'.format(casename))
                         gt_file = os.path.join(root_dir, 'genotype', 'augment', casename+'.gt')
                         if not os.path.isfile(gt_file):
                             gt_file = None
                         else: print('gt_file: {}'.format(gt_file))
-                        augment_kwargs = init_all_augment(conf_path, casename, exp_root_dir, None, None, genotype=gt_file)
-                        best_top1 = augment(**augment_kwargs)
+                        best_top1 = run_augment(conf_path, casename, exp_root_dir, None, None, genotype=gt_file)
+                    if 'hptune' in conf:
+                        print('name: {} hptune'.format(casename))
+                        best_top1 = run_hptune(conf_path, casename, exp_root_dir, None, None, measure_fn=None)
                 case_runner = partial(case_fn, testname, config_path)
                 fn_name = 'test_'+testname
                 case_runner.__name__ = fn_name

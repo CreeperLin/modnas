@@ -8,7 +8,7 @@ search:
     dloader:
       type: 'pytorch'
       size: 0.002
-      split_ratio: 0.8
+      split_ratio: 0
       trn_batch_size: 4
       val_batch_size: 4
       workers: 0
@@ -59,51 +59,49 @@ search:
       plot: False
       aux_weight: 0.0
 arch_optim:
-  type: 'BinGate'
-  n_samples: 2
-  renorm: True
+  type: 'Dummy'
   a_optim:
     type: 'adam'
     args:
-      lr: 0.006
-      betas: [0.0, 0.999]
-      weight_decay: 0.0
+      lr: 0.0003
+      betas: [0.5, 0.999]
+      weight_decay: 0.001
 mixed_op:
-  type: 'BinGate'
+  type: 'WeightedSum'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
 criterion:
   type: 'CE'
 model:
-  type: 'ProxylessNAS'
+  type: 'DARTS'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
-  channel_multiplier: 1   # init channel multiplier
-  groups: 3               # num of nodes (states) per layer
-  blocks: 1              # num of DAG layers (cells) in model
-  alpha: 1
-  conv_groups: 2
-  bottleneck_ratio: 4
-  path_drop_rate: 0.0
-  dropout_rate: 0.0
-  use_avg: False
-  bn_before_add: True
-  pxl_ops_order: 'bn_act_weight'
+  channel_multiplier: 3   # init channel multiplier
+  nodes: 2                # num of nodes (states) per layer
+  layers: 3               # num of DAG layers (cells) in model
+  inputs_model: 1
+  inputs_layer: 2
+  inputs_node: 1
+  shared_a: True
+  auxiliary: False
 primitives:
   - 'AVG'
   - 'MAX'
   - 'IDT'
   - 'SC3'
   - 'SC5'
-  - 'SC7'
   - 'DC3'
+  - 'DC5'
+  - 'NIL'
 log:
   writer: False
 device:
   gpus: 'all'
   seed: 2
+tune:
+  tuner: 'Random'
 genotypes:
   gt_str: ''
   gt_path: ''
