@@ -162,6 +162,7 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
 
 
 def init_all_hptune(config, name, exp_root_dir, chkpt, device, measure_fn=None):
+    HParamSpace.reset()
     config = load_config(config, excludes=['search', 'augment'])
     # dir
     expman = ExpManager(exp_root_dir, name)
