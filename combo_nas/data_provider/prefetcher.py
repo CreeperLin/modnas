@@ -2,15 +2,15 @@
 import torch
 import numpy as np
 
-def cutout(batch, length):
-    bs, c, h, w = batch.size
+def cutout(batch, length, img):
+    _, _, h, w = batch.size
     mask = np.ones((h, w), np.float32)
     y = np.random.randint(h)
     x = np.random.randint(w)
-    y1 = np.clip(y - self.length // 2, 0, h)
-    y2 = np.clip(y + self.length // 2, 0, h)
-    x1 = np.clip(x - self.length // 2, 0, w)
-    x2 = np.clip(x + self.length // 2, 0, w)
+    y1 = np.clip(y - length // 2, 0, h)
+    y2 = np.clip(y + length // 2, 0, h)
+    x1 = np.clip(x - length // 2, 0, w)
+    x2 = np.clip(x + length // 2, 0, w)
     mask[y1: y2, x1: x2] = 0.
     mask = torch.from_numpy(mask)
     mask = mask.expand_as(img)
@@ -32,14 +32,14 @@ def fast_collate(batch):
     return tensor, targets
 
 class data_prefetcher():
-    def __init__(self, loader, mean, std, cutout):
+    def __init__(self, loader, mean, std, cutout_impl):
         self.loader = loader
         self.iter = iter(loader)
         self.length = len(loader)
         self.stream = torch.cuda.Stream()
         self.mean = torch.tensor([m*255 for m in mean]).cuda().view(1,3,1,1)
         self.std = torch.tensor([s*255 for s in std]).cuda().view(1,3,1,1)
-        self.cutout = cutout
+        self.cutout = cutout_impl
         self.preload()
 
     def preload(self):
@@ -73,25 +73,25 @@ class data_prefetcher():
             self.next_input = self.next_input.float()
             self.next_input = self.next_input.sub_(self.mean).div_(self.std)
             # TODO: cutout
-            
+
     def next(self):
         torch.cuda.current_stream().wait_stream(self.stream)
-        input = self.next_input
+        inputs = self.next_input
         target = self.next_target
-        if input is None or target is None:
+        if inputs is None or target is None:
             raise StopIteration
-        input.record_stream(torch.cuda.current_stream())
+        inputs.record_stream(torch.cuda.current_stream())
         target.record_stream(torch.cuda.current_stream())
         self.preload()
-        return input, target
-    
+        return inputs, target
+
     def __len__(self):
         return self.length
-    
+
     def __iter__(self):
         self.iter = iter(self.loader)
         self.preload()
         return self
-    
+
     def __next__(self):
         return self.next()

@@ -68,6 +68,15 @@ arch_optim:
       weight_decay: 0.001
 mixed_op:
   type: 'WeightedSum'
+  primitives:
+    - 'AVG'
+    - 'MAX'
+    - 'IDT'
+    - 'SC3'
+    - 'SC5'
+    - 'DC3'
+    - 'DC5'
+    - 'NIL'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
@@ -86,15 +95,6 @@ model:
   inputs_node: 1
   shared_a: True
   auxiliary: False
-primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SC3'
-  - 'SC5'
-  - 'DC3'
-  - 'DC5'
-  - 'NIL'
 log:
   writer: False
 device:

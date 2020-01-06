@@ -1,5 +1,4 @@
 import math
-import torch
 import torch.nn as nn
 from ...arch_space.constructor import Slot
 from collections import OrderedDict
@@ -41,7 +40,7 @@ class MobileInvertedResidualBlock(nn.Module):
         self.chn_in = chn_in
         self.chn_out = chn_out
         C = chn_in * t
-        self.conv = Slot(chn_in, chn_out, stride, C=C, activation=activation)
+        self.conv = Slot(chn_in, chn_out, stride, kwargs={'C': C, 'activation': activation})
 
     def forward(self, x):
         residual = x
@@ -54,8 +53,8 @@ class MobileNetV2(nn.Module):
 
     def __init__(self, chn_in, n_classes, t=6,
                  width_coeff=1.0, depth_coeff=1.0, resolution=None, dropout_rate=0.2, activation=nn.ReLU6):
+        del resolution
         super(MobileNetV2, self).__init__()
-
         self.t = t
         self.activation_type = activation
         self.activation = activation(inplace=True)
@@ -134,7 +133,7 @@ class MobileNetV2(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
-    
+
     def get_predefined_augment_converter(self):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 

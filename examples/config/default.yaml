@@ -91,6 +91,15 @@ arch_optim:
       weight_decay: 0
 mixed_op:
   type: 'BinGate'
+  primitives:
+    - 'AVG'
+    - 'MAX'
+    - 'IDT'
+    - 'SS3'
+    - 'SS5'
+    - 'DC3'
+    - 'DC5'
+    - 'NIL'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
@@ -120,15 +129,6 @@ model:
   pxl_ops_order: 'bn_act_weight'
   auxiliary: False
   shared_a: True
-primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SS3'
-  - 'SS5'
-  - 'DC3'
-  - 'DC5'
-  - 'NIL'
 log:
   writer: False
 device:

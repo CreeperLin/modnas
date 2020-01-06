@@ -32,7 +32,7 @@ class NASController(nn.Module):
                                              list(xs),
                                              devices=self.device_ids)
         return nn.parallel.gather(outputs, self.device_ids[0])
-    
+
     def loss_logits(self, X, y, aux_weight=0):
         ret = self.forward(X)
         if isinstance(ret, tuple):
@@ -42,11 +42,11 @@ class NASController(nn.Module):
             logits = ret
             aux_loss = 0
         return self.criterion(logits, y) + aux_loss, logits
-    
+
     def loss(self, X, y, aux_weight=0):
         loss, _ = self.loss_logits(X, y, aux_weight)
         return loss
-    
+
     def logits(self, X, aux_weight=0):
         ret = self.forward(X)
         if isinstance(ret, tuple):
@@ -86,17 +86,17 @@ class NASController(nn.Module):
             return gt.Genotype(dag=gene_dag, ops=None)
         else:
             return self.to_genotype_ops(*args, **kwargs)
-    
+
     def to_genotype_ops(self, *args, **kwargs):
         gene_ops = ArchModuleSpace.to_genotype_all(*args, **kwargs)
         return gt.Genotype(dag=None, ops=gene_ops)
-    
+
     def to_genotype_slots(self, *args, **kwargs):
         gene_ops = Slot.to_genotype_all(*args, **kwargs)
         return gt.Genotype(dag=None, ops=gene_ops)
-    
+
     def weights(self, check_grad=False):
-        for n, p in self.net.named_parameters(recurse=True):
+        for p in self.net.parameters(recurse=True):
             if check_grad and not p.requires_grad:
                 continue
             yield p
@@ -118,7 +118,7 @@ class NASController(nn.Module):
 
     def mixed_ops(self):
         return ArchModuleSpace.modules()
-    
+
     def drop_path_prob(self, p):
         """ Set drop path probability """
         for module in self.modules():
@@ -131,7 +131,7 @@ class NASController(nn.Module):
         if init_type == 'none': return
         a = 0.
         gain = math.sqrt(2. / (1 + a**2))
-        for n, m in self.named_modules():
+        for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 fan = m.kernel_size[0] * m.kernel_size[1]
                 if init_div_groups:

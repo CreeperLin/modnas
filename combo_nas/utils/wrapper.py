@@ -26,14 +26,14 @@ def load_config(conf, excludes):
         raise Exception("config error.")
     return config
 
-def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, convert_fn=None):
+def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=None):
     trn_loader = val_loader = model = None
     ArchParamSpace.reset()
     ArchModuleSpace.reset()
     Slot.reset()
     config = load_config(config, excludes=['augment'])
     # dir
-    expman = ExpManager(exp_root_dir, name)
+    expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
@@ -47,11 +47,11 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
         else:
             trn_loader = load_data(config.search.data, validation=False)
             val_loader = None
-    if 'model' in config:
-        # primitives
-        gt.set_primitives(config.primitives)
-        # ops
+    # ops
+    if 'ops' in config:
         configure_ops(config.ops)
+    # model
+    if 'model' in config:
         # net
         net = build_arch_space(config.model.type, config.model)
         # layers
@@ -61,18 +61,25 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
         layers_conf = config.get('layers', None)
         if not layers_conf is None:
             convert_from_layers(net, layers_conf, layer_convert_fn)
+        fn_kwargs = {}
         # mixed_op
-        mixed_op_args = config.mixed_op.get('args', {})
+        if 'mixed_op' in config:
+            # primitives
+            if 'primitives' in config.mixed_op:
+                fn_kwargs['ops'] = config.mixed_op.primitives
+            mixed_op_args = config.mixed_op.get('args', {})
+            fn_kwargs.update(mixed_op_args)
+            fn_kwargs['rid'] = config.mixed_op.type
         op_convert_fn = convert_fn[-1]
         if genotype is None:
             if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
                 op_convert_fn = net.get_predefined_search_converter()
-            convert_from_predefined_net(net, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+            convert_from_predefined_net(net, op_convert_fn, fn_kwargs=fn_kwargs)
         else:
             if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
                 op_convert_fn = net.get_genotype_search_converter()
             genotype = gt.get_genotype(config.genotypes, genotype)
-            convert_from_genotype(net, genotype, op_convert_fn, mixed_op_cls=config.mixed_op.type, **mixed_op_args)
+            convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
         # controller
         crit = utils.get_net_crit(config.criterion)
         model = NASController(net, crit, dev_list).to(device=dev)
@@ -104,11 +111,11 @@ def init_all_search(config, name, exp_root_dir, chkpt, device, genotype=None, co
     }
 
 
-def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, convert_fn=None):
+def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None):
     Slot.reset()
     config = load_config(config, excludes=['search'])
     # dir
-    expman = ExpManager(exp_root_dir, name)
+    expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     # device
@@ -116,11 +123,10 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
     # data
     val_loader = load_data(config.augment.data, validation=True)
     trn_loader = load_data(config.augment.data, validation=False)
-    # primitives
-    gt.set_primitives(config.primitives)
     # ops
-    config.ops.affine = True
-    configure_ops(config.ops)
+    if 'ops' in config:
+        config.ops.affine = True
+        configure_ops(config.ops)
     # net
     net = build_arch_space(config.model.type, config.model)
     # layers
@@ -161,15 +167,15 @@ def init_all_augment(config, name, exp_root_dir, chkpt, device, genotype, conver
     }
 
 
-def init_all_hptune(config, name, exp_root_dir, chkpt, device, measure_fn=None):
+def init_all_hptune(config, name, exp, chkpt, device, measure_fn=None):
     HParamSpace.reset()
     config = load_config(config, excludes=['search', 'augment'])
     # dir
-    expman = ExpManager(exp_root_dir, name)
+    expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     # device
-    dev, dev_list = utils.init_device(config.device, device)
+    dev, _ = utils.init_device(config.device, device)
     # hpspace
     hp_path = config.hpspace.get('hp_path', None)
     if hp_path is None:
@@ -206,7 +212,7 @@ def default_measure_fn(proc, *args, **kwargs):
 
 
 def default_search_measure_fn(*args, **kwargs):
-    best_top1, best_gt, gts = run_search(*args, **kwargs)
+    best_top1, _, _ = run_search(*args, **kwargs)
     return best_top1
 
 
@@ -216,7 +222,7 @@ def default_augment_measure_fn(*args, **kwargs):
 
 
 def default_hptune_measure_fn(*args, **kwargs):
-    best_iter, best_score, best_hparams = run_hptune(*args, **kwargs)
+    _, _, best_hparams = run_hptune(*args, **kwargs)
     return best_hparams
 
 

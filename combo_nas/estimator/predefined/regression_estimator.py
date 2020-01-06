@@ -1,22 +1,23 @@
 import itertools
 from ..base import EstimatorBase
-from ... import utils
-from ...utils.profiling import tprof
-from ..base import train
 from ...core.param_space import ArchParamSpace
 
 class ArchPredictor():
     def __init__(self):
         pass
-    
+
     def fit(self, ):
         pass
-    
-    def predict(self, ):
+
+    def predict(self, genotype):
         pass
 
 
 class RegressionEstimator(EstimatorBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.predictor = None
+
     def step(self):
         predictor = self.predictor
         model = self.model
@@ -26,37 +27,15 @@ class RegressionEstimator(EstimatorBase):
 
     def predict(self, ):
         pass
-    
-    def train(self):
-        config = self.config
-        train_loader = self.train_loader
-        writer = self.writer
-        logger = self.logger
-        tot_epochs = config.epochs
-        lr = self.lr_scheduler.get_lr()[0]
-        device = self.device
-        model = self.model
 
-        best_val_top1 = 0.
-        for epoch in itertools.count(init_epoch+1):
-            if epoch == tot_epochs: break
-            cur_step = (epoch+1) * len(train_loader)
-            # train
-            trn_top1 = train(train_loader, model, writer, logger, w_optim, lr_scheduler, epoch, tot_epochs, device, config)
-            # validate
-            val_top1 = validate(valid_loader, model, writer, logger, epoch, tot_epochs, cur_step, device, config)
-            if val_top1 is None: val_top1 = trn_top1
-            best_val_top1 = max(best_val_top1, val_top1)
-            # save
-            if config.save_freq != 0 and epoch % config.save_freq == 0:
-                self.save()
-        return best_val_top1
+    def train(self):
+        pass
 
     def validate(self):
         top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0)
         return top1_avg
 
-    def search(self, arch_optim):
+    def search(self, optim):
         config = self.config
         tot_epochs = config.epochs
         logger = self.logger
@@ -71,8 +50,8 @@ class RegressionEstimator(EstimatorBase):
             if epoch == tot_epochs: break
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
-                arch_optim.step(self)
-            next_batch = arch_optim.next(batch_size=arch_batch_size)
+                optim.step(self)
+            next_batch = optim.next(batch_size=arch_batch_size)
             best_top1_batch = 0.
             best_gt_batch = None
             for params in next_batch:

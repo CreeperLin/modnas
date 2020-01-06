@@ -21,7 +21,7 @@ hptune:
         name: 'trial'
         chkpt:
         device: 'all'
-        exp_root_dir: 'exp'
+        exp: 'exp'
       trial_config:
         augment:
           data:
@@ -69,15 +69,6 @@ hptune:
           classes: 10             # use 10 for MNIST, CIFAR10
           channel_in: 3   
           channel_init: 16
-        primitives:
-          - 'SC3'
-          - 'SC5'
-          - 'SC7'
-          - 'NC3'
-          - 'NC5'
-          - 'NC7'
-          - 'DC3'
-          - 'DC5'
         log:
           writer: False
         device:

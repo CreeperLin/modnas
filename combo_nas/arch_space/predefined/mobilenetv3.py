@@ -6,8 +6,8 @@ Searching for MobileNetV3
 arXiv preprint arXiv:1905.02244.
 """
 
-import torch.nn as nn
 import math
+import torch.nn as nn
 from ...arch_space.constructor import Slot
 
 def _make_divisible(v, divisor, min_value=None):
@@ -30,19 +30,19 @@ def _make_divisible(v, divisor, min_value=None):
     return new_v
 
 
-class h_sigmoid(nn.Module):
+class HardSigmoid(nn.Module):
     def __init__(self, inplace=True):
-        super(h_sigmoid, self).__init__()
+        super(HardSigmoid, self).__init__()
         self.relu = nn.ReLU6(inplace=inplace)
 
     def forward(self, x):
         return self.relu(x + 3) / 6
 
 
-class h_swish(nn.Module):
+class HardSwish(nn.Module):
     def __init__(self, inplace=True):
-        super(h_swish, self).__init__()
-        self.sigmoid = h_sigmoid(inplace=inplace)
+        super(HardSwish, self).__init__()
+        self.sigmoid = HardSigmoid(inplace=inplace)
 
     def forward(self, x):
         return x * self.sigmoid(x)
@@ -53,10 +53,10 @@ class SELayer(nn.Module):
         super(SELayer, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-                nn.Linear(channel, channel // reduction),
-                nn.ReLU(inplace=True),
-                nn.Linear(channel // reduction, channel),
-                h_sigmoid()
+            nn.Linear(channel, channel // reduction),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel),
+            HardSigmoid()
         )
 
     def forward(self, x):
@@ -70,7 +70,7 @@ def conv_3x3_bn(inp, oup, stride):
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
-        h_swish()
+        HardSwish()
     )
 
 
@@ -78,7 +78,7 @@ def conv_1x1_bn(inp, oup):
     return nn.Sequential(
         nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
         nn.BatchNorm2d(oup),
-        h_swish()
+        HardSwish()
     )
 
 
@@ -88,7 +88,7 @@ def MobileInvertedConvV3(inp, oup, stride, C, kernel_size, use_se, use_hs):
             # dw
             nn.Conv2d(C, C, kernel_size, stride, (kernel_size - 1) // 2, groups=C, bias=False),
             nn.BatchNorm2d(C),
-            h_swish() if use_hs else nn.ReLU(inplace=True),
+            HardSwish() if use_hs else nn.ReLU(inplace=True),
             # Squeeze-and-Excite
             SELayer(C) if use_se else nn.Sequential(),
             # pw-linear
@@ -100,13 +100,13 @@ def MobileInvertedConvV3(inp, oup, stride, C, kernel_size, use_se, use_hs):
             # pw
             nn.Conv2d(inp, C, 1, 1, 0, bias=False),
             nn.BatchNorm2d(C),
-            h_swish() if use_hs else nn.ReLU(inplace=True),
+            HardSwish() if use_hs else nn.ReLU(inplace=True),
             # dw
             nn.Conv2d(C, C, kernel_size, stride, (kernel_size - 1) // 2, groups=C, bias=False),
             nn.BatchNorm2d(C),
             # Squeeze-and-Excite
             SELayer(C) if use_se else nn.Sequential(),
-            h_swish() if use_hs else nn.ReLU(inplace=True),
+            HardSwish() if use_hs else nn.ReLU(inplace=True),
             # pw-linear
             nn.Conv2d(C, oup, 1, 1, 0, bias=False),
             nn.BatchNorm2d(oup),
@@ -119,8 +119,12 @@ class InvertedResidual(nn.Module):
         assert stride in [1, 2]
         self.identity = stride == 1 and inp == oup
         self.conv = Slot(inp, oup, stride,
-                         C=C, kernel_size=kernel_size,
-                         use_se=use_se, use_hs=use_hs)
+                         kwargs={
+                             'C': C,
+                             'kernel_size': kernel_size,
+                             'use_se': use_se,
+                             'use_hs': use_hs
+                         })
 
     def forward(self, x):
         if self.identity:
@@ -145,24 +149,25 @@ class MobileNetV3(nn.Module):
             output_channel = _make_divisible(c * width_mult, 8)
             layers.append(block(input_channel, exp_size, output_channel, k, s, use_se, use_hs))
             input_channel = output_channel
+            last_chn = exp_size * width_mult
         self.features = nn.Sequential(*layers)
         # building last several layers
         self.conv = nn.Sequential(
-            conv_1x1_bn(input_channel, _make_divisible(exp_size * width_mult, 8)),
-            SELayer(_make_divisible(exp_size * width_mult, 8)) if mode == 'small' else nn.Sequential()
+            conv_1x1_bn(input_channel, _make_divisible(last_chn, 8)),
+            SELayer(_make_divisible(last_chn, 8)) if mode == 'small' else nn.Sequential()
         )
         self.avgpool = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
-            h_swish()
+            HardSwish()
         )
         output_channel = _make_divisible(1280 * width_mult, 8) if width_mult > 1.0 else 1280
         self.classifier = nn.Sequential(
-            nn.Linear(_make_divisible(exp_size * width_mult, 8), output_channel),
+            nn.Linear(_make_divisible(last_chn, 8), output_channel),
             nn.BatchNorm1d(output_channel) if mode == 'small' else nn.Sequential(),
-            h_swish(),
+            HardSwish(),
             nn.Linear(output_channel, num_classes),
             nn.BatchNorm1d(num_classes) if mode == 'small' else nn.Sequential(),
-            h_swish() if mode == 'small' else nn.Sequential()
+            HardSwish() if mode == 'small' else nn.Sequential()
         )
 
         self._initialize_weights()
@@ -174,7 +179,7 @@ class MobileNetV3(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x
-    
+
     def get_predefined_augment_converter(self):
         return lambda slot: MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride,
                                                 **slot.kwargs)
@@ -244,4 +249,3 @@ def mobilenetv3_small(config, **kwargs):
     ]
 
     return MobileNetV3(chn_in, cfgs, mode='small', num_classes=n_classes, **kwargs)
-

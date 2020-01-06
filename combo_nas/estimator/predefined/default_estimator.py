@@ -1,17 +1,13 @@
-import torch
-import torch.nn as nn
 import itertools
 from ..base import EstimatorBase
-from ... import utils
-from ...utils.profiling import tprof
 
 class DefaultEstimator(EstimatorBase):
     def predict(self, ):
         pass
-    
-    def search(self, arch_optim):
+
+    def search(self, optim):
         return self.train()
-    
+
     def train(self):
         config = self.config
         tot_epochs = config.epochs

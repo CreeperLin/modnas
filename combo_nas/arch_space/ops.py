@@ -63,25 +63,23 @@ def drop_path_(x, drop_prob, training):
         # per data point mask; assuming x in cuda.
         mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
         x.div_(keep_prob).mul_(mask)
-
     return x
 
 
 class DropPath_(nn.Module):
-    def __init__(self, p=0.):
-        """ [!] DropPath is inplace module
+    def __init__(self, prob=0.):
+        """ DropPath module.
         Args:
-            p: probability of an path to be zeroed.
+            prob: probability of an path to be zeroed.
         """
         super().__init__()
-        self.p = p
+        self.prob = prob
 
     def extra_repr(self):
-        return 'p={}, inplace'.format(self.p)
+        return 'prob={}, inplace'.format(self.prob)
 
     def forward(self, x):
-        drop_path_(x, self.p, self.training)
-
+        drop_path_(x, self.prob, self.training)
         return x
 
 

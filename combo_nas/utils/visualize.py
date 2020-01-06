@@ -1,6 +1,5 @@
 """ Network architecture visualizer using graphviz """
 import logging
-import sys
 from graphviz import Digraph
 
 def subplot(genotype, prefix, dag_layers):
@@ -51,8 +50,8 @@ def subplot(genotype, prefix, dag_layers):
                 g.subgraph(p_child)
                 g.edge(n_out, v, label='', fillcolor="gray")
                 j=j+1
-            
-            for i, si in enumerate(sidx):
+
+            for t, si in enumerate(sidx):
                 if si < n_input:
                     u = g_in[si]
                 else:
@@ -60,8 +59,8 @@ def subplot(genotype, prefix, dag_layers):
                 if isinstance(g_child[0], str):
                     g.edge(u, v, label=op, fillcolor="gray")
                 else:
-                    g.edge(u, n_in[i], label='', fillcolor="gray")
-            
+                    g.edge(u, n_in[t], label='', fillcolor="gray")
+
     # output node
     g_out = str(prefix)+'out'
     g.node(g_out, fillcolor='palegoldenrod')
@@ -96,9 +95,9 @@ def plot(genotype, dag_layers, file_path, caption=None):
         engine='dot')
     g.body.extend(['rankdir=TB'])
 
-    g_child, g_in, g_out = subplot(genotype,'', dag_layers)
+    g_child, g_in, _ = subplot(genotype,'', dag_layers)
     for n in g_in:
-        g.edge('input',n,label='',fillcolor='gray')
+        g.edge('input', n, label='', fillcolor='gray')
     g.subgraph(g_child)
 
     # add image caption
@@ -112,17 +111,3 @@ def plot(genotype, dag_layers, file_path, caption=None):
         logging.debug('render failed: {}'.format(str(e)))
         with open(file_path, 'w') as f:
             f.write(g.source)
-
-
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        raise ValueError("usage:\n python {} GENOTYPE".format(sys.argv[0]))
-
-    genotype_str = sys.argv[1]
-    try:
-        genotype = gt.from_str(genotype_str)
-    except AttributeError:
-        raise ValueError("Cannot parse {}".format(genotype_str))
-
-    plot(genotype.normal, "normal")
-    plot(genotype.reduce, "reduction")

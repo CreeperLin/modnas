@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-import logging
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from ..layers import build_layer
 from ..ops import FactorizedReduce, StdConv
-from ..defs import ConcatMerger, SumMerger, CombinationEnumerator, ReplicateAllocator
 from ..constructor import Slot, default_predefined_converter
 
 class PreprocLayer(StdConv):
@@ -39,7 +35,7 @@ class AuxiliaryHead(nn.Module):
 
 
 class DARTSLikeNet(nn.Module):
-    def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node, 
+    def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node,
                 n_layers, shared_a, channel_multiplier, auxiliary, cell_cls, cell_kwargs):
         super().__init__()
         self.chn_in = chn_in
@@ -88,12 +84,12 @@ class DARTSLikeNet(nn.Module):
             if i == self.aux_pos:
                 fm_size = 32
                 self.aux_head = AuxiliaryHead(fm_size//4, chn_p, n_classes)
-        
+
         self.conv_last = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
         )
         self.fc = nn.Linear(chn_p, n_classes)
-    
+
     def forward(self, x):
         aux_logits = None
         s0 = s1 = self.conv_first(x)
@@ -109,37 +105,37 @@ class DARTSLikeNet(nn.Module):
             return y
         else:
             return y, aux_logits
-    
-    def build_from_genotype(self, gene, drop_path=True, *args, **kwargs):
+
+    def build_from_genotype(self, gene, *args, **kwargs):
         assert len(self.cell_group) == len(gene.dag)
         for cells, g in zip(self.cell_group, gene.dag):
             for c in cells:
                 c.build_from_genotype(g, *args, **kwargs)
-    
+
     def to_genotype(self):
         gene = []
         for cells in self.cell_group:
             gene.append(cells[0].to_genotype(k=2)[1])
         return gene
-    
+
     def dags(self):
         for cell in self.cells:
             yield cell
-    
+
     def get_predefined_search_converter(self):
         if not self.shared_a: return default_predefined_converter
-        def convert_fn(slot, mixed_op_cls, *args, **kwargs):
+        def convert_fn(slot, *args, **kwargs):
             if not hasattr(convert_fn, 'param_map'):
                 convert_fn.param_map = {}
             if slot.name in convert_fn.param_map:
                 kwargs['arch_param_map'] = convert_fn.param_map[slot.name]
-            ent = default_predefined_converter(slot, mixed_op_cls, *args, **kwargs)
+            ent = default_predefined_converter(slot, *args, **kwargs)
             if not slot.name in convert_fn.param_map:
                 convert_fn.param_map[slot.name] = ent.arch_param_map()
             return ent
         return convert_fn
 
-    
+
 def build_from_config(config, darts_cls=DARTSLikeNet):
     chn_in = config.channel_in
     chn = config.channel_init
@@ -150,15 +146,15 @@ def build_from_config(config, darts_cls=DARTSLikeNet):
     n_inputs_layer = config.inputs_layer
     n_inputs_node = config.inputs_node
     darts_kwargs = {
-        'chn_in': chn_in, 
-        'chn': chn, 
-        'n_classes': n_classes, 
-        'n_inputs_model': n_inputs_model, 
-        'n_inputs_layer': n_inputs_layer, 
-        'n_inputs_node': n_inputs_node, 
+        'chn_in': chn_in,
+        'chn': chn,
+        'n_classes': n_classes,
+        'n_inputs_model': n_inputs_model,
+        'n_inputs_layer': n_inputs_layer,
+        'n_inputs_node': n_inputs_node,
         'n_layers': n_layers,
         'shared_a': config.shared_a,
-        'channel_multiplier': config.channel_multiplier, 
+        'channel_multiplier': config.channel_multiplier,
         'auxiliary': config.auxiliary,
         'cell_cls': 'DAG',
         'cell_kwargs': {

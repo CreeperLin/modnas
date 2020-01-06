@@ -69,6 +69,12 @@ arch_optim:
   type: 'Random'
 mixed_op:
   type: 'Index'
+  primitives:
+    - 'DC1'
+    - 'DC3'
+    - 'DC5'
+    - 'DC7'
+    - 'DC9'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
@@ -79,12 +85,6 @@ model:
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
-primitives:
-  - 'DC1'
-  - 'DC3'
-  - 'DC5'
-  - 'DC7'
-  - 'DC9'
 log:
   writer: False
 device:

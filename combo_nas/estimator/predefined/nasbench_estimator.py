@@ -1,9 +1,8 @@
-import itertools
 from .regression_estimator import RegressionEstimator, ArchPredictor
-from ...core.param_space import ArchParamSpace, ArchParamDiscrete, ArchParamContinuous
+from ...core.param_space import ArchParamDiscrete
 try:
     from nasbench import api
-except:
+except ImportError:
     api = None
 
 INPUT = 'input'
@@ -18,13 +17,13 @@ class NASBenchNet():
         ops = []
         n_states = n_nodes - 2
         n_edges = n_nodes * (n_nodes-1) // 2
-        for i in range(n_edges):
+        for _ in range(n_edges):
             matrix.append(ArchParamDiscrete([0, 1]))
-        for i in range(n_states):
+        for _ in range(n_states):
             ops.append(ArchParamDiscrete([CONV1X1, CONV3X3, MAXPOOL3X3]))
         self.matrix_params = matrix
         self.ops_params = ops
-    
+
     def to_genotype(self):
         matrix = [p.value() for p in self.matrix_params]
         ops = [p.value() for p in self.ops_params]
@@ -41,10 +40,10 @@ class NASBenchPredictor(ArchPredictor):
             raise RuntimeError('nasbench api is not installed')
         self.nasbench = api.NASBench(record_path)
         self.max_nodes = 7
-    
+
     def fit(self, ):
         pass
-    
+
     def predict(self, genotype):
         max_nodes = self.max_nodes
         matrix = [[0]*max_nodes for i in range(max_nodes)]
@@ -66,10 +65,10 @@ class NASBenchPredictor(ArchPredictor):
 
 class NASBenchEstimator(RegressionEstimator):
 
-    def search(self, arch_optim):
+    def search(self, optim):
         config = self.config
         self.logger.info('generating NASBench param space')
         self.model = NASBenchNet()
         self.logger.info('loading NASBench data')
         self.predictor = NASBenchPredictor(config.record_path)
-        return super().search(arch_optim)
+        return super().search(optim)

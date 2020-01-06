@@ -100,6 +100,14 @@ arch_optim:
   type: 'Random'
 mixed_op:
   type: 'Index'
+  primitives:
+    - 'AVG'
+    - 'MAX'
+    - 'IDT'
+    - 'SC3'
+    - 'SC5'
+    - 'SC7'
+    - 'DC3'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
@@ -116,14 +124,6 @@ model:
   alpha: 1
   conv_groups: 2
   bottleneck_ratio: 4
-primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
-  - 'DC3'
 log:
   writer: False
 device:

@@ -2,7 +2,6 @@
 # modified from https://github.com/HarryVolek/PyTorch_Speaker_Verification
 import yaml
 import copy
-import numpy as np
 
 def load_config(filename):
     stream = open(filename, 'r')
@@ -35,6 +34,7 @@ class Config(dict):
     __delattr__ = dict.__delitem__
 
     def __init__(self, file, dct=None):
+        super().__init__()
         if not file is None:
             dct = load_config(file)
         for key, value in dct.items():
@@ -49,10 +49,10 @@ class Config(dict):
 
     def __deepcopy__(self, memo):
         return Config(None, copy.deepcopy(dict(self)))
-    
+
     def __str__(self):
         return yaml.dump(dict(self), default_flow_style=False)
-    
+
     @staticmethod
     def get_value(config, key):
         keywords = key.split('.')
@@ -60,7 +60,7 @@ class Config(dict):
         if len(keywords) == 1: return val
         elif val is None: raise ValueError('invalid key: {}'.format(keywords[0]))
         return Config.get_value(val, '.'.join(keywords[1:]))
-    
+
     @staticmethod
     def set_value(config, key, value):
         keywords = key.split('.')
@@ -68,7 +68,7 @@ class Config(dict):
         if len(keywords) == 1: config[keywords[0]] = value
         elif val is None: raise ValueError('invalid key: {}'.format(keywords[0]))
         else: Config.set_value(val, '.'.join(keywords[1:]), value)
-    
+
     @staticmethod
     def apply(config, dct):
         for k, v in dct.items():

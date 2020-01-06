@@ -106,6 +106,14 @@ arch_optim:
       betas: [0.0, 0.999]
       weight_decay: 0
 mixed_op:
+  primitives:
+    - 'AVG'
+    - 'MAX'
+    - 'IDT'
+    - 'SS3'
+    - 'SS5'
+    - 'SS7'
+    - 'DC3'
   type: 'BinGate'
 ops:
   ops_order: 'bn_act_weight'
@@ -129,14 +137,6 @@ model:
   use_avg: False
   bn_before_add: True
   pxl_ops_order: 'bn_act_weight'
-primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SS3'
-  - 'SS5'
-  - 'SS7'
-  - 'DC3'
 log:
   writer: False
 device:

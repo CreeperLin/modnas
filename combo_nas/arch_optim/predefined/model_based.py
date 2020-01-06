@@ -10,18 +10,18 @@ from .gridsearch import DiscreteSpaceArchOptim
 class CostModel():
     def __init__(self,):
         pass
-    
+
     def fit(self, params, results):
         pass
-    
+
     def predict(self, params):
         pass
-    
+
 
 class ModelOptimizer():
     def __init__(self):
         pass
-    
+
     def get_maximums(self, model, size, ):
         pass
 
@@ -35,7 +35,7 @@ class ModelBasedArchOptim(DiscreteSpaceArchOptim):
         self.trials = []
         self.trial_pt = 0
         self.train_ct = 0
-    
+
     def has_next(self):
         return len(self.visited) < self.space_size()
 
@@ -60,7 +60,7 @@ class ModelBasedArchOptim(DiscreteSpaceArchOptim):
             batch.append(ret)
             self.visited.add(ret)
         return batch
-    
+
     def step(self, estim):
         for inp, res in zip(inputs, results):
             self.xs.append(inp)

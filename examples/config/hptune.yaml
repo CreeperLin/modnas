@@ -1,7 +1,7 @@
 hpspace:
   hp_path: 
   hp_dict:
-    primitives: [['SC3','SC5','NC3','NC5'], ['DC3','DC5','NC3','NC5'], ['SC3','SC5','DC3','DC5']]
+    mixed_op.primitives: [['SC3','SC5','NC3','NC5'], ['DC3','DC5','NC3','NC5'], ['SC3','SC5','DC3','DC5']]
     # search.data.dloader.split_ratio: [0.5, 0.8, 0.9]
     # search.estimator.search.warmup_epochs: [0, 20, 40, 60]
     # search.estimator.search.epochs: [25, 50, 100, 200]
@@ -24,7 +24,7 @@ hptune:
         name: 'trial'
         chkpt:
         device: 'all'
-        exp_root_dir: 'exp'
+        exp: 'exp'
       trial_config:
         search:
           data:
@@ -116,15 +116,6 @@ hptune:
           classes: 10             # use 10 for MNIST, CIFAR10
           channel_in: 3   
           channel_init: 16
-        primitives:
-          - 'SC3'
-          - 'SC5'
-          - 'SC7'
-          - 'NC3'
-          - 'NC5'
-          - 'NC7'
-          - 'DC3'
-          - 'DC5'
         log:
           writer: False
         device:

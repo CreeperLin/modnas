@@ -99,6 +99,15 @@ arch_optim:
   type: 'Random'
 mixed_op:
   type: 'Index'
+  primitives:
+    - 'MB3E1'
+    - 'MB3E3'
+    - 'MB3E6'
+    - 'MB5E1'
+    - 'MB5E3'
+    - 'MB5E6'
+    - 'MB7E1'
+    - 'MB7E3'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
@@ -108,15 +117,6 @@ model:
   type: 'mobilenetv3_small'
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-primitives:
-  - 'MB3E1'
-  - 'MB3E3'
-  - 'MB3E6'
-  - 'MB5E1'
-  - 'MB5E3'
-  - 'MB5E6'
-  - 'MB7E1'
-  - 'MB7E3'
 log:
   writer: False
 device:

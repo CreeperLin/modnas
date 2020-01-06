@@ -26,12 +26,12 @@ class GridSearchArchOptim(DiscreteSpaceArchOptim):
     def __init__(self, space):
         super().__init__(space)
         self.counter = 0
-    
+
     def _next(self):
         index = self.counter
         self.counter = self.counter + 1
         return self.space.get_discrete_map(index)
-    
+
     def has_next(self):
         return self.counter < self.space_size()
 
@@ -42,13 +42,13 @@ class RandomSearchArchOptim(DiscreteSpaceArchOptim):
         self.visited = set()
         seed = int(time.time()) if seed is None else seed
         random.seed(seed)
-    
+
     def _next(self):
         index = random.randint(0, self.space_size())
         while index in self.visited:
             index = random.randint(0, self.space_size())
         self.visited.add(index)
         return self.space.get_discrete_map(index)
-    
+
     def has_next(self):
         return len(self.visited) < self.space_size()

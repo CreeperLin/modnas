@@ -5,7 +5,7 @@ from .. import register_arch_space
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
     """3x3 convolution with padding"""
-    return Slot(in_planes, out_planes, stride, groups=groups)
+    return Slot(in_planes, out_planes, stride, kwargs={'groups': groups})
 
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
@@ -18,6 +18,7 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=None, norm_layer=None):
         super(BasicBlock, self).__init__()
+        del base_width
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self.conv1 = conv3x3(inplanes, planes, stride, groups)
@@ -105,10 +106,11 @@ class ResNet(nn.Module):
         self.groups = groups
         self.base_width = chn // groups if width_per_group is None else width_per_group
         self.conv1 = self.get_stem(chn_in, chn, norm_layer)
-        
+
         self.layers = nn.Sequential(*[
-            self._make_layer(block, (2 ** i) * chn, layers[i], stride=(1 if i==0 else 2), norm_layer=norm_layer)
-        for i in range(len(layers))])
+            self._make_layer(block, (2 ** i) * chn, layers[i],
+                             stride=(1 if i == 0 else 2), norm_layer=norm_layer)
+            for i in range(len(layers))])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(self.chn, num_classes)
 
@@ -154,7 +156,7 @@ class ResNet(nn.Module):
 
     def get_predefined_augment_converter(self):
         return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, stride=slot.stride,
-                                            padding=1, bias=False, **slot.kwargs)
+                                      padding=1, bias=False, **slot.kwargs)
 
 
 class ImageNetResNet(ResNet):
@@ -176,7 +178,7 @@ class CIFARResNet(ResNet):
         )
 
 
-def resnet10(resnet_cls, config, pretrained=False, **kwargs):
+def resnet10(resnet_cls, config, **kwargs):
     """Constructs a ResNet-10 model.
 
     Args:
@@ -189,7 +191,7 @@ def resnet10(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet18(resnet_cls, config, pretrained=False, **kwargs):
+def resnet18(resnet_cls, config, **kwargs):
     """Constructs a ResNet-18 model.
 
     Args:
@@ -202,7 +204,7 @@ def resnet18(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet32(resnet_cls, config, pretrained=False, **kwargs):
+def resnet32(resnet_cls, config, **kwargs):
     """Constructs a ResNet-32 model.
 
     Args:
@@ -215,7 +217,7 @@ def resnet32(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet34(resnet_cls, config, pretrained=False, **kwargs):
+def resnet34(resnet_cls, config, **kwargs):
     """Constructs a ResNet-34 model.
 
     Args:
@@ -228,7 +230,7 @@ def resnet34(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet50(resnet_cls, config, pretrained=False, **kwargs):
+def resnet50(resnet_cls, config, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
@@ -241,7 +243,7 @@ def resnet50(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet56(resnet_cls, config, pretrained=False, **kwargs):
+def resnet56(resnet_cls, config, **kwargs):
     """Constructs a ResNet-56 model.
 
     Args:
@@ -254,7 +256,7 @@ def resnet56(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet101(resnet_cls, config, pretrained=False, **kwargs):
+def resnet101(resnet_cls, config, **kwargs):
     """Constructs a ResNet-101 model.
 
     Args:
@@ -267,7 +269,7 @@ def resnet101(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet110(resnet_cls, config, pretrained=False, **kwargs):
+def resnet110(resnet_cls, config, **kwargs):
     """Constructs a ResNet-110 model.
 
     Args:
@@ -280,7 +282,7 @@ def resnet110(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnet152(resnet_cls, config, pretrained=False, **kwargs):
+def resnet152(resnet_cls, config, **kwargs):
     """Constructs a ResNet-152 model.
 
     Args:
@@ -293,19 +295,21 @@ def resnet152(resnet_cls, config, pretrained=False, **kwargs):
     return model
 
 
-def resnext50_32x4d(resnet_cls, config, pretrained=False, **kwargs):
+def resnext50_32x4d(resnet_cls, config, **kwargs):
     chn_in = config.channel_in
     chn = config.channel_init
     n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 6, 3], num_classes=n_classes, groups=32, width_per_group=4, **kwargs)
+    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 6, 3], num_classes=n_classes,
+                       groups=32, width_per_group=4, **kwargs)
     return model
 
 
-def resnext101_32x8d(resnet_cls, config, pretrained=False, **kwargs):
+def resnext101_32x8d(resnet_cls, config, **kwargs):
     chn_in = config.channel_in
     chn = config.channel_init
     n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 23, 3], num_classes=n_classes, groups=32, width_per_group=8, **kwargs)
+    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 23, 3], num_classes=n_classes,
+                       groups=32, width_per_group=8, **kwargs)
     return model
 
 def resnet(resnet_cls, config, **kwargs):
@@ -318,20 +322,20 @@ def resnet(resnet_cls, config, **kwargs):
     bottleneck = config.bottleneck
     block = Bottleneck if bottleneck else BasicBlock
     model = resnet_cls(chn_in, chn, block, layers, num_classes=n_classes,
-                    groups=groups, width_per_group=width_per_group, **kwargs)
+                       groups=groups, width_per_group=width_per_group, **kwargs)
     return model
 
 
-for resnet_cls in [CIFARResNet, ImageNetResNet]:
-    name = 'CIFAR-' if resnet_cls == CIFARResNet else 'ImageNet-'
-    register_arch_space(partial(resnet10, resnet_cls), name+'ResNet-10')
-    register_arch_space(partial(resnet18, resnet_cls), name+'ResNet-18')
-    register_arch_space(partial(resnet32, resnet_cls), name+'ResNet-32')
-    register_arch_space(partial(resnet34, resnet_cls), name+'ResNet-34')
-    register_arch_space(partial(resnet50, resnet_cls), name+'ResNet-50')
-    register_arch_space(partial(resnet56, resnet_cls), name+'ResNet-56')
-    register_arch_space(partial(resnet101, resnet_cls), name+'ResNet-101')
-    register_arch_space(partial(resnet152, resnet_cls), name+'ResNet-152')
-    register_arch_space(partial(resnext50_32x4d, resnet_cls), name+'ResNeXt-50')
-    register_arch_space(partial(resnext101_32x8d, resnet_cls), name+'ResNeXt-101')
-    register_arch_space(partial(resnet, resnet_cls), name+'ResNet')
+for net_cls in [CIFARResNet, ImageNetResNet]:
+    name = 'CIFAR-' if net_cls == CIFARResNet else 'ImageNet-'
+    register_arch_space(partial(resnet10, net_cls), name+'ResNet-10')
+    register_arch_space(partial(resnet18, net_cls), name+'ResNet-18')
+    register_arch_space(partial(resnet32, net_cls), name+'ResNet-32')
+    register_arch_space(partial(resnet34, net_cls), name+'ResNet-34')
+    register_arch_space(partial(resnet50, net_cls), name+'ResNet-50')
+    register_arch_space(partial(resnet56, net_cls), name+'ResNet-56')
+    register_arch_space(partial(resnet101, net_cls), name+'ResNet-101')
+    register_arch_space(partial(resnet152, net_cls), name+'ResNet-152')
+    register_arch_space(partial(resnext50_32x4d, net_cls), name+'ResNeXt-50')
+    register_arch_space(partial(resnext101_32x8d, net_cls), name+'ResNeXt-101')
+    register_arch_space(partial(resnet, net_cls), name+'ResNet')

@@ -1,13 +1,11 @@
+from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..core.nas_modules import NASModule, ArchModuleSpace
+from ..core.nas_modules import NASModule
 from ..core.param_space import ArchParamDiscrete, ArchParamContinuous
 from .ops import build_op
-from ..utils import get_current_device
 from ..utils.registration import Registry, build, get_builder, register, register_wrapper
-from ..utils.profiling import profile_time, report_time
-from functools import partial
 
 mixed_op_registry = Registry('mixed_op')
 register_mixed_op = partial(register, mixed_op_registry)
@@ -15,7 +13,20 @@ get_mixed_op_builder = partial(get_builder, mixed_op_registry)
 build_mixed_op = partial(build, mixed_op_registry)
 register = partial(register_wrapper, mixed_op_registry)
 
-class WeightedSumMixedOp(NASModule):
+class MixedOp(NASModule):
+    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map):
+        super().__init__(arch_param_map)
+        self.ops = ops
+        self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
+        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
+        self.chn_out = chn_out if isinstance(chn_out, int) else chn_in[0]
+        self.stride = stride
+        self._ops = nn.ModuleList([
+            build_op(prim, self.chn_in, self.chn_out, stride) for prim in ops
+        ])
+    
+
+class WeightedSumMixedOp(MixedOp):
     """ Mixed operation as weighted sum """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
         if arch_param_map is None:
@@ -23,34 +34,26 @@ class WeightedSumMixedOp(NASModule):
             arch_param_map = {
                 'p': ArchParamContinuous(params_shape),
             }
-        super().__init__(arch_param_map)
-        self.ops = ops
-        self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
-        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
-        self.chn_out = chn_out if isinstance(chn_out, int) else chn_chn_outin[0]
-        self.stride = stride
-        self._ops = nn.ModuleList()
-        for primitive in ops:
-            op = build_op(primitive, self.chn_in, self.chn_out, stride)
-            self._ops.append(op)
-        self.params_shape = arch_param_map['p'].shape
-    
+        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
+
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
         p = self.arch_param_value('p')
         w_path = F.softmax(p.to(device=x.device), dim=-1)
         return sum(w * op(x) for w, op in zip(w_path, self._ops))
-    
+
     def to_genotype(self, k=1):
         ops = self.ops
         w = F.softmax(self.arch_param_value('p').detach(), dim=-1)
-        w_max, prim_idx = torch.topk(w[:-1], 1)
+        # ignore last primitive (None)
+        w_max, prim_idx = torch.topk(w[:-1], k)
         gene = [ops[i] for i in prim_idx]
         if gene == []: return -1, [None]
-        return w_max, gene
+        self.w_max = w_max
+        return gene
 
 
-class BinGateMixedOp(NASModule):
+class BinGateMixedOp(MixedOp):
     """ Mixed operation controlled by binary gate """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None, n_samples=1):
         if arch_param_map is None:
@@ -58,43 +61,33 @@ class BinGateMixedOp(NASModule):
             arch_param_map = {
                 'p': ArchParamContinuous(params_shape),
             }
-        super().__init__(arch_param_map)
-        self.ops = ops
-        self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
-        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
-        self.chn_out = chn_out if isinstance(chn_out, int) else chn_out[0]
+        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
         self.n_samples = n_samples
-        self.stride = stride
-        self._ops = nn.ModuleList()
-        for primitive in ops:
-            op = build_op(primitive, self.chn_in, self.chn_out, stride)
-            self._ops.append(op)
         self.reset_ops()
         self.s_path_f = None
         self.a_grad_enabled = True
         # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
-        self.params_shape = arch_param_map['p'].shape
-    
+
     def arch_param_grad(self, enabled):
         self.a_grad_enabled = enabled
-    
+
     def sample(self):
         p = self.arch_param_value('p')
         s_op = self.s_op
         self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
         samples = self.w_path_f.multinomial(self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
-    
+
     def sample_ops(self, n_samples):
         p = self.arch_param_value('p')
         samples = F.softmax(p, dim=-1).multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
-    
+
     def reset_ops(self):
         s_op = list(range(len(self._ops)))
         self.last_samples = s_op
         self.s_op = s_op
-    
+
     def forward(self, x):
         self.sample()
         x = x[0] if isinstance(x, list) else x
@@ -131,10 +124,11 @@ class BinGateMixedOp(NASModule):
         ops = self.ops
         p = self.arch_param_value('p')
         w = F.softmax(p.detach(), dim=-1)
-        w_max, prim_idx = torch.topk(w, 1)
+        w_max, prim_idx = torch.topk(w, k)
         gene = [ops[i] for i in prim_idx]
         if gene == []: return -1, [None]
-        return w_max, gene
+        self.w_max = w_max
+        return gene
 
 
 class BinGateFunction(torch.autograd.function.Function):
@@ -175,9 +169,6 @@ class BinGateFunction(torch.autograd.function.Function):
 
 class BinGateUniformMixedOp(BinGateMixedOp):
     """ Mixed operation controlled by binary gate """
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None, n_samples=1):
-        super().__init__(chn_in, chn_out, stride, ops, arch_param_map, n_samples)
-    
     def sample(self):
         p = self.arch_param_value('p')
         s_op = self.s_op
@@ -187,32 +178,24 @@ class BinGateUniformMixedOp(BinGateMixedOp):
         samples = prob.multinomial(self.n_samples)
         s_path_f = [s_op[i] for i in samples]
         self.s_path_f = s_path_f
-    
+
     def sample_ops(self, n_samples):
         prob = F.softmax(torch.empty(self.w_path_f.shape, device=self.w_path_f.device).uniform_(0, 1), dim=-1)
         samples = prob.multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
 
 
-class IndexMixedOp(NASModule):
+class IndexMixedOp(MixedOp):
     """ Mixed operation controlled by external index """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
                 'ops': ArchParamDiscrete(ops),
-                # 'ksize': ArchParamDiscrete(['3','5','7']),
             }
-        super().__init__(arch_param_map)
-        self.ops = ops
-        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
-        self.chn_out = chn_out if isinstance(chn_out, int) else chn_out[0]
-        self.stride = stride
-        self._ops = nn.ModuleList([
-            build_op(prim, self.chn_in, self.chn_out, stride) for prim in ops
-        ])
+        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
         self.reset_ops()
         # logging.debug("IndexMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
-    
+
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
         smp = self.arch_param('ops').index()
@@ -233,32 +216,11 @@ class IndexMixedOp(NASModule):
                 p.requires_grad = False
                 p.grad = None
 
-    def to_genotype(self, k=1):
+    def to_genotype(self, *args, **kwargs):
         return 0, self.arch_param_value('ops')
 
-class DummyMixedOp(NASModule):
-    """ dummy mixed op for non-supernet-based methods """
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
-        if arch_param_map is None:
-            arch_param_map = {
-                'ops': ArchParamDiscrete(ops),
-                # 'ksize': ArchParamDiscrete(['3','5','7']),
-            }
-        super().__init__(arch_param_map)
-        self.ops = ops
-        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
-        self.chn_out = chn_out if isinstance(chn_out, int) else chn_out[0]
-        self.stride = stride
-        self.chn_out = self.chn_in
-    
-    def forward(self, x):
-        return None
-
-    def to_genotype(self, k=1):
-        return 0, self.arch_param_value('ops')
 
 register_mixed_op(WeightedSumMixedOp, 'WeightedSum')
 register_mixed_op(BinGateMixedOp, 'BinGate')
 register_mixed_op(BinGateUniformMixedOp, 'BinGateUniform')
 register_mixed_op(IndexMixedOp, 'Index')
-register_mixed_op(DummyMixedOp, 'Dummy')

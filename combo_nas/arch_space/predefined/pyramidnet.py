@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import math
 from ...arch_space.constructor import Slot
 
 class GroupConv(nn.Module):
@@ -10,11 +9,13 @@ class GroupConv(nn.Module):
         if chn_out is None:
             chn_out = chn_in
         self.chn_out = chn_out
-        self.net = nn.Sequential(
+        net = [
             nn.BatchNorm2d(chn_in, affine=affine),
-            nn.ReLU(inplace=True),
             nn.Conv2d(chn_in, chn_out, kernel_size, stride, padding, groups=groups, bias=True),
-        )
+        ]
+        if relu: 
+            net.insert(1, nn.ReLU(inplace=True))
+        self.net = nn.Sequential(*net)
 
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
@@ -25,7 +26,7 @@ class BottleneckBlock(nn.Module):
                  downsample=None):
         super(BottleneckBlock, self).__init__()
         self.bottle_in = GroupConv(C_in, C, 1, 1, 0, relu=False)
-        self.cell = Slot(C, C, stride, groups=groups)
+        self.cell = Slot(C, C, stride, kwargs={'groups': groups})
         self.bottle_out = GroupConv(C, C * bneck_ratio, 1, 1, 0)
         self.bn = nn.BatchNorm2d(C * bneck_ratio)
         self.downsample = downsample
@@ -59,7 +60,7 @@ class BottleneckBlock(nn.Module):
 
 
 class PyramidNet(nn.Module):
-        
+
     def __init__(self, chn_in, chn, n_classes, n_groups, n_blocks, conv_groups, bneck_ratio, alpha):
         super(PyramidNet, self).__init__()
         self.chn_in = chn_in
@@ -70,19 +71,19 @@ class PyramidNet(nn.Module):
         self.conv_groups = conv_groups
         self.bneck_ratio = bneck_ratio
         self.addrate = alpha / (self.n_groups*self.n_blocks*1.0)
-        
+
         block = BottleneckBlock
         self.chn_cur = self.chn
         self.conv1 = nn.Conv2d(self.chn_in, self.chn_cur, kernel_size=3, stride=1, padding=1,bias=False)
         self.bn1 = nn.BatchNorm2d(self.chn_cur)
         self.chn_in = self.chn_cur
-        
+
         groups = []
         for i in range(0, self.n_groups):
             stride = 1 if i==0 else 2
             groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride))
         self.pyramid = nn.Sequential(*groups)
-        
+
         self.chn_fin = int(self.chn_cur) * self.bneck_ratio
         self.bn_final = nn.BatchNorm2d(self.chn_fin)
         self.relu_final = nn.ReLU(inplace=True)
@@ -114,7 +115,7 @@ class PyramidNet(nn.Module):
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
-        
+
         x = self.pyramid(x)
 
         x = self.bn_final(x)
@@ -122,7 +123,7 @@ class PyramidNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
-    
+
         return x
 
     def get_predefined_augment_converter(self):
@@ -132,7 +133,6 @@ class PyramidNet(nn.Module):
 def build_from_config(config):
     chn_in = config.channel_in
     chn = config.channel_init
-    chn_cur = chn * config.channel_multiplier
     n_classes = config.classes
     n_groups = config.groups
     conv_groups = config.conv_groups

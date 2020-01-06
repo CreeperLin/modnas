@@ -11,16 +11,6 @@ def get_current_device():
     if not torch.cuda.is_available(): return 'cpu'
     return torch.cuda.current_device()
 
-def warmup_device(model, batch_size, device):
-    X = torch.randn(batch_size,3,32,32).to(device=device)
-    model.train(True)
-    o = model(X)
-    y = torch.rand(o.size()).to(device=device)
-    (o-y).norm().backward()
-    model.zero_grad()
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-
 def parse_gpus(gpus):
     if gpus == 'cpu':
         return []
@@ -39,7 +29,7 @@ def check_config(hp, excludes=[]):
         'augment.data.train_root',
         'augment.data.valid_root',
     )
-    
+
     for i in required:
         try:
             ddict = hp
@@ -76,6 +66,7 @@ def check_config(hp, excludes=[]):
     }
 
     for i in defaults:
+        a = ''
         ddict = hp
         try:
             for a in i.split('.'):
@@ -88,7 +79,7 @@ def check_config(hp, excludes=[]):
             else:
                 logging.warning('check_config: setting field {} to default: {}'.format(i, defaults[i]))
                 setattr(ddict, a, defaults[i])
-    
+
     if flag:
         return True
 
@@ -108,7 +99,7 @@ def init_device(config, ovr_gpus):
         return device, []
     device = torch.device("cuda")
     torch.cuda.set_device(config.gpus[0])
-    
+
     torch.cuda.manual_seed_all(config.seed)
     torch.backends.cudnn.benchmark = True
     logging.debug('device: {} {}'.format(device, config.gpus))
@@ -135,10 +126,10 @@ class DummyWriter():
     def __init__(self):
         pass
 
-    def add_scalar(*args, **kwargs):
+    def add_scalar(self, *args, **kwargs):
         pass
-    
-    def add_text(*args, **kwargs):
+
+    def add_text(self, *args, **kwargs):
         pass
 
 
@@ -174,7 +165,7 @@ def get_optim(params, config):
         raise Exception("Optimizer not supported: %s" % config.optimizer)
     return optimizer(params, **optim_args)
 
-def get_lr_scheduler(optim, config, epochs, last_epoch=-1):
+def get_lr_scheduler(optim, config, epochs):
     lr_type = config.type
     lr_args = config.get('args', {})
     if lr_type == 'cosine':
@@ -259,7 +250,9 @@ class ETAMeter():
         self.tot_epochs = tot_epochs
         self.epoch = epoch
         self.tot_step = tot_step
-    
+        self.last_step = None
+        self.last_time = None
+
     def start(self):
         self.last_step = -1
         self.last_time = time.time()

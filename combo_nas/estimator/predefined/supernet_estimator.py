@@ -1,16 +1,28 @@
-import torch
 import torch.nn as nn
 import itertools
 from ..base import EstimatorBase
 from ... import utils
 from ...utils.profiling import tprof
-from ...core.param_space import ArchParamSpace
 
 class SuperNetEstimator(EstimatorBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.train_loader is None:
+            self.trn_iter = None
+        else:
+            self.trn_iter = iter(self.train_loader)
+        if self.valid_loader is None:
+            self.val_iter = None
+        else:
+            self.val_iter = iter(self.valid_loader)
+        self.cur_trn_batch = None
+        self.cur_val_batch = None
+        self.no_valid_warn = True
+
     def predict(self, ):
         pass
-    
-    def search(self, arch_optim):
+
+    def search(self, optim):
         model = self.model
         config = self.config
         tot_epochs = config.epochs
@@ -22,7 +34,7 @@ class SuperNetEstimator(EstimatorBase):
             if epoch == tot_epochs: break
             # train
             self.model.print_arch_params(self.logger)
-            trn_top1 = self.search_epoch(epoch, arch_optim)
+            trn_top1 = self.search_epoch(epoch, optim)
             # validate
             val_top1 = self.validate_epoch(epoch, tot_epochs)
             genotype = model.to_genotype()
@@ -36,7 +48,7 @@ class SuperNetEstimator(EstimatorBase):
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
         return best_top1, best_genotype, genotypes
-    
+
     def get_lr(self):
         return self.lr_scheduler.get_lr()[0]
 
@@ -44,38 +56,38 @@ class SuperNetEstimator(EstimatorBase):
         tprof.timer_start('data')
         try:
             trn_X, trn_y = next(self.trn_iter)
-        except:
+        except StopIteration:
             self.trn_iter = iter(self.train_loader)
             trn_X, trn_y = next(self.trn_iter)
         trn_X, trn_y = trn_X.to(self.device, non_blocking=True), trn_y.to(self.device, non_blocking=True)
         tprof.timer_stop('data')
         self.cur_trn_batch = trn_X, trn_y
         return trn_X, trn_y
-    
+
     def get_cur_trn_batch(self):
         return self.cur_trn_batch
-    
+
     def get_next_val_batch(self):
         if self.valid_loader is None:
-            if not hasattr(self, 'no_valid_warn'):
+            if self.no_valid_warn:
                 self.logger.warning('no valid loader, returning training batch instead')
                 self.no_valid_warn = False
             return self.get_next_trn_batch()
         tprof.timer_start('data')
         try:
             val_X, val_y = next(self.val_iter)
-        except:
+        except StopIteration:
             self.val_iter = iter(self.valid_loader)
             val_X, val_y = next(self.val_iter)
         val_X, val_y = val_X.to(self.device, non_blocking=True), val_y.to(self.device, non_blocking=True)
         tprof.timer_stop('data')
         self.cur_val_batch = val_X, val_y
         return val_X, val_y
-    
+
     def get_cur_val_batch(self):
         return self.cur_val_batch
 
-    def search_epoch(self, epoch, arch_optim):
+    def search_epoch(self, epoch, optim):
         config = self.config
         train_loader = self.train_loader
         valid_loader = self.valid_loader
@@ -93,7 +105,7 @@ class SuperNetEstimator(EstimatorBase):
         n_trn_batch = len(train_loader)
         cur_step = epoch * n_trn_batch
         writer.add_scalar('train/lr', lr, cur_step)
-        
+
         if not valid_loader is None:
             self.val_iter = iter(valid_loader)
             n_val_batch = len(valid_loader)
@@ -116,11 +128,11 @@ class SuperNetEstimator(EstimatorBase):
         for step in range(n_trn_batch):
             trn_X, trn_y = self.get_next_trn_batch()
             N = trn_X.size(0)
-            # arch_optim step
+            # optim step
             if update_arch and (step+1) % arch_update_intv == 0:
-                for a_batch in range(arch_update_batch):
+                for _ in range(arch_update_batch):
                     tprof.timer_start('arch')
-                    arch_optim.step(self)
+                    optim.step(self)
                     tprof.timer_stop('arch')
             # supernet step
             tprof.timer_start('train')

@@ -36,6 +36,7 @@ def augment(config, chkpt_path, expman, train_loader, valid_loader, model, write
 
 
 def hptune(config, chkpt_path, expman, optim, writer, logger, device, measure_fn):
+    del chkpt_path
     estimators = config.estimator
     for estim_name, estim_conf in estimators.items():
         estim_type = estim_conf.type

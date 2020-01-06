@@ -72,6 +72,27 @@ layers:
       preproc: 
 mixed_op:
   type: 'Index'
+  primitives:
+    - 'NC1'
+    - 'SC1'
+    - 'DC1'
+    - 'FC1'
+    - 'NC3'
+    - 'SC3'
+    - 'DC3'
+    - 'FC3'
+    - 'NC5'
+    - 'SC5'
+    - 'DC5'
+    - 'FC5'
+    - 'NC7'
+    - 'SC7'
+    - 'DC7'
+    - 'FC7'
+    - 'NC9'
+    - 'SC9'
+    - 'DC9'
+    - 'FC9'
 ops:
   ops_order: 'weight'
   affine: False
@@ -84,27 +105,6 @@ model:
   channel_init: 8        # init channel
   bottleneck: True
   layers: [1,1,1]
-primitives:
-  - 'NC1'
-  - 'SC1'
-  - 'DC1'
-  - 'FC1'
-  - 'NC3'
-  - 'SC3'
-  - 'DC3'
-  - 'FC3'
-  - 'NC5'
-  - 'SC5'
-  - 'DC5'
-  - 'FC5'
-  - 'NC7'
-  - 'SC7'
-  - 'DC7'
-  - 'FC7'
-  - 'NC9'
-  - 'SC9'
-  - 'DC9'
-  - 'FC9'
 log:
   writer: False
 device:

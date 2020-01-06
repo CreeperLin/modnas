@@ -10,20 +10,11 @@ from collections import namedtuple
 
 Genotype = namedtuple('Genotype', 'dag ops')
 
-PRIMITIVES = []
-
-def set_primitives(prim):
-    global PRIMITIVES
-    PRIMITIVES = prim
-    logging.info('candidate ops: {}'.format(get_primitives()))
-
-def get_primitives():
-    return PRIMITIVES
-
 def to_file(gene, path):
     g_str = str(gene)
     with open(path, 'w', encoding='UTF-8') as f:
         f.write(g_str)
+
 
 def from_file(path):
     if not os.path.exists(path):
@@ -33,10 +24,12 @@ def from_file(path):
         g_str = f.read()
     return from_str(g_str)
 
-def from_str(s):
+
+def from_str(g_str):
     """ generate genotype from string """
-    genotype = eval(s)
+    genotype = eval(g_str)
     return genotype
+
 
 def get_genotype(config, ovr_genotype):
     if not ovr_genotype is None:

@@ -14,13 +14,13 @@ class GradientBasedArchOptim(ArchOptimBase):
         return {
             'a_optim': self.a_optim.state_dict()
         }
-    
+
     def load_state_dict(self, sd):
         self.a_optim.load_state_dict(sd['a_optim'])
 
     def optim_step(self):
         self.a_optim.step()
-    
+
     def optim_reset(self):
         self.a_optim.zero_grad()
 
@@ -180,7 +180,7 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
 class DirectGradArchOptim(GradientBasedArchOptim):
     def __init__(self, space, a_optim):
         super().__init__(space, a_optim)
-    
+
     def step(self, estim):
         self.optim_step()
         self.optim_reset()
@@ -198,7 +198,7 @@ class REINFORCEArchOptim(GradientBasedArchOptim):
         acc_reward = acc1
         total_reward = acc_reward
         return total_reward
-    
+
     def step(self, estim):
         self.optim_reset()
         grad_batch = []

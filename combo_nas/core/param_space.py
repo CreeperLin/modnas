@@ -22,7 +22,7 @@ class ParamSpace():
         self._params_map[name] = param
         if isinstance(param, ParamDiscrete):
             self._discrete_length = None
-    
+
     def new_param_id(self, ):
         self._param_id += 1
         return self._param_id
@@ -30,14 +30,14 @@ class ParamSpace():
     def new_param_name(self, param):
         init = 'c' if isinstance(param, ParamContinuous) else 'd'
         return '{}_{}'.format(init, self._param_id)
-    
+
     def params(self, ):
         for p in self._params_map.values():
             yield p
-    
+
     def get_param(self, name):
         return self._params_map.get(name, None)
-    
+
     def discrete_size(self, ):
         if self._discrete_length is None:
             prod = 1
@@ -45,12 +45,12 @@ class ParamSpace():
                 prod *= len(x)
             self._discrete_length = prod
         return self._discrete_length
-    
+
     def discrete_params(self, ):
         for p in self.params():
             if isinstance(p, ParamDiscrete):
                 yield p
-    
+
     def continuous_params(self, ):
         for p in self.params():
             if isinstance(p, ParamContinuous):
@@ -60,7 +60,7 @@ class ParamSpace():
         for p in self.params():
             if isinstance(p, ParamDiscrete):
                 yield p.value()
-    
+
     def continuous_values(self, ):
         for p in self.params():
             if isinstance(p, ParamContinuous):
@@ -68,16 +68,16 @@ class ParamSpace():
 
     def get_discrete_param(self, idx):
         return list(self.discrete_params())[idx]
-    
+
     def get_continuous_param(self, idx):
         return list(self.continuous_params())[idx]
-       
+
     def get_discrete_value(self, idx):
         return list(self.discrete_params())[idx].value()
-    
+
     def get_continuous_value(self, idx):
         return list(self.continuous_params())[idx].value()
-    
+
     def get_discrete_map(self, idx):
         arch_param = {}
         for ap in self.discrete_params():
@@ -91,7 +91,7 @@ class ParamSpace():
             ap_dim = len(ap)
             ap.set_value(idx % ap_dim)
             idx //= ap_dim
-    
+
     def set_params_map(self, pmap):
         for k, v in pmap.items():
             self.get_param(k).set_value(v)
@@ -102,37 +102,43 @@ class Param():
         space.register(self, name)
 
 
+def default_discrete_sampler(dim):
+    return np.random.randint(dim)
+
+
+def default_continuous_sampler(shape):
+    _init_ratio = 1e-3
+    return nn.Parameter(_init_ratio * torch.randn(shape))
+
+
 class ParamDiscrete():
     def __init__(self, valrange, sampler=None):
+        self.sample = default_discrete_sampler if sampler is None else sampler
         self.valrange = valrange
         self._length = None
         self.val = None
-        if not sampler is None: self.sample = sampler
-
-    def sample(self):
-        return np.random.randint(len(self))
 
     def get_value(self, index):
         return self.valrange[index]
-    
+
     def set_value(self, value):
         index = self.get_index(value)
         self.val = index
-    
+
     def value(self):
         return self.valrange[self.index()]
-    
+
     def index(self):
         if self.val is None:
-            self.val = self.sample()
+            self.val = self.sample(len(self.valrange))
         return self.val
-    
+
     def get_index(self, value):
         return self.valrange.index(value)
-    
+
     def set_index(self, index):
         self.val = index
-    
+
     def __len__(self):
         if self._length is None:
             self._length = len(self.valrange)
@@ -141,39 +147,31 @@ class ParamDiscrete():
 
 class ParamContinuous():
     def __init__(self, shape, sampler):
-        if not sampler is None: self.sample = sampler
+        self.sample = default_continuous_sampler if sampler is None else sampler
         self.shape = shape
-        self.val = self.sample()
+        self.val = self.sample(self.shape)
         self._length = None
-    
-    def sample(self):
-        _init_ratio = 1e-3
-        val = nn.Parameter(_init_ratio * torch.randn(self.shape))
-        return val
-    
+
     def value(self):
         if self.val is None:
-            self.val = self.sample()
+            self.val = self.sample(self.shape)
         return self.val
 
     def get_value(self):
         return self.val
-    
+
     def set_value(self, value):
         self.val = value
-
-    def __len__(self):
-        return self._length
 
 
 class ArchParamSpaceClass(ParamSpace):
     def param_call(self, func, *args, **kwargs):
         return [getattr(p, func)(*args, **kwargs) for p in self.params()]
-    
+
     def param_module_call(self, func, *args, **kwargs):
         for p in self.params():
             p.param_module_call(func, *args, **kwargs)
-    
+
     def param_modules(self, ):
         for p in self.params():
             for m in p.modules():
@@ -192,26 +190,30 @@ class ArchParamSpaceClass(ParamSpace):
 
 ArchParamSpace = ArchParamSpaceClass()
 
-                
+
 class ArchParam(Param):
     def __init__(self, name):
+        self.pid = None
         super().__init__(ArchParamSpace, name)
         self.mids = []
-    
+
+    def value(self):
+        raise NotImplementedError
+
     def add_module(self, mid):
         if mid in self.mids: return
         self.mids.append(mid)
         logging.debug('param: {} add module: {}'.format(self.pid, mid))
-    
+
     def param_module_call(self, func, *args, **kwargs):
         return [
             getattr(ArchModuleSpace.get_module(mid), func)(self.value(), *args, **kwargs)
-        for mid in self.mids]
-    
+            for mid in self.mids]
+
     def module_call(self, func, *args, **kwargs):
         return [
             getattr(ArchModuleSpace.get_module(mid), func)(*args, **kwargs)
-        for mid in self.mids]
+            for mid in self.mids]
 
     def modules(self):
         for mid in self.mids:

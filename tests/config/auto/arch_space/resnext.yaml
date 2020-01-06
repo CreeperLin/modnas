@@ -99,6 +99,14 @@ arch_optim:
   type: 'Random'
 mixed_op:
   type: 'Index'
+  primitives:
+    - 'SC3'
+    - 'SC5'
+    - 'SC7'
+    - 'DC3'
+    - 'DC5'
+    - 'NC3'
+    - 'NC5'
 ops:
   ops_order: 'weight'
   affine: False
@@ -113,14 +121,6 @@ model:
   bottleneck: True
   groups: 4
   width_per_group: 8
-primitives:
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
-  - 'DC3'
-  - 'DC5'
-  - 'NC3'
-  - 'NC5'
 log:
   writer: False
 device:

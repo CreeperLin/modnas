@@ -43,7 +43,7 @@ def report_mem(msg=''):
         mtable[msg].append(fp)
     else:
         mtable[msg] = [fp]
-    print("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
+    print("GPU Mem: {} {} @ {} : {:.3f} {:.3f} dt: {:.3f} MB".format(
         msg.center(20,' '), fr.f_code.co_name, fr.f_lineno, m1, fp, seqstat(mtable[msg])))
     m0 = m1
 
@@ -81,42 +81,6 @@ def profile_time(function):
         return result
     return function_timer
 
-class profile_ctx():
-    def __init__(self, name):
-        self.name = name
-    
-    def __enter__(self):
-        self.m0 = get_gpumem()
-        self.t0 = get_cputime()
-    
-    def __exit__(self):
-        self.t1 = get_cputime()
-        self.m1 = get_gpumem()
-        lat = self.t1 - self.t0
-        mem = self.m1 - self.m0
-        fname = self.name
-        if fname in ttable:
-            ttable[fname].append(lat)
-        else:
-            ttable[fname] = [lat]
-        if fname in mtable:
-            mtable[fname].append(fp)
-        else:
-            mtable[fname] = [fp]
-        print("CPU Time: {}: {:.3f} / {:.3f} / {:.3f} / {} ms".format(
-            fname.center(20,' '), self.t0, self.t1, lat, seqstat(ttable[fname])))
-        print("GPU Mem: {}: {:.3f} / {:.3f} / {:.3f} / {} MB".format(
-            fname.center(20,' '), self.m0, self.m1, mem, seqstat(mtable[fname])))
-    
-    def report(self):
-        t1 = get_cputime()
-        fr = sys._getframe(1)
-        print("CPU Time: {} {} @ {} : {:.3f} dt: {:.3f} ms".format(
-        self.name.center(20,' '), fr.f_code.co_name, fr.f_lineno, t1, t1 - self.t0))
-        m1 = get_gpumem()
-        print("GPU Mem: {} {} @ {} : {:.3f} dt: {:.3f} MB".format(
-        self.name.center(20,' '), fr.f_code.co_name, fr.f_lineno, m1, m1 - self.m0))
-
 
 class TimeProfiler(object):
     def __init__(self):
@@ -126,29 +90,29 @@ class TimeProfiler(object):
         self.timer_start('ofs')
         self.timer_stop('ofs')
         self.offset = self.table['ofs'][0]
-    
-    def timer_start(self, id):
-        t0 = get_cputime()
-        if not id in self.table:
-            self.table[id] = np.array([-t0])
-        else:
-            arr = self.table[id]
-            self.table[id] = np.append(arr, -t0)
-    
-    def timer_stop(self, id):
-        t1 = get_cputime()
-        self.table[id][-1] += t1 - self.offset
 
-    def print_stat(self, id):
-        if not id in self.table: return
-        arr = self.table[id]
+    def timer_start(self, iid):
+        tic = get_cputime()
+        if not iid in self.table:
+            self.table[iid] = np.array([-tic])
+        else:
+            arr = self.table[iid]
+            self.table[iid] = np.append(arr, -tic)
+
+    def timer_stop(self, iid):
+        t1 = get_cputime()
+        self.table[iid][-1] += t1 - self.offset
+
+    def print_stat(self, iid):
+        if not iid in self.table: return
+        arr = self.table[iid]
         print('Time {}: {} / {:.3f} / {} ms'.format(
-            id.center(10,' '), len(arr), arr[-1], seqstat(arr)))
-    
+            iid.center(10, ' '), len(arr), arr[-1], seqstat(arr)))
+
     def stat_all(self):
         for i in self.table:
             self.print_stat(i)
-    
+
     def begin_acc_item(self, cid):
         if not cid in self.acc_table:
             self.acc_table[cid] = np.array([0.])
@@ -156,9 +120,9 @@ class TimeProfiler(object):
             arr = self.acc_table[cid]
             self.acc_table[cid] = np.append(arr, [0.])
 
-    def add_acc_item(self, cid, id):
+    def add_acc_item(self, cid, iid):
         arr = self.acc_table[cid]
-        item = self.table[id]
+        item = self.table[iid]
         arr[-1] += item[-1]
 
     def clear_acc_item(self, cid):
@@ -171,7 +135,7 @@ class TimeProfiler(object):
         print('AccTime {}: {} / {:.3f} / {} ms'.format(
             cid.center(10,' '), len(arr), arr[-1], seqstat(arr)))
 
-    def avg(self, id):
-        return 0 if not id in self.table else np.mean(self.table[id])
+    def avg(self, iid):
+        return 0 if not id in self.table else np.mean(self.table[iid])
 
 tprof = TimeProfiler()

@@ -17,7 +17,7 @@ class Registry(object):
         except ImportError:
             raise ValueError('A module ({}) not found'.format(path))
         return module
-    
+
     def all(self):
         return self._reg_class.values()
 
@@ -27,10 +27,10 @@ class Registry(object):
         if rid in self._reg_class:
             raise ValueError('Cannot re-register rid: {}'.format(rid))
         self._reg_class[rid] = regclass
-    
+
     def update(self, regdict):
         self._reg_class.update(regdict)
-    
+
     def get(self, rid):
         rid = rid.lower()
         if not rid in self._reg_class: raise ValueError('registry id not found: {}'.format(rid))

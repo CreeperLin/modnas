@@ -116,6 +116,14 @@ layers:
       preproc: 
 mixed_op:
   type: 'Index'
+  primitives:
+    - 'AVG'
+    - 'MAX'
+    - 'IDT'
+    - 'SC3'
+    - 'SC5'
+    - 'SC7'
+    - 'DC3'
 ops:
   ops_order: 'bn_act_weight'
   affine: False
@@ -126,14 +134,6 @@ model:
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
-primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
-  - 'DC3'
 log:
   writer: False
 device:

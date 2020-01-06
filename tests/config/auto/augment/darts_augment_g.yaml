@@ -53,14 +53,6 @@ model:
   inputs_node: 1
   shared_a: True
   auxiliary: False
-primitives:
-  - 'AVG'
-  - 'MAX'
-  - 'IDT'
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
-  - 'DC3'
 log:
   writer: False
 device:

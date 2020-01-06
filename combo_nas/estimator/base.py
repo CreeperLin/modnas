@@ -3,8 +3,7 @@ import torch
 import torch.nn as nn
 from .. import utils
 from ..utils.profiling import tprof
-from ..core.nas_modules import ArchModuleSpace
-from ..arch_space.ops import build_op, Identity, DropPath_
+from ..arch_space.ops import Identity, DropPath_
 from ..arch_space.constructor import Slot
 from ..arch_space import genotypes as gt
 
@@ -111,8 +110,8 @@ def save_checkpoint(expman, model, w_optim, lr_scheduler, epoch, logger):
             'epoch': epoch,
         }, save_path)
         logger.info("Saved checkpoint to: %s" % save_path)
-    except Exception as e:
-        logger.error("Save checkpoint failed: "+str(e))
+    except Exception as exc:
+        logger.error("Save checkpoint failed: "+str(exc))
 
 def save_genotype(expman, genotype, epoch, logger):
     try:
@@ -120,12 +119,12 @@ def save_genotype(expman, genotype, epoch, logger):
         save_path = expman.join('output', 'gene_{:03d}.gt'.format(epoch+1))
         gt.to_file(genotype, save_path)
         logger.info("Saved genotype to: %s" % save_path)
-    except Exception as e:
-        logger.error("Save genotype failed: "+str(e))
+    except Exception as exc:
+        logger.error("Save genotype failed: "+str(exc))
 
 class EstimatorBase():
-    def __init__(self, config, expman, train_loader, valid_loader, 
-                model, writer, logger, device):
+    def __init__(self, config, expman, train_loader, valid_loader,
+                 model, writer, logger, device):
         self.config = config
         self.expman = expman
         self.train_loader = train_loader
@@ -142,19 +141,19 @@ class EstimatorBase():
             self.w_optim = utils.get_optim(self.model.weights(), config.w_optim)
         if 'lr_scheduler' in config:
             self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, config.lr_scheduler, config.epochs)
-    
+
     def predict(self, ):
         pass
 
     def train(self):
         pass
-    
+
     def validate(self, ):
         pass
-    
-    def search(self, arch_optim):
+
+    def search(self, optim):
         pass
-    
+
     def train_epoch(self, epoch, tot_epochs, **kwargs):
         tr_kwargs = {
             'train_loader': self.train_loader,
@@ -170,7 +169,7 @@ class EstimatorBase():
         }
         tr_kwargs.update(kwargs)
         return train(**tr_kwargs)
-    
+
     def validate_epoch(self, epoch, tot_epochs, cur_step=0, **kwargs):
         va_kwargs = {
             'valid_loader': self.valid_loader,
@@ -186,13 +185,13 @@ class EstimatorBase():
         if cur_step is None: va_kwargs['cur_step'] = (epoch+1) * len(self.train_loader)
         va_kwargs.update(kwargs)
         return validate(**va_kwargs)
-    
+
     def update_drop_path_prob(self, epoch, tot_epochs, model=None):
         model = self.model if model is None else model
         drop_prob = self.config.drop_path_prob * epoch / tot_epochs
         model.drop_path_prob(drop_prob)
         self.logger.debug('drop path prob: {:.5f}'.format(drop_prob))
-    
+
     def apply_drop_path(self, model=None):
         if self.config.drop_path_prob <= 0.0: return
         model = self.model if model is None else model
@@ -206,8 +205,8 @@ class EstimatorBase():
                     DropPath_()
                 )
             slot.set_entity(ent)
-        Slot.apply_all(apply, gen=(lambda:Slot.slots_model(model)))
-    
+        Slot.apply_all(apply, gen=(lambda: Slot.slots_model(model)))
+
     def save(self, epoch):
         self.save_genotype(epoch)
         self.save_checkpoint(epoch)
@@ -219,13 +218,13 @@ class EstimatorBase():
         lr_scheduler = self.lr_scheduler
         logger = self.logger
         save_checkpoint(expman, model, w_optim, lr_scheduler, epoch, logger)
-    
+
     def save_genotype(self, epoch, genotype=None):
         expman = self.expman
         logger = self.logger
         genotype = self.model.to_genotype() if genotype is None else genotype
         save_genotype(expman, genotype, epoch, logger)
-    
+
     def load(self, chkpt_path):
         if chkpt_path is None:
             self.logger.info("Estimator: Starting new run")

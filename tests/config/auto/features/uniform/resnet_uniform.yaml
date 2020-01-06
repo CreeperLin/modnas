@@ -47,6 +47,15 @@ arch_optim:
       weight_decay: 0.0
 mixed_op:
   type: 'BinGateUniform'
+  primitives:
+    - 'SC3'
+    - 'SC5'
+    - 'SC7'
+    - 'NC3'
+    - 'NC5'
+    - 'NC7'
+    - 'DC3'
+    - 'DC5'
 ops:
   ops_order: 'weight'
   affine: False
@@ -58,15 +67,6 @@ model:
   classes: 10             # use 10 for MNIST, CIFAR10
   channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
   channel_init: 16        # init channel
-primitives:
-  - 'SC3'
-  - 'SC5'
-  - 'SC7'
-  - 'NC3'
-  - 'NC5'
-  - 'NC7'
-  - 'DC3'
-  - 'DC5'
 log:
   writer: False
 device:

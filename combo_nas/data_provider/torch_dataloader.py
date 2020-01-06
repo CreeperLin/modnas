@@ -1,5 +1,4 @@
 import logging
-import os
 import torch
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
@@ -31,7 +30,7 @@ class Cutout(object):
 
 
 def get_torch_dataloader(config, metadata):
-    dataset, root, MEAN, STD, validation = metadata
+    dataset, root, mean, stddev, validation = metadata
     prefetch = config.prefetch
     size = config.get('size', 1)
     collate_fn = fast_collate if prefetch else None
@@ -88,28 +87,27 @@ def get_torch_dataloader(config, metadata):
 
     if config.jitter:
         trn_transf.append(transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1))
-    
     cutout = config.cutout
-    
+
     if not prefetch:
-        normalize = [transforms.ToTensor(), transforms.Normalize(MEAN, STD)]
+        normalize = [transforms.ToTensor(), transforms.Normalize(mean, stddev)]
         trn_transf.extend(normalize)
         val_transf.extend(normalize)
         if cutout > 0:
             trn_transf.append(Cutout(cutout))
-    
+
     if dset == datasets.ImageFolder:
         if validation:
             data = dset(root, transform=transforms.Compose(val_transf))
         else:
             data = dset(root, transform=transforms.Compose(trn_transf))
     elif validation:
-        data = dset(root, train = False, 
-                transform=transforms.Compose(val_transf), download = True)
+        data = dset(root, train=False,
+                    transform=transforms.Compose(val_transf), download=True)
     else:
-        data = dset(root, train = True,
-                transform=transforms.Compose(trn_transf), download = True)
-    
+        data = dset(root, train=True,
+                    transform=transforms.Compose(trn_transf), download=True)
+
     sp_ratio = config.split_ratio
     trn_loader = None
     val_loader = None
@@ -129,27 +127,27 @@ def get_torch_dataloader(config, metadata):
         trn_sampler = SubsetRandomSampler(indices[:split])
         val_sampler = SubsetRandomSampler(indices[split:])
         trn_loader = DataLoader(data,
-                        batch_size=config.trn_batch_size,
-                        sampler=trn_sampler,
-                        **extra_kwargs)
+                                batch_size=config.trn_batch_size,
+                                sampler=trn_sampler,
+                                **extra_kwargs)
         val_loader = DataLoader(data,
-                        batch_size=config.val_batch_size,
-                        sampler=val_sampler,
-                        **extra_kwargs)
+                                batch_size=config.val_batch_size,
+                                sampler=val_sampler,
+                                **extra_kwargs)
     elif validation:
         val_sampler = SubsetRandomSampler(indices)
         val_loader = DataLoader(data,
-            batch_size=config.val_batch_size,
-            sampler=val_sampler, **extra_kwargs)
+                                batch_size=config.val_batch_size,
+                                sampler=val_sampler, **extra_kwargs)
     else:
         trn_sampler = SubsetRandomSampler(indices)
         trn_loader = DataLoader(data,
-            batch_size=config.trn_batch_size,
-            sampler=trn_sampler, **extra_kwargs)
-    
+                                batch_size=config.trn_batch_size,
+                                sampler=trn_sampler, **extra_kwargs)
+
     if prefetch:
-        if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, MEAN, STD, cutout)
-        if not val_loader is None: val_loader = data_prefetcher(val_loader, MEAN, STD, cutout)
+        if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, mean, stddev, cutout)
+        if not val_loader is None: val_loader = data_prefetcher(val_loader, mean, stddev, cutout)
     if trn_loader is None: return val_loader
     if val_loader is None: return trn_loader
     return trn_loader, val_loader

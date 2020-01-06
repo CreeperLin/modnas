@@ -1,9 +1,6 @@
-import torch
-import torch.nn as nn
 import itertools
 from ..base import EstimatorBase
 from ... import utils
-from ...utils.profiling import tprof
 from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
@@ -32,7 +29,7 @@ class SubNetEstimator(EstimatorBase):
 
     def predict(self, ):
         pass
-    
+
     def construct_subnet(self):
         config = self.config
         # supernet based
@@ -46,7 +43,7 @@ class SubNetEstimator(EstimatorBase):
         # model = convert_from_genotype(net, genotype, convert_fn, drop_path)
         # model = NASController(model, self.model.criterion, dev_list=None)
         # model.init_model(config.init)
-    
+
     def train(self):
         config = self.config
         tot_epochs = config.epochs
@@ -56,9 +53,9 @@ class SubNetEstimator(EstimatorBase):
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
-            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs)
+            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             # validate
-            val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs)
+            val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             if val_top1 is None: val_top1 = trn_top1
             best_val_top1 = max(best_val_top1, val_top1)
             # save
@@ -71,7 +68,7 @@ class SubNetEstimator(EstimatorBase):
         top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0, model=subnet)
         return top1_avg
 
-    def search(self, arch_optim):
+    def search(self, optim):
         logger = self.logger
         config = self.config
         tot_epochs = config.epochs
@@ -86,8 +83,8 @@ class SubNetEstimator(EstimatorBase):
             if epoch == tot_epochs: break
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
-                arch_optim.step(self)
-            next_batch = arch_optim.next(batch_size=arch_batch_size)
+                optim.step(self)
+            next_batch = optim.next(batch_size=arch_batch_size)
             val_top1 = 0.
             for params in next_batch:
                 # estim step
