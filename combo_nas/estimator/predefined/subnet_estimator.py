@@ -35,14 +35,6 @@ class SubNetEstimator(EstimatorBase):
         # supernet based
         self.model.init_model(config.init)
         return self.model
-        # subnet based
-        # convert_fn = None
-        # net = build_arch_space(config.model.type, config.model)
-        # drop_path = 0.0
-        # genotype = self.model.to_genotype()
-        # model = convert_from_genotype(net, genotype, convert_fn, drop_path)
-        # model = NASController(model, self.model.criterion, dev_list=None)
-        # model.init_model(config.init)
 
     def train(self):
         config = self.config

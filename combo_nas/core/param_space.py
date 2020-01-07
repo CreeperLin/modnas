@@ -3,7 +3,6 @@ import numpy as np
 from collections import OrderedDict
 import torch
 import torch.nn as nn
-from .nas_modules import ArchModuleSpace
 
 class ParamSpace():
     def __init__(self):
@@ -100,6 +99,10 @@ class ParamSpace():
 class Param():
     def __init__(self, space, name):
         space.register(self, name)
+    
+    def __deepcopy__(self, memo):
+        # disable deepcopy
+        return self
 
 
 def default_discrete_sampler(dim):
@@ -195,29 +198,28 @@ class ArchParam(Param):
     def __init__(self, name):
         self.pid = None
         super().__init__(ArchParamSpace, name)
-        self.mids = []
+        self._modules = []
 
     def value(self):
         raise NotImplementedError
 
-    def add_module(self, mid):
-        if mid in self.mids: return
-        self.mids.append(mid)
-        logging.debug('param: {} add module: {}'.format(self.pid, mid))
+    def add_module(self, m):
+        self._modules.append(m)
+        logging.debug('param: {} add module: {}'.format(self.pid, type(m)))
 
     def param_module_call(self, func, *args, **kwargs):
         return [
-            getattr(ArchModuleSpace.get_module(mid), func)(self.value(), *args, **kwargs)
-            for mid in self.mids]
+            getattr(m, func)(self.value(), *args, **kwargs)
+            for m in self.modules()]
 
     def module_call(self, func, *args, **kwargs):
         return [
-            getattr(ArchModuleSpace.get_module(mid), func)(*args, **kwargs)
-            for mid in self.mids]
+            getattr(m, func)(*args, **kwargs)
+            for m in self.modules()]
 
     def modules(self):
-        for mid in self.mids:
-            yield ArchModuleSpace.get_module(mid)
+        for m in self._modules:
+            yield m
 
 
 class ArchParamContinuous(ParamContinuous, ArchParam):

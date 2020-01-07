@@ -131,7 +131,7 @@ class DARTSLikeNet(nn.Module):
                 kwargs['arch_param_map'] = convert_fn.param_map[slot.name]
             ent = default_predefined_converter(slot, *args, **kwargs)
             if not slot.name in convert_fn.param_map:
-                convert_fn.param_map[slot.name] = ent.arch_param_map()
+                convert_fn.param_map[slot.name] = ent.arch_param_map
             return ent
         return convert_fn
 

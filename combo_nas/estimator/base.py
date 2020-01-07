@@ -104,7 +104,6 @@ def save_checkpoint(expman, model, w_optim, lr_scheduler, epoch, logger):
         save_path = expman.join('chkpt', 'chkpt_{:03d}.pt'.format(epoch+1))
         torch.save({
             'model': model.state_dict(),
-            # 'arch': ArchModuleSpace.nasmod_state_dict(),
             'w_optim': w_optim.state_dict(),
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,
@@ -124,12 +123,19 @@ def save_genotype(expman, genotype, epoch, logger):
 
 class EstimatorBase():
     def __init__(self, config, expman, train_loader, valid_loader,
-                 model, writer, logger, device):
+                 model_builder, model, writer, logger, device):
         self.config = config
         self.expman = expman
         self.train_loader = train_loader
         self.valid_loader = valid_loader
+        self.model_builder = model_builder
         self.model = model
+        if self.model is None:
+            try:
+                self.model = model_builder()
+                logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
+            except Exception as e:
+                logger.info('Model build failed: {}'.format(e))
         self.writer = writer
         self.logger = logger
         self.device = device

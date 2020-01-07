@@ -6,12 +6,12 @@ from ..base import EstimatorBase
 from ...utils.config import Config
 
 class HPTuneEstimator(EstimatorBase):
-    def __init__(self, config, expman, writer, logger, device, measure_fn):
-        super().__init__(config, expman, None, None, None, writer, logger, device)
+    def __init__(self, measure_fn, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.trial_index = 0
         self.measure_fn = measure_fn
-        self.hparams = None
-        self.results = None
+        self.hparams = []
+        self.results = []
 
     def step(self, hp):
         logger = self.logger

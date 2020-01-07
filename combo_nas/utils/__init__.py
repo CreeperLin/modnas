@@ -6,6 +6,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 from .BoT import *
+try:
+    from tensorboardX import SummaryWriter
+except:
+    SummaryWriter = None
+try:
+    import adabound
+except:
+    adabound = None
 
 def get_current_device():
     if not torch.cuda.is_available(): return 'cpu'
@@ -135,7 +143,8 @@ class DummyWriter():
 
 def get_writer(log_dir, enabled):
     if enabled:
-        from tensorboardX import SummaryWriter
+        if SummaryWriter is None:
+            raise ValueError('module SummaryWriter is not found')
         writer = SummaryWriter(log_dir)
     else:
         writer = DummyWriter()
@@ -157,12 +166,13 @@ def get_optim(params, config):
     if config.type == 'adam':
         optimizer = torch.optim.Adam
     elif config.type == 'adabound':
-        import adabound
+        if adabound is None:
+            raise ValueError('module adabound not found')
         optimizer = adabound.AdaBound
     elif config.type == 'sgd':
         optimizer = torch.optim.SGD
     else:
-        raise Exception("Optimizer not supported: %s" % config.optimizer)
+        raise ValueError("Optimizer not supported: %s" % config.optimizer)
     return optimizer(params, **optim_args)
 
 def get_lr_scheduler(optim, config, epochs):

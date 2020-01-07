@@ -59,7 +59,7 @@ search:
       plot: False
       aux_weight: 0.0
 arch_optim:
-  type: 'Dummy'
+  type: 'DirectGrad'
   a_optim:
     type: 'adam'
     args:

@@ -1,8 +1,8 @@
+import logging
 from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..core.nas_modules import NASModule
 from ..core.param_space import ArchParamDiscrete, ArchParamContinuous
 from .ops import build_op
 from ..utils.registration import Registry, build, get_builder, register, register_wrapper
@@ -13,18 +13,35 @@ get_mixed_op_builder = partial(get_builder, mixed_op_registry)
 build_mixed_op = partial(build, mixed_op_registry)
 register = partial(register_wrapper, mixed_op_registry)
 
-class MixedOp(NASModule):
+class MixedOp(nn.Module):
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map):
-        super().__init__(arch_param_map)
+        super().__init__()
+        self.arch_param_map = arch_param_map
+        for ap in arch_param_map.values():
+            ap.add_module(self)
         self.ops = ops
         self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
         self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
         self.chn_out = chn_out if isinstance(chn_out, int) else chn_in[0]
         self.stride = stride
+        self.w_max = 0
         self._ops = nn.ModuleList([
             build_op(prim, self.chn_in, self.chn_out, stride) for prim in ops
         ])
-    
+        logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
+
+    def arch_param(self, name):
+        return self.arch_param_map.get(name)
+
+    def arch_param_value(self, name):
+        return self.arch_param_map.get(name).value()
+
+    def arch_param_map(self):
+        return self.arch_param_map
+
+    def to_genotype(self, *args, **kwargs):
+        raise NotImplementedError
+
 
 class WeightedSumMixedOp(MixedOp):
     """ Mixed operation as weighted sum """

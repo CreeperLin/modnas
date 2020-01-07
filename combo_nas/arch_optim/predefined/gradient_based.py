@@ -2,7 +2,6 @@
 import copy
 import torch
 from ..base import ArchOptimBase
-from ...core.nas_modules import ArchModuleSpace
 from ...utils import get_optim, accuracy
 
 class GradientBasedArchOptim(ArchOptimBase):
@@ -139,12 +138,15 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
             w_optim: weights optimizer - for virtual step
         """
         self.optim_reset()
+        model = estim.model
         val_X, val_y = estim.get_next_val_batch()
         # sample k
         if self.sample:
-            ArchModuleSpace.module_call('sample_ops', n_samples=self.n_samples)
+            for m in model.mixed_ops():
+                m.sample_ops(n_samples=self.n_samples)
         # loss
-        ArchModuleSpace.module_call('arch_param_grad', enabled=True)
+        for m in model.mixed_ops():
+            m.arch_param_grad(enabled=True)
         loss = estim.model.loss(val_X, val_y)
         # backward
         loss.backward()
@@ -173,8 +175,9 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
                     for i in s_op:
                         p[i] += (torch.log(k) - torch.log(kprev))
 
-        ArchModuleSpace.module_call('arch_param_grad', enabled=False)
-        ArchModuleSpace.module_call('reset_ops')
+        for m in model.mixed_ops():
+            m.arch_param_grad(enabled=False)
+            m.reset_ops()
 
 
 class DirectGradArchOptim(GradientBasedArchOptim):

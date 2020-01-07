@@ -4,10 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..arch_space import genotypes as gt
+from ..arch_space.mixed_ops import MixedOp
 from ..arch_space.ops import DropPath_
 from ..arch_space.constructor import Slot
 from .param_space import ArchParamSpace
-from .nas_modules import ArchModuleSpace
 
 class NASController(nn.Module):
     def __init__(self, net, criterion, device_ids=None):
@@ -88,7 +88,7 @@ class NASController(nn.Module):
             return self.to_genotype_ops(*args, **kwargs)
 
     def to_genotype_ops(self, *args, **kwargs):
-        gene_ops = ArchModuleSpace.to_genotype_all(*args, **kwargs)
+        gene_ops = [m.to_genotype(*args, **kwargs) for m in self.mixed_ops()]
         return gt.Genotype(dag=None, ops=gene_ops)
 
     def to_genotype_slots(self, *args, **kwargs):
@@ -117,7 +117,9 @@ class NASController(nn.Module):
         return self.arch_param_cont()
 
     def mixed_ops(self):
-        return ArchModuleSpace.modules()
+        for m in self.modules():
+            if isinstance(m, MixedOp):
+                yield m
 
     def drop_path_prob(self, p):
         """ Set drop path probability """

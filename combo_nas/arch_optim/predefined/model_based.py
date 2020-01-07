@@ -62,6 +62,7 @@ class ModelBasedArchOptim(DiscreteSpaceArchOptim):
         return batch
 
     def step(self, estim):
+        inputs, results = estim.get_last_results()
         for inp, res in zip(inputs, results):
             self.xs.append(inp)
             self.ys.append(res)

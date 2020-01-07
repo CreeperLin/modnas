@@ -12,8 +12,11 @@ Genotype = namedtuple('Genotype', 'dag ops')
 
 def to_file(gene, path):
     g_str = str(gene)
-    with open(path, 'w', encoding='UTF-8') as f:
-        f.write(g_str)
+    try:
+        with open(path, 'w', encoding='UTF-8') as f:
+            f.write(g_str)
+    except Exception as e:
+        logging.info('failed saving genotype: {}'.format(e))
 
 
 def from_file(path):
