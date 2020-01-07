@@ -88,7 +88,7 @@ class BinGateMixedOp(MixedOp):
     def arch_param_grad(self, enabled):
         self.a_grad_enabled = enabled
 
-    def sample(self):
+    def sample_path(self):
         p = self.arch_param_value('p')
         s_op = self.s_op
         self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
@@ -106,7 +106,7 @@ class BinGateMixedOp(MixedOp):
         self.s_op = s_op
 
     def forward(self, x):
-        self.sample()
+        self.sample_path()
         x = x[0] if isinstance(x, list) else x
 
         s_path_f = self.s_path_f
@@ -186,19 +186,21 @@ class BinGateFunction(torch.autograd.function.Function):
 
 class BinGateUniformMixedOp(BinGateMixedOp):
     """ Mixed operation controlled by binary gate """
-    def sample(self):
+    def sample_path(self):
         p = self.arch_param_value('p')
         s_op = self.s_op
-        w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
-        self.w_path_f = w_path_f
-        prob = F.softmax(torch.empty(w_path_f.shape, device=w_path_f.device).uniform_(0, 1), dim=-1)
-        samples = prob.multinomial(self.n_samples)
+        self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
+        # sample uniformly
+        samples = F.softmax(torch.empty(len(s_op)).uniform_(0, 1), dim=-1).multinomial(self.n_samples)
         s_path_f = [s_op[i] for i in samples]
         self.s_path_f = s_path_f
 
     def sample_ops(self, n_samples):
-        prob = F.softmax(torch.empty(self.w_path_f.shape, device=self.w_path_f.device).uniform_(0, 1), dim=-1)
-        samples = prob.multinomial(n_samples).detach()
+        p = self.arch_param_value('p')
+        # sample uniformly
+        samples = F.softmax(torch.empty(p.shape).uniform_(0, 1), dim=-1).multinomial(n_samples).detach()
+        # sample according to p
+        # samples = F.softmax(p, dim=-1).multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
 
 
