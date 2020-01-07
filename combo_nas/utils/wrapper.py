@@ -78,6 +78,7 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
                 if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
                     op_convert_fn = net.get_genotype_search_converter()
                 genotype = gt.get_genotype(config.genotypes, genotype)
+                fn_kwargs.update(config.genotypes.build_args)
                 convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
             # controller
             crit = utils.get_net_crit(config.criterion)
@@ -87,6 +88,7 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
                 model.to_genotype = model.to_genotype_ops
             if config.genotypes.use_slot:
                 model.to_genotype_ops = model.to_genotype_slots
+            model.to_genotype_args = config.genotypes.to_args
             # init
             model.init_model(config.init)
             return model
@@ -141,17 +143,19 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
         layers_conf = config.get('layers', None)
         if not layers_conf is None:
             convert_from_layers(net, layers_conf, layer_convert_fn)
+        fn_kwargs = {}
         # op
         op_convert_fn = convert_fn[-1]
         if genotype is None:
             if op_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
                 op_convert_fn = net.get_predefined_augment_converter()
-            convert_from_predefined_net(net, op_convert_fn)
+            convert_from_predefined_net(net, op_convert_fn, fn_kwargs=fn_kwargs)
         else:
             if op_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
                 op_convert_fn = net.get_genotype_augment_converter()
             genotype = gt.get_genotype(config.genotypes, genotype)
-            convert_from_genotype(net, genotype, op_convert_fn)
+            fn_kwargs.update(config.genotypes.build_args)
+            convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
         # controller
         crit = utils.get_net_crit(config.criterion)
         model = NASController(net, crit, dev_list).to(device=dev)

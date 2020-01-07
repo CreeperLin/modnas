@@ -17,6 +17,7 @@ class NASController(nn.Module):
             device_ids = list(range(torch.cuda.device_count()))
         self.device_ids = device_ids
         self.net = net
+        self.to_genotype_args = {}
 
     def forward(self, x):
         if len(self.device_ids) <= 1:
@@ -82,17 +83,17 @@ class NASController(nn.Module):
 
     def to_genotype(self, *args, **kwargs):
         if hasattr(self.net, 'to_genotype'):
-            gene_dag = self.net.to_genotype(*args, **kwargs)
+            gene_dag = self.net.to_genotype(*args, **kwargs, **self.to_genotype_args)
             return gt.Genotype(dag=gene_dag, ops=None)
         else:
             return self.to_genotype_ops(*args, **kwargs)
 
     def to_genotype_ops(self, *args, **kwargs):
-        gene_ops = [m.to_genotype(*args, **kwargs) for m in self.mixed_ops()]
+        gene_ops = [m.to_genotype(*args, **kwargs, **self.to_genotype_args) for m in self.mixed_ops()]
         return gt.Genotype(dag=None, ops=gene_ops)
 
     def to_genotype_slots(self, *args, **kwargs):
-        gene_ops = Slot.to_genotype_all(*args, **kwargs)
+        gene_ops = Slot.to_genotype_all(*args, **kwargs, **self.to_genotype_args)
         return gt.Genotype(dag=None, ops=gene_ops)
 
     def weights(self, check_grad=False):

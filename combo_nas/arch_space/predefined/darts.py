@@ -112,10 +112,10 @@ class DARTSLikeNet(nn.Module):
             for c in cells:
                 c.build_from_genotype(g, *args, **kwargs)
 
-    def to_genotype(self):
+    def to_genotype(self, k=2):
         gene = []
         for cells in self.cell_group:
-            gene.append(cells[0].to_genotype(k=2)[1])
+            gene.append(cells[0].to_genotype(k))
         return gene
 
     def dags(self):

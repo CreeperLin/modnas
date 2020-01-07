@@ -69,6 +69,8 @@ def check_config(hp, excludes=[]):
         'genotypes.use_slot': True,
         'genotypes.gt_str': '',
         'genotypes.gt_path': '',
+        'genotypes.to_args': {},
+        'genotypes.build_args': {},
         'init.type': 'he_normal_fout',
         'init.conv_div_groups': True,
     }
