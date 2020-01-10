@@ -57,7 +57,7 @@ mixed_op:
     - 'NC7'
     - 'SC3'
 ops:
-  ops_order: 'weight'
+  ops_order: 'weight_bn'
   affine: False
 criterion:
   type: 'CE'

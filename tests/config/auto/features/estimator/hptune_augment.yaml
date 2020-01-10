@@ -59,7 +59,7 @@ hptune:
               print_freq: 200
               save_freq: 0
         ops:
-          ops_order: 'weight'
+          ops_order: 'weight_bn'
           affine: False
         criterion:
           type: 'LS'

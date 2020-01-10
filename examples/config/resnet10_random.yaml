@@ -87,7 +87,7 @@ mixed_op:
     - 'DC3'
     - 'DC5'
 ops:
-  ops_order: 'weight'
+  ops_order: 'weight_bn'
   affine: False
 criterion:
   type: 'LS'
