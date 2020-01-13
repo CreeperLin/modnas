@@ -130,12 +130,13 @@ class EstimatorBase():
         self.valid_loader = valid_loader
         self.model_builder = model_builder
         self.model = model
-        if self.model is None:
+        if self.model is None and not model_builder is None:
             try:
                 self.model = model_builder()
-                logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
             except Exception as e:
                 logger.info('Model build failed: {}'.format(e))
+        if not self.model is None:
+            logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
         self.writer = writer
         self.logger = logger
         self.device = device

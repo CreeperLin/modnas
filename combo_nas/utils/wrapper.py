@@ -13,7 +13,7 @@ from ..arch_optim import build_arch_optim
 from .. import utils as utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt
-from ..hparam.space import build_hparam_space_from_dict, build_hparam_space_from_json, HParamSpace
+from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 from .routine import search, augment, hptune
 
 def load_config(conf, excludes):
@@ -49,7 +49,7 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
         configure_ops(config.ops)
     # model
     if 'model' in config:
-        def model_builder(genotype=genotype, convert_fn=convert_fn):
+        def default_model_builder(genotype=genotype, convert_fn=convert_fn):
             Slot.reset()
             # net
             net = build_arch_space(config.model.type, config.model)
@@ -92,7 +92,8 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
             # init
             model.init_model(config.init)
             return model
-        model = model_builder()
+        model = default_model_builder()
+        model_builder = default_model_builder
     # arch
     arch_kwargs = dict(config.arch_optim.copy())
     del arch_kwargs['type']
@@ -194,8 +195,6 @@ def init_all_hptune(config, name, exp, chkpt, device, measure_fn=None):
     hp_path = config.hpspace.get('hp_path', None)
     if hp_path is None:
         build_hparam_space_from_dict(config.hpspace.hp_dict)
-    else:
-        build_hparam_space_from_json(hp_path)
     # optim
     optim_kwargs = dict(config.hptuner.copy())
     del optim_kwargs['type']

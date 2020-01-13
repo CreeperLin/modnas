@@ -1,5 +1,5 @@
 from .regression_estimator import RegressionEstimator, ArchPredictor
-from ...core.param_space import ArchParamDiscrete
+from ...core.param_space import ArchParamCategorical
 try:
     from nasbench import api
 except ImportError:
@@ -18,9 +18,9 @@ class NASBenchNet():
         n_states = n_nodes - 2
         n_edges = n_nodes * (n_nodes-1) // 2
         for _ in range(n_edges):
-            matrix.append(ArchParamDiscrete([0, 1]))
+            matrix.append(ArchParamCategorical([0, 1]))
         for _ in range(n_states):
-            ops.append(ArchParamDiscrete([CONV1X1, CONV3X3, MAXPOOL3X3]))
+            ops.append(ArchParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]))
         self.matrix_params = matrix
         self.ops_params = ops
 

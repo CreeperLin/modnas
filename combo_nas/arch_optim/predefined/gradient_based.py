@@ -7,7 +7,7 @@ from ...utils import get_optim, accuracy
 class GradientBasedArchOptim(ArchOptimBase):
     def __init__(self, space, a_optim):
         super().__init__(space)
-        self.a_optim = get_optim(self.space.continuous_values(), a_optim)
+        self.a_optim = get_optim(self.space.tensor_values(), a_optim)
 
     def state_dict(self):
         return {
@@ -156,7 +156,7 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
         else:
             with torch.no_grad():
                 prev_pw = []
-                for p, m in self.space.continuous_param_modules():
+                for p, m in self.space.tensor_param_modules():
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
@@ -167,7 +167,7 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
             self.optim_step()
 
             with torch.no_grad():
-                for kprev, (p, m) in zip(prev_pw, self.space.continuous_param_modules()):
+                for kprev, (p, m) in zip(prev_pw, self.space.tensor_param_modules()):
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))

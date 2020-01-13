@@ -15,6 +15,7 @@ class HPTuneEstimator(EstimatorBase):
 
     def step(self, hp):
         logger = self.logger
+        logger.info('measuring hparam: {}'.format(hp))
         config = self.config
         trial_config = copy.deepcopy(config.trial_config)
         Config.apply(trial_config, hp)
@@ -84,7 +85,7 @@ class HPTuneEstimator(EstimatorBase):
                     best_score = score
                     best_hparams = hp
                     best_iter = epoch
-                self.results.append(res)
+                self.results.append(score)
             logger.info('hptune: iter: {}\t score: {:.4f}/{:.4f}'.format(epoch+1, score, best_score))
             optim.update(self)
             if epoch >= best_iter + early_stopping:

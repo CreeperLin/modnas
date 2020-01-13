@@ -77,7 +77,9 @@ def get_testnet(config):
     chn_in = config.channel_in
     chn = config.channel_init
     n_classes = config.classes
-    return TestNet(chn_in, chn, n_classes)
+    rep = config.get('rep', 10)
+    stage = config.get('stage', 1)
+    return TestNet(chn_in, chn, n_classes, rep, stage)
 
 
 @arch_space.register('TestNetSpace')

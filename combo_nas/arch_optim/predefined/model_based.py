@@ -5,7 +5,7 @@ import numpy as np
 from ..base import ArchOptimBase
 from ...utils import accuracy
 from ...core.param_space import ArchParamSpace
-from .gridsearch import DiscreteSpaceArchOptim
+from .gridsearch import CategoricalSpaceArchOptim
 
 class CostModel():
     def __init__(self,):
@@ -26,7 +26,7 @@ class ModelOptimizer():
         pass
 
 
-class ModelBasedArchOptim(DiscreteSpaceArchOptim):
+class ModelBasedArchOptim(CategoricalSpaceArchOptim):
     def __init__(self, space, cost_model, model_optimizer):
         super().__init__(space)
         self.cost_model = cost_model

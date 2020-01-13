@@ -5,10 +5,10 @@ import numpy as np
 from ..base import ArchOptimBase
 from ...utils import accuracy
 
-class DiscreteSpaceArchOptim(ArchOptimBase):
+class CategoricalSpaceArchOptim(ArchOptimBase):
     def __init__(self, space):
         super().__init__(space)
-        self.space_size = self.space.discrete_size
+        self.space_size = self.space.categorical_size
         logging.debug('arch space size: {}'.format(self.space_size()))
 
     def _next(self):
@@ -22,7 +22,7 @@ class DiscreteSpaceArchOptim(ArchOptimBase):
         return batch
 
 
-class GridSearchArchOptim(DiscreteSpaceArchOptim):
+class GridSearchArchOptim(CategoricalSpaceArchOptim):
     def __init__(self, space):
         super().__init__(space)
         self.counter = 0
@@ -30,13 +30,13 @@ class GridSearchArchOptim(DiscreteSpaceArchOptim):
     def _next(self):
         index = self.counter
         self.counter = self.counter + 1
-        return self.space.get_discrete_map(index)
+        return self.space.get_categorical_map(index)
 
     def has_next(self):
         return self.counter < self.space_size()
 
 
-class RandomSearchArchOptim(DiscreteSpaceArchOptim):
+class RandomSearchArchOptim(CategoricalSpaceArchOptim):
     def __init__(self, space, seed=None):
         super().__init__(space)
         self.visited = set()
@@ -48,7 +48,7 @@ class RandomSearchArchOptim(DiscreteSpaceArchOptim):
         while index in self.visited:
             index = random.randint(0, self.space_size())
         self.visited.add(index)
-        return self.space.get_discrete_map(index)
+        return self.space.get_categorical_map(index)
 
     def has_next(self):
         return len(self.visited) < self.space_size()

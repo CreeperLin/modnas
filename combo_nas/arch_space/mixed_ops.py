@@ -3,7 +3,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..core.param_space import ArchParamDiscrete, ArchParamContinuous
+from ..core.param_space import ArchParamCategorical, ArchParamTensor
 from .ops import build_op
 from ..utils.registration import Registry, build, get_builder, register, register_wrapper
 
@@ -30,7 +30,7 @@ class MixedOp(nn.Module):
         ])
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
 
-    def ops(self):
+    def primitives(self):
         return self._ops
     
     def alpha(self):
@@ -45,9 +45,6 @@ class MixedOp(nn.Module):
     def arch_param_value(self, name):
         return self.arch_param_map.get(name).value()
 
-    def arch_param_map(self):
-        return self.arch_param_map
-
     def to_genotype(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -58,7 +55,7 @@ class WeightedSumMixedOp(MixedOp):
         if arch_param_map is None:
             params_shape = (len(ops), )
             arch_param_map = {
-                'p': ArchParamContinuous(params_shape),
+                'p': ArchParamTensor(params_shape),
             }
         super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
 
@@ -85,7 +82,7 @@ class BinGateMixedOp(MixedOp):
         if arch_param_map is None:
             params_shape = (len(ops), )
             arch_param_map = {
-                'p': ArchParamContinuous(params_shape),
+                'p': ArchParamTensor(params_shape),
             }
         super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
         self.n_samples = n_samples
@@ -218,7 +215,7 @@ class IndexMixedOp(MixedOp):
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
-                'ops': ArchParamDiscrete(ops),
+                'ops': ArchParamCategorical(ops),
             }
         super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
         self.reset_ops()

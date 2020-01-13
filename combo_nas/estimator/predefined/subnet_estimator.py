@@ -4,6 +4,11 @@ from ... import utils
 from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.results = []
+        self.inputs = []
+
     def step(self, params):
         ArchParamSpace.set_params_map(params)
         config = self.config
@@ -29,6 +34,9 @@ class SubNetEstimator(EstimatorBase):
 
     def predict(self, ):
         pass
+
+    def get_last_results(self, ):
+        return self.inputs, self.results
 
     def construct_subnet(self):
         config = self.config
@@ -78,12 +86,16 @@ class SubNetEstimator(EstimatorBase):
                 optim.step(self)
             next_batch = optim.next(batch_size=arch_batch_size)
             val_top1 = 0.
+            self.inputs = []
+            self.results = []
             for params in next_batch:
                 # estim step
                 genotype = self.model.to_genotype()
                 genotypes.append(genotype)
                 logger.info('Evaluating SubNet genotype = {}'.format(genotype))
                 val_top1 = self.step(params)
+                self.inputs.append(params)
+                self.results.append(val_top1)
                 if val_top1 > best_top1:
                     best_top1 = val_top1
                     best_genotype = genotype

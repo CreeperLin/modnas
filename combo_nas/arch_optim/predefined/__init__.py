@@ -1,5 +1,6 @@
 from .gradient_based import DARTSArchOptim, BinaryGateArchOptim, DirectGradArchOptim, REINFORCEArchOptim
 from .gridsearch import RandomSearchArchOptim, GridSearchArchOptim
+from .skopt import SkoptParamOptim
 
 from .. import register_arch_optim
 register_arch_optim(DARTSArchOptim, 'WeightedSum')
@@ -8,3 +9,4 @@ register_arch_optim(DirectGradArchOptim, 'DirectGrad')
 register_arch_optim(REINFORCEArchOptim, 'REINFORCE')
 register_arch_optim(RandomSearchArchOptim, 'Random')
 register_arch_optim(GridSearchArchOptim, 'GridSearch')
+register_arch_optim(SkoptParamOptim, 'Skopt')

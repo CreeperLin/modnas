@@ -64,13 +64,13 @@ class NASController(nn.Module):
             org_formatters.append(handler.formatter)
             handler.setFormatter(logging.Formatter("%(message)s"))
 
-        ap_cont = tuple(F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.arch_param_cont())
-        ap_disc = tuple(self.arch_param_disc())
+        ap_cont = tuple(F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.arch_param_tensor())
+        ap_disc = tuple(self.arch_param_categorical())
         max_num = min(len(ap_cont)//2, max_num)
-        if len(ap_cont) != 0: logger.info("CONTINUOUS: {}\n{}".format(
+        if len(ap_cont) != 0: logger.info("TENSOR: {}\n{}".format(
             len(ap_cont), '\n'.join([str(a) for a in (ap_cont[:max_num]+('...',)+ap_cont[-max_num:])])))
         max_num = min(len(ap_disc)//2, max_num)
-        if len(ap_disc) != 0: logger.info("DISCRETE: {}\n{}".format(
+        if len(ap_disc) != 0: logger.info("CATEGORICAL: {}\n{}".format(
             len(ap_disc), '\n'.join([str(a) for a in (ap_disc[:max_num]+('...',)+ap_disc[-max_num:])])))
 
         # restore formats
@@ -108,14 +108,14 @@ class NASController(nn.Module):
                 continue
             yield n, p
 
-    def arch_param_cont(self):
-        return ArchParamSpace.continuous_values()
+    def arch_param_tensor(self):
+        return ArchParamSpace.tensor_values()
 
-    def arch_param_disc(self):
-        return ArchParamSpace.discrete_values()
+    def arch_param_categorical(self):
+        return ArchParamSpace.categorical_values()
 
     def alphas(self):
-        return self.arch_param_cont()
+        return self.arch_param_tensor()
 
     def mixed_ops(self):
         for m in self.modules():
