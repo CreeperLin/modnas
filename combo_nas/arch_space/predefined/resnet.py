@@ -20,7 +20,7 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         del base_width
         self.conv1 = conv3x3(inplanes, planes, stride, groups)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.conv2 = conv3x3(planes, planes)
         self.downsample = downsample
         self.stride = stride
@@ -56,7 +56,7 @@ class Bottleneck(nn.Module):
         self.conv2 = conv3x3(width, width, stride, groups)
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.downsample = downsample
         self.stride = stride
 
@@ -160,7 +160,7 @@ class ImageNetResNet(ResNet):
         return nn.Sequential(
             nn.Conv2d(chn_in, chn, kernel_size=7, stride=2, padding=3, bias=False),
             norm_layer(chn),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
 
@@ -170,7 +170,7 @@ class CIFARResNet(ResNet):
         return nn.Sequential(
             nn.Conv2d(chn_in, chn, kernel_size=3, stride=1, padding=1, bias=False),
             norm_layer(chn),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
         )
 
 

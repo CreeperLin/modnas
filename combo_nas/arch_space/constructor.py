@@ -23,7 +23,6 @@ class Slot(nn.Module):
         self.fixed = False
         self.visited = False
         self.built = False
-        self.forward = self.default_forward
         logging.debug('slot {} {} {}: declared {} {} {}'.format(
             self.sid, self.arch_param_map, self.name, self.chn_in, self.chn_out, self.stride))
 
@@ -101,11 +100,9 @@ class Slot(nn.Module):
         if self.fixed:
             return
         self.ent = ent
-        self.forward = ent.forward
-        self.__call__ = ent.__call__
         logging.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
 
-    def default_forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs):
         if self.ent is None:
             raise ValueError('Undefined entity in slot {}'.format(self.sid))
         return self.ent(*args, **kwargs)

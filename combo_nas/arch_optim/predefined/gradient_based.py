@@ -79,7 +79,7 @@ class DARTSArchOptim(GradientBasedArchOptim):
         # do virtual step (calc w`)
         self.virtual_step(trn_X, trn_y, lr, w_optim, model)
         # calc unrolled loss
-        loss = self.v_net.loss(val_X, val_y) # L_val(w`)
+        loss = self.v_net.loss(val_X, val_y, use_metrics=True) # L_val(w`)
         # compute gradient
         v_alphas = tuple(self.v_net.alphas())
         v_weights = tuple(self.v_net.weights())
@@ -147,7 +147,7 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
         # loss
         for m in model.mixed_ops():
             m.arch_param_grad(enabled=True)
-        loss = estim.model.loss(val_X, val_y)
+        loss = estim.model.loss(val_X, val_y, use_metrics=True)
         # backward
         loss.backward()
         # renormalization

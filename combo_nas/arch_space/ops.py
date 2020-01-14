@@ -26,7 +26,7 @@ register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1)
 register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'max_pool', 'MAX')
 register_op(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
                                         else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
-kernel_sizes = [1, 3, 5, 7, 9]
+kernel_sizes = [1, 3, 5, 7, 9, 11, 13]
 for k in kernel_sizes:
     p = get_same_padding(k)
     p2 = get_same_padding(2*k-1)

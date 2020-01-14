@@ -32,10 +32,10 @@ class MixedOp(nn.Module):
 
     def primitives(self):
         return self._ops
-    
+
     def alpha(self):
         return self.arch_param_value('p')
-    
+
     def prob(self):
         return F.softmax(self.alpha(), dim=-1)
 
@@ -220,6 +220,14 @@ class IndexMixedOp(MixedOp):
         super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
         self.reset_ops()
         # logging.debug("IndexMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
+
+    def alpha(self):
+        alpha = torch.zeros(len(self.primitives()))
+        alpha[self.arch_param('ops').index()] = 1.0
+        return alpha
+
+    def prob(self):
+        return self.alpha()
 
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
