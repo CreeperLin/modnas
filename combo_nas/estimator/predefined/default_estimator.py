@@ -1,7 +1,14 @@
 import itertools
 from ..base import EstimatorBase
+from ... import utils
 
 class DefaultEstimator(EstimatorBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.w_optim = utils.get_optim(self.model.weights(), self.config.w_optim)
+        self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
+                                                   self.config.epochs)
+
     def predict(self, ):
         pass
 

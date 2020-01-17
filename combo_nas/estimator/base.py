@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 from .. import utils
+from ..metrics import build_metrics
 from ..utils.profiling import tprof
 from ..arch_space.ops import Identity, DropPath_
 from ..arch_space.constructor import Slot
@@ -136,18 +137,36 @@ class EstimatorBase():
             except Exception as e:
                 logger.info('Model build failed: {}'.format(e))
         if not self.model is None:
-            logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model), utils.param_size(model)))
+            logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
+                utils.param_count(model), utils.param_size(model)))
         self.writer = writer
         self.logger = logger
         self.device = device
         self.init_epoch = -1
         self.w_optim = None
         self.lr_scheduler = None
+        metrics = []
+        if 'metrics' in config:
+            mt_configs = config.metrics
+            if not isinstance(mt_configs, list):
+                mt_configs = [mt_configs]
+            for mt_conf in mt_configs:
+                metrics_args = mt_conf.get('args', {})
+                metrics.append(build_metrics(mt_conf.type, **metrics_args))
+        self.metrics = metrics
 
-        if 'w_optim' in config:
-            self.w_optim = utils.get_optim(self.model.weights(), config.w_optim)
-        if 'lr_scheduler' in config:
-            self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, config.lr_scheduler, config.epochs)
+    def compute_metrics(self, *args, **kwargs):
+        ret = {}
+        for mt in self.metrics:
+            res = mt.compute(*args, **kwargs)
+            ret[mt.__class__.__name__] = res
+        return ret
+
+    def compute_metrics_agg(self, val, *args, **kwargs):
+        ret = val
+        for mt in self.metrics:
+            ret = mt.compute(ret, *args, **kwargs)
+        return ret
 
     def predict(self, ):
         pass

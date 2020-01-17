@@ -1,26 +1,14 @@
 from ..base import MetricsBase
 from .. import register, build_metrics
-from ...arch_space.mixed_ops import MixedOp
 try:
-    import rasp.torch as rasptorch
+    import rasp
 except ImportError:
-    rasptorch = None
+    rasp = None
 
 @register('RASPLatencyMetrics')
 class RASPLatencyMetrics(MetricsBase):
     def __init__(self):
         super().__init__()
-        if rasptorch is None: raise ValueError('package RASP is not found')
-
-    def compute(self, node):
-        return 0 if node['lat'] is None else node['lat']
-
-
-@register('RASPDeviceLatencyMetrics')
-class RASPDeviceLatencyMetrics(MetricsBase):
-    def __init__(self):
-        super().__init__()
-        if rasptorch is None: raise ValueError('package RASP is not found')
 
     def compute(self, node):
         return 0 if node['lat'] is None else node['lat']
@@ -30,53 +18,71 @@ class RASPDeviceLatencyMetrics(MetricsBase):
 class RASPFLOPSMetrics(MetricsBase):
     def __init__(self):
         super().__init__()
-        if rasptorch is None: raise ValueError('package RASP is not found')
 
     def compute(self, node):
         return 0 if node['flops'] is None else node['flops']
 
 
+@register('RASPStatsDelegateMetrics')
+class RASPStatsDelegateMetrics(MetricsBase):
+    def __init__(self, metrics, args={}, ignore_none=True):
+        super().__init__()
+        self.metrics = build_metrics(metrics, **args)
+        self.ignore_none = ignore_none
+
+    def compute(self, node):
+        stats = node.stats
+        mt = self.metrics.compute(stats)
+        if not self.ignore_none and mt is None:
+            raise ValueError('Metrics return None for input: {}'.format(stats))
+        return 0 if mt is None else mt
+
+
 @register('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
-    def __init__(self, metrics, args={}, compute=True, timing=False):
+    def __init__(self, input_shape, metrics, args={}, compute=True, timing=False):
         super().__init__()
-        if rasptorch is None: raise ValueError('package RASP is not found')
+        if rasp is None: raise ValueError('package RASP is not found')
         self.metrics = build_metrics(metrics, **args)
         self.eval_compute = compute
         self.eval_timing = timing
+        self.input_shape = input_shape
 
     def compute(self, model):
-        input_shape = model.input_shape()
-        dev_id = model.device_ids[0]
-        if input_shape is None:
-            return 0
-        if not hasattr(model, '_RASPStatNode'):
-            root = rasptorch.frontend.reg_stats_node(model)
+        net = model.net
+        dev_ids = model.device_ids
+        dev_id = 'cpu' if len(dev_ids) == 0 else dev_ids[0]
+        if not hasattr(net, '_RASPStatNode'):
+            F = rasp.frontend
+            root = F.reg_stats_node(net)
             if self.eval_compute:
-                rasptorch.frontend.hook_compute(model)
+                F.hook_compute(net)
             if self.eval_timing:
-                rasptorch.frontend.hook_timing(model)
-            prof_input_shape = (1, ) + input_shape[1:]
-            inputs = rasptorch.frontend.get_random_data(prof_input_shape).to(dev_id)
-            rasptorch.frontend.run(model, inputs)
-            rasptorch.frontend.unhook_compute(model)
-            rasptorch.frontend.unhook_timing(model)
+                F.hook_timing(net)
+            inputs = F.get_random_data(self.input_shape).to(dev_id)
+            F.run(net, inputs)
+            F.unhook_compute(net)
+            F.unhook_timing(net)
         else:
-            root = model._RASPStatNode
+            root = net._RASPStatNode
         mt = 0
         for node in root.tape.items_all:
             if '_ops' in node.name:
                 continue
             mt = mt + self.metrics.compute(node)
-            print(node.name, self.metrics.compute(node))
-        print(mt)
         for m in model.mixed_ops():
             mixop_node = m._RASPStatNode
             assert mixop_node['in_shape'] is not None
-            for p, op in zip(m.prob(), m.primitives()):
+            mixop_mt = 0
+            m_in, m_out = mixop_node['in_shape'], mixop_node['out_shape']
+            for p, (pn, op) in zip(m.prob(), m.named_primitives()):
                 subn = op._RASPStatNode
+                if subn['prim_type'] is None:
+                    subn['prim_type'] = pn
                 if subn['compute_updated'] is None:
-                    rasptorch.eval_compute_nofwd(subn, mixop_node['in_shape'], mixop_node['out_shape'])
-                mt = mt + self.metrics.compute(subn) * p.to(device=dev_id)
-        print('current flops: {}'.format(mt.item()))
+                    rasp.profiler.eval.eval_compute_nofwd(subn, m_in, m_out)
+                smt = self.metrics.compute(subn)
+                mixop_mt = mixop_mt + smt * p.to(device=dev_id)
+            mt += mixop_mt
+        # print('current flops: {}'.format(mt.item()))
         return mt

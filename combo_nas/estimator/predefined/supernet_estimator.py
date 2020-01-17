@@ -18,6 +18,9 @@ class SuperNetEstimator(EstimatorBase):
         self.cur_trn_batch = None
         self.cur_val_batch = None
         self.no_valid_warn = True
+        self.w_optim = utils.get_optim(self.model.weights(), self.config.w_optim)
+        self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
+                                                   self.config.epochs)
 
     def predict(self, ):
         pass

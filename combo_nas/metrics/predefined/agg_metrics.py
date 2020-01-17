@@ -3,21 +3,21 @@ import torch
 from ..base import MetricsBase
 from .. import register, build_metrics
 
-@register('AddLossMetrics')
-class AddLossMetrics(MetricsBase):
+@register('AddAggMetrics')
+class AddAggMetrics(MetricsBase):
     def __init__(self, target_val, metrics, args={}, lamd=0.01,):
         super().__init__()
         self.metrics = build_metrics(metrics, **args)
         self.lamd = lamd
         self.target_val = float(target_val)
 
-    def compute(self, loss, model):
+    def compute(self, val, model):
         mt = self.metrics.compute(model)
-        return loss + self.lamd * (mt / self.target_val - 1.)
+        return val + self.lamd * (mt / self.target_val - 1.)
 
 
-@register('MultLossMetrics')
-class MultLossMetrics(MetricsBase):
+@register('MultAggMetrics')
+class MultAggMetrics(MetricsBase):
     def __init__(self, target_val, metrics, args={}, alpha=1., beta=0.6):
         super().__init__()
         self.metrics = build_metrics(metrics, **args)
@@ -25,13 +25,13 @@ class MultLossMetrics(MetricsBase):
         self.beta = beta
         self.target_val = float(target_val)
 
-    def compute(self, loss, model):
+    def compute(self, val, model):
         mt = self.metrics.compute(model)
-        return self.alpha * loss * (mt / self.target_val) ** self.beta
+        return self.alpha * val * (mt / self.target_val) ** self.beta
 
 
-@register('MultLogLossMetrics')
-class MultLogLossMetrics(MetricsBase):
+@register('MultLogAggMetrics')
+class MultLogAggMetrics(MetricsBase):
     def __init__(self, target_val, metrics, args={}, alpha=1., beta=0.6):
         super().__init__()
         self.metrics = build_metrics(metrics, **args)
@@ -39,17 +39,17 @@ class MultLogLossMetrics(MetricsBase):
         self.beta = beta
         self.target_val = float(target_val)
 
-    def compute(self, loss, model):
+    def compute(self, val, model):
         mt = self.metrics.compute(model)
-        return self.alpha * loss * (torch.log(mt) / math.log(self.target_val)) ** self.beta
+        return self.alpha * val * (torch.log(mt) / math.log(self.target_val)) ** self.beta
 
 
-@register('BypassLossMetrics')
-class BypassLossMetrics(MetricsBase):
+@register('BypassAggMetrics')
+class BypassAggMetrics(MetricsBase):
     def __init__(self, metrics, args={}):
         super().__init__()
         self.metrics = build_metrics(metrics, **args)
 
-    def compute(self, loss, model):
+    def compute(self, val, model):
         mt = self.metrics.compute(model)
-        return loss
+        return val

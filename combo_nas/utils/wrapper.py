@@ -1,4 +1,5 @@
 import os
+import importlib
 from ..utils.exp_manager import ExpManager
 from ..data_provider.dataloader import load_data
 from ..arch_space.constructor import convert_from_predefined_net
@@ -10,11 +11,10 @@ from ..arch_space.constructor import Slot
 from ..core.param_space import ArchParamSpace
 from ..core.controller import NASController
 from ..arch_optim import build_arch_optim
-from .. import utils as utils
+from .. import utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
-from ..metrics import build_metrics
 from .routine import search, augment, hptune
 
 def load_config(conf, excludes):
@@ -26,10 +26,21 @@ def load_config(conf, excludes):
         raise Exception("config error.")
     return config
 
+
+def import_modules(modules):
+    for m in modules:
+        try:
+            importlib.import_module(m)
+        except ImportError as exc:
+            print(exc)
+
+
 def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=None):
     trn_loader = val_loader = model_builder = model = None
     ArchParamSpace.reset()
     config = load_config(config, excludes=['augment'])
+    # imports
+    import_modules(config.get('imports', []))
     # dir
     expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
@@ -81,13 +92,9 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
                 genotype = gt.get_genotype(config.genotypes, genotype)
                 fn_kwargs.update(config.genotypes.build_args)
                 convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
-            # metrics
-            metrics = None
-            if 'metrics' in config:
-                metrics = build_metrics(config.metrics.type, **config.metrics.get('args', {}))
             # controller
             crit = utils.get_net_crit(config.criterion)
-            model = NASController(net, crit, metrics, dev_list).to(device=dev)
+            model = NASController(net, crit, dev_list).to(device=dev)
             # genotype
             if config.genotypes.disable_dag:
                 model.to_genotype = model.to_genotype_ops
@@ -125,6 +132,8 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
 
 def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None):
     config = load_config(config, excludes=['search'])
+    # imports
+    import_modules(config.get('imports', []))
     # dir
     expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
@@ -164,7 +173,7 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
             convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
         # controller
         crit = utils.get_net_crit(config.criterion)
-        model = NASController(net, crit, None, dev_list).to(device=dev)
+        model = NASController(net, crit, dev_list).to(device=dev)
         # init
         model.init_model(config.init)
         return model
@@ -190,6 +199,8 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
 def init_all_hptune(config, name, exp, chkpt, device, measure_fn=None):
     HParamSpace.reset()
     config = load_config(config, excludes=['search', 'augment'])
+    # imports
+    import_modules(config.get('imports', []))
     # dir
     expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)

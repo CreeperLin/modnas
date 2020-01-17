@@ -30,7 +30,13 @@ class SubNetEstimator(EstimatorBase):
             val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             if val_top1 is None: val_top1 = trn_top1
             best_val_top1 = max(best_val_top1, val_top1)
-        return best_val_top1
+        metrics_result = self.compute_metrics(subnet)
+        ret = {
+            'acc': best_val_top1
+        }
+        if not metrics_result is None:
+            ret.update(metrics_result)
+        return ret
 
     def predict(self, ):
         pass
@@ -93,9 +99,10 @@ class SubNetEstimator(EstimatorBase):
                 genotype = self.model.to_genotype()
                 genotypes.append(genotype)
                 logger.info('Evaluating SubNet genotype = {}'.format(genotype))
-                val_top1 = self.step(params)
+                result = self.step(params)
                 self.inputs.append(params)
-                self.results.append(val_top1)
+                self.results.append(result)
+                val_top1 = result['acc']
                 if val_top1 > best_top1:
                     best_top1 = val_top1
                     best_genotype = genotype

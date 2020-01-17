@@ -32,6 +32,10 @@ class MixedOp(nn.Module):
 
     def primitives(self):
         return self._ops
+    
+    def named_primitives(self):
+        for n, prim in zip(self.ops, self._ops):
+            yield n, prim
 
     def alpha(self):
         return self.arch_param_value('p')
@@ -250,7 +254,7 @@ class IndexMixedOp(MixedOp):
                 p.grad = None
 
     def to_genotype(self, *args, **kwargs):
-        return 0, self.arch_param_value('ops')
+        return self.arch_param_value('ops')
 
 
 register_mixed_op(WeightedSumMixedOp, 'WeightedSum')

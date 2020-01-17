@@ -2,7 +2,6 @@ import pytest
 import os
 import yaml
 from functools import partial
-import combo_nas
 from combo_nas.utils.wrapper import run_search, run_augment, run_hptune
 import testnet
 
