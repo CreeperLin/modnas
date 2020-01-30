@@ -1366,30 +1366,20 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
 
         return ProxylessNASNet(blocks, classifier, ops_order, tree_node_config, groups_3x3)
 
-def build_from_config(config):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    chn_cur = chn * config.channel_multiplier
-    n_classes = config.classes
-    n_groups = config.groups
-    conv_groups = config.conv_groups
-    n_blocks = config.blocks
-    alpha = config.alpha
-    bneck = config.bottleneck_ratio
-    path_drop_rate = config.path_drop_rate
-    ops_order = config.pxl_ops_order
-    use_avg = config.use_avg
-    bn_before_add = config.bn_before_add
+def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks,
+                      conv_groups, alpha, bottleneck_ratio, path_drop_rate, ops_order,
+                      use_avg, bn_before_add, dropout_rate, **kwargs):
+    chn_cur = chn * channel_multiplier
     model_config = {
         'start_planes': chn_cur,
         'alpha': alpha,
-        'block_per_group': n_blocks,
-        'total_groups': n_groups,
+        'block_per_group': blocks,
+        'total_groups': groups,
         'downsample_type': 'avg_pool',  # avg, max
         ######################################################
-        'bottleneck': bneck,
+        'bottleneck': bottleneck_ratio,
         'ops_order': ops_order,
-        'dropout_rate': config.dropout_rate,
+        'dropout_rate': dropout_rate,
         ######################################################
         'final_bn': True,
         'no_first_relu': True,
@@ -1410,11 +1400,12 @@ def build_from_config(config):
             'drop_only_add': False,
         }
     }
-    net = ProxylessNASNet.set_standard_net(data_shape=(chn_in, 32, 32), n_classes=n_classes, **model_config)
-    return net
+    model_config.update(kwargs)
+    return ProxylessNASNet.set_standard_net(data_shape=(chn_in, 32, 32),
+                                            n_classes=n_classes, **model_config)
 
-def build_eas_net(config):
-    net_config_json = json.load(open(config.net_config_path, 'r'))
+def build_eas_net(net_config_path):
+    net_config_json = json.load(open(net_config_path, 'r'))
     print('Net config:')
     for k, v in net_config_json.items():
         if k != 'blocks':

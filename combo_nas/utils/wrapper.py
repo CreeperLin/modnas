@@ -64,7 +64,7 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
         def default_model_builder(genotype=genotype, convert_fn=convert_fn):
             Slot.reset()
             # net
-            net = build_arch_space(config.model.type, config.model)
+            net = build_arch_space(config.model.type, **config.model.get('args', {}))
             # layers
             if not isinstance(convert_fn, list):
                 convert_fn = [convert_fn]
@@ -150,7 +150,7 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
     # net
     def model_builder(genotype=genotype, convert_fn=convert_fn):
         Slot.reset()
-        net = build_arch_space(config.model.type, config.model)
+        net = build_arch_space(config.model.type, **config.model.get('args', {}))
         # layers
         if not isinstance(convert_fn, list):
             convert_fn = [convert_fn]

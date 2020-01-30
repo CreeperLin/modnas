@@ -36,7 +36,7 @@ class AuxiliaryHead(nn.Module):
 
 class DARTSLikeNet(nn.Module):
     def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node,
-                n_layers, shared_a, channel_multiplier, auxiliary, cell_cls, cell_kwargs):
+                layers, shared_a, channel_multiplier, auxiliary, cell_cls, cell_kwargs):
         super().__init__()
         self.chn_in = chn_in
         self.chn = chn
@@ -46,7 +46,7 @@ class DARTSLikeNet(nn.Module):
         self.n_inputs_model = n_inputs_model
         self.n_inputs_layer = n_inputs_layer
         self.n_inputs_node = n_inputs_node
-        self.aux_pos = 2*n_layers//3 if auxiliary else -1
+        self.aux_pos = 2*layers//3 if auxiliary else -1
         self.shared_a = shared_a
 
         chn_cur = self.chn * channel_multiplier
@@ -60,10 +60,10 @@ class DARTSLikeNet(nn.Module):
         self.cells = nn.ModuleList()
         self.cell_group = [[],[] if shared_a else []]
         reduction_p = False
-        for i in range(n_layers):
+        for i in range(layers):
             stride = 1
             cell_kwargs['preproc'] = (PreprocLayer, PreprocLayer)
-            if i in [n_layers//3, 2*n_layers//3]:
+            if i in [layers//3, 2*layers//3]:
                 reduction = True
                 stride = 2
                 chn_cur *= 2
@@ -136,26 +136,14 @@ class DARTSLikeNet(nn.Module):
         return convert_fn
 
 
-def build_from_config(config, darts_cls=DARTSLikeNet):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    n_layers = config.layers
-    n_nodes = config.nodes
-    n_inputs_model = config.inputs_model
-    n_inputs_layer = config.inputs_layer
-    n_inputs_node = config.inputs_node
+def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
+    n_nodes = 4
+    if 'nodes' in kwargs:
+        n_nodes = kwargs.pop('nodes')
     darts_kwargs = {
-        'chn_in': chn_in,
-        'chn': chn,
-        'n_classes': n_classes,
-        'n_inputs_model': n_inputs_model,
-        'n_inputs_layer': n_inputs_layer,
-        'n_inputs_node': n_inputs_node,
-        'n_layers': n_layers,
-        'shared_a': config.shared_a,
-        'channel_multiplier': config.channel_multiplier,
-        'auxiliary': config.auxiliary,
+        'n_inputs_model': 1,
+        'n_inputs_layer': 2,
+        'n_inputs_node': 1,
         'cell_cls': 'DAG',
         'cell_kwargs': {
             'chn_in': None,
@@ -175,4 +163,5 @@ def build_from_config(config, darts_cls=DARTSLikeNet):
             },
         },
     }
+    darts_kwargs.update(kwargs)
     return darts_cls(**darts_kwargs)

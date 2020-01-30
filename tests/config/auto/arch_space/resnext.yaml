@@ -114,13 +114,14 @@ criterion:
   type: 'CE'
 model:
   type: 'CIFAR-ResNet'
-  classes: 10             # use 10 for MNIST, CIFAR10
-  channel_in: 3   
-  channel_init: 32
-  layers: [3,3,3]
-  bottleneck: True
-  groups: 4
-  width_per_group: 8
+  args:
+    n_classes: 10             # use 10 for MNIST, CIFAR10
+    chn_in: 3   
+    chn: 32
+    layers: [3,3,3]
+    bottleneck: True
+    groups: 4
+    width_per_group: 8
 log:
   writer: False
 device:

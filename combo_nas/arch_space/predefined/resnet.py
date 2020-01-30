@@ -2,6 +2,7 @@ from functools import partial
 import torch.nn as nn
 from ...arch_space.constructor import Slot
 from .. import register_arch_space
+from ..ops import Identity
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
     """3x3 convolution with padding"""
@@ -20,8 +21,10 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         del base_width
         self.conv1 = conv3x3(inplanes, planes, stride, groups)
-        self.relu = nn.ReLU(inplace=False)
+        self.bn1 = norm_layer(planes)
+        self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
+        self.bn2 = norm_layer(planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -29,8 +32,11 @@ class BasicBlock(nn.Module):
         identity = x
 
         out = self.conv1(x)
+        out = self.bn1(out)
         out = self.relu(out)
+
         out = self.conv2(out)
+        out = self.bn2(out)
 
         if self.downsample is not None:
             identity = self.downsample(x)
@@ -48,12 +54,11 @@ class Bottleneck(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=None, norm_layer=None):
         super(Bottleneck, self).__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
         width = int(planes * (1. * base_width / self.chn_init)) * groups
         self.conv1 = conv1x1(inplanes, width)
         self.bn1 = norm_layer(width)
         self.conv2 = conv3x3(width, width, stride, groups)
+        self.bn2 = norm_layer(width)
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=False)
@@ -68,6 +73,7 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
 
         out = self.conv2(out)
+        out = self.bn2(out)
         out = self.relu(out)
 
         out = self.conv3(out)
@@ -84,12 +90,13 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, chn_in, chn, block, layers, num_classes, zero_init_residual=False,
+    def __init__(self, chn_in, chn, block, layers, n_classes, zero_init_residual=False,
                  groups=1, width_per_group=None, norm_layer=None, expansion=None):
         super(ResNet, self).__init__()
         if norm_layer is None:
+            norm_layer = Identity
+        elif norm_layer == 'bn':
             norm_layer = nn.BatchNorm2d
-        self.norm_layer = norm_layer
         if not expansion is None:
             block.expansion = expansion
         block.chn_init = chn
@@ -104,7 +111,7 @@ class ResNet(nn.Module):
                              stride=(1 if i == 0 else 2), norm_layer=norm_layer)
             for i in range(len(layers))])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(self.chn, num_classes)
+        self.fc = nn.Linear(self.chn, n_classes)
 
         # Zero-initialize the last BN in each residual branch,
         # so that the residual branch starts with zeros, and each residual block behaves like an identity.
@@ -117,8 +124,6 @@ class ResNet(nn.Module):
                     nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1, norm_layer=None):
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
         downsample = None
         if stride != 1 or self.chn != planes * block.expansion:
             downsample = nn.Sequential(
@@ -128,7 +133,7 @@ class ResNet(nn.Module):
 
         layers = []
         layers.append(block(self.chn, planes, stride, downsample, self.groups,
-                            self.base_width, norm_layer))
+                            self.base_width, norm_layer=norm_layer))
         self.chn = planes * block.expansion
         for _ in range(1, blocks):
             layers.append(block(self.chn, planes, groups=self.groups,
@@ -147,12 +152,8 @@ class ResNet(nn.Module):
         return x
 
     def get_predefined_augment_converter(self):
-        return lambda slot: nn.Sequential(
-                nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, stride=slot.stride,
-                          padding=1, bias=False, **slot.kwargs),
-                self.norm_layer(slot.chn_out)
-            )
-            
+        return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, stride=slot.stride,
+                                      padding=1, bias=False, **slot.kwargs)
 
 
 class ImageNetResNet(ResNet):
@@ -174,152 +175,85 @@ class CIFARResNet(ResNet):
         )
 
 
-def resnet10(resnet_cls, config, **kwargs):
+def resnet10(resnet_cls, **kwargs):
     """Constructs a ResNet-10 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, BasicBlock, [1, 1, 1, 1], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=BasicBlock, layers=[1, 1, 1, 1], **kwargs)
 
 
-def resnet18(resnet_cls, config, **kwargs):
+def resnet18(resnet_cls, **kwargs):
     """Constructs a ResNet-18 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, BasicBlock, [2, 2, 2, 2], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=BasicBlock, layers=[2, 2, 2, 2], **kwargs)
 
 
-def resnet32(resnet_cls, config, **kwargs):
+def resnet32(resnet_cls, **kwargs):
     """Constructs a ResNet-32 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, BasicBlock, [5, 5, 5], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=BasicBlock, layers=[5, 5, 5], **kwargs)
 
 
-def resnet34(resnet_cls, config, **kwargs):
+def resnet34(resnet_cls, **kwargs):
     """Constructs a ResNet-34 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, BasicBlock, [3, 4, 6, 3], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=BasicBlock, layers=[3, 4, 6, 3], **kwargs)
 
 
-def resnet50(resnet_cls, config, **kwargs):
+def resnet50(resnet_cls, **kwargs):
     """Constructs a ResNet-50 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 6, 3], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
 
 
-def resnet56(resnet_cls, config, **kwargs):
+def resnet56(resnet_cls, **kwargs):
     """Constructs a ResNet-56 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, BasicBlock, [9, 9, 9], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=BasicBlock, layers=[9, 9, 9], **kwargs)
 
 
-def resnet101(resnet_cls, config, **kwargs):
+def resnet101(resnet_cls, **kwargs):
     """Constructs a ResNet-101 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 23, 3], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=Bottleneck, layers=[3, 4, 23, 3], **kwargs)
 
 
-def resnet110(resnet_cls, config, **kwargs):
+def resnet110(resnet_cls, **kwargs):
     """Constructs a ResNet-110 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, BasicBlock, [18, 18, 18], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=BasicBlock, layers=[18, 18, 18], **kwargs)
 
 
-def resnet152(resnet_cls, config, **kwargs):
+def resnet152(resnet_cls, **kwargs):
     """Constructs a ResNet-152 model.
-
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 8, 36, 3], num_classes=n_classes, **kwargs)
-    return model
+    return resnet_cls(block=Bottleneck, layers=[3, 8, 36, 3], **kwargs)
 
 
-def resnext50_32x4d(resnet_cls, config, **kwargs):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 6, 3], num_classes=n_classes,
-                       groups=32, width_per_group=4, **kwargs)
-    return model
+def resnext50_32x4d(resnet_cls, **kwargs):
+    return resnet_cls(block=Bottleneck, layers=[3, 4, 6, 3],
+                      groups=32, width_per_group=4, **kwargs)
 
 
-def resnext101_32x8d(resnet_cls, config, **kwargs):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    model = resnet_cls(chn_in, chn, Bottleneck, [3, 4, 23, 3], num_classes=n_classes,
-                       groups=32, width_per_group=8, **kwargs)
-    return model
+def resnext101_32x8d(resnet_cls, **kwargs):
+    return resnet_cls(block=Bottleneck, layers=[3, 4, 23, 3],
+                      groups=32, width_per_group=8, **kwargs)
 
-def resnet(resnet_cls, config, **kwargs):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    groups = config.get('groups', 1)
-    width_per_group = config.get('width_per_group', None)
-    layers = config.layers
-    bottleneck = config.bottleneck
+
+def resnet(resnet_cls, **kwargs):
+    bottleneck = False
+    if 'bottleneck' in kwargs:
+        bottleneck = kwargs.pop('bottleneck')
     block = Bottleneck if bottleneck else BasicBlock
-    model = resnet_cls(chn_in, chn, block, layers, num_classes=n_classes,
-                       groups=groups, width_per_group=width_per_group, **kwargs)
-    return model
+    return resnet_cls(block=block, **kwargs)
 
 
 for net_cls in [CIFARResNet, ImageNetResNet]:

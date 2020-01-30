@@ -254,7 +254,7 @@ class SepSingle(nn.Module):
 
 
 class Identity(nn.Module):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         super().__init__()
 
     def forward(self, x):

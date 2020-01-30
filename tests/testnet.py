@@ -73,26 +73,15 @@ class TestNetSpace(TestNet):
 
 
 @arch_space.register('TestNet')
-def get_testnet(config):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    rep = config.get('rep', 10)
-    stage = config.get('stage', 1)
-    return TestNet(chn_in, chn, n_classes, rep, stage)
+def get_testnet(*args, **kwargs):
+    return TestNet(*args, **kwargs)
 
 
 @arch_space.register('TestNetSpace')
-def get_testnet_space(config):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    return TestNetSpace(chn_in, chn, n_classes)
+def get_testnet_space(*args, **kwargs):
+    return TestNetSpace(*args, **kwargs)
 
 
 @arch_space.register('TestAugNet')
-def get_testaugnet(config):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    return TestAugNet(chn_in, chn, n_classes)
+def get_testaugnet(*args, **kwargs):
+    return TestAugNet(*args, **kwargs)

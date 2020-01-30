@@ -5,12 +5,13 @@ from combo_nas.metrics.base import MetricsBase
 
 @metrics.register('LocalProfilerMetrics')
 class LocalProfilerMetrics(MetricsBase):
-    def __init__(self, device=None, head=None, rep=50):
+    def __init__(self, device=None, head=None, rep=50, warmup=10):
         super().__init__()
         if head is None:
             head = ['name']
         self.results = {}
         self.rep = rep
+        self.warmup = warmup
         self.head = head
         self.device = device
 
@@ -28,6 +29,9 @@ class LocalProfilerMetrics(MetricsBase):
         device = last_device if self.device is None else self.device
         x = torch.randn(in_shape).to(device=device)
         op = op.to(device=device)
+        with torch.no_grad():
+            for _ in range(self.warmup):
+                op(x)
         tic = time.perf_counter()
         with torch.no_grad():
             for _ in range(self.rep):

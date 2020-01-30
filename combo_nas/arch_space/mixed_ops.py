@@ -72,10 +72,9 @@ class WeightedSumMixedOp(MixedOp):
     def to_genotype(self, k=1):
         ops = self.ops
         w = F.softmax(self.arch_param_value('p').detach(), dim=-1)
-        # ignore last primitive (None)
-        w_max, prim_idx = torch.topk(w[:-1], k)
+        w_max, prim_idx = torch.topk(w, k)
         gene = [ops[i] for i in prim_idx]
-        if gene == []: return -1, [None]
+        if gene == []: return [None]
         self.w_max = w_max
         return gene
 
@@ -153,7 +152,7 @@ class BinGateMixedOp(MixedOp):
         w = F.softmax(p.detach(), dim=-1)
         w_max, prim_idx = torch.topk(w, k)
         gene = [ops[i] for i in prim_idx]
-        if gene == []: return -1, [None]
+        if gene == []: return [None]
         self.w_max = w_max
         return gene
 

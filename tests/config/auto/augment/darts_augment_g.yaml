@@ -42,17 +42,15 @@ criterion:
   eta: 0.1
 model:
   type: 'DARTS'
-  classes: 10             # use 10 for MNIST, CIFAR10
-  channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 16        # init channel
-  channel_multiplier: 3   # init channel multiplier
-  nodes: 2                # num of nodes (states) per layer
-  layers: 3               # num of DAG layers (cells) in model
-  inputs_model: 1
-  inputs_layer: 2
-  inputs_node: 1
-  shared_a: True
-  auxiliary: False
+  args:
+    n_classes: 10             # use 10 for MNIST, CIFAR10
+    chn_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
+    chn: 16        # init channel
+    channel_multiplier: 3   # init channel multiplier
+    nodes: 2                # num of nodes (states) per layer
+    layers: 3               # num of DAG layers (cells) in model
+    shared_a: True
+    auxiliary: False
 log:
   writer: False
 device:

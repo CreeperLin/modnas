@@ -114,9 +114,9 @@ criterion:
   type: 'CE'
 model:
   type: 'mobilenetv2'
-  classes: 10             # use 10 for MNIST, CIFAR10
-  channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 16        # init channel
+  args:
+    n_classes: 10             # use 10 for MNIST, CIFAR10
+    chn_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
 log:
   writer: False
 device:

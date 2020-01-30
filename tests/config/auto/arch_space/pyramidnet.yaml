@@ -115,15 +115,15 @@ criterion:
   type: 'CE'
 model:
   type: 'pyramidnet'
-  classes: 10             # use 10 for MNIST, CIFAR10
-  channel_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
-  channel_init: 16        # init channel
-  channel_multiplier: 3
-  groups: 3
-  blocks: 1
-  alpha: 1
-  conv_groups: 2
-  bottleneck_ratio: 4
+  args:
+    n_classes: 10             # use 10 for MNIST, CIFAR10
+    chn_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
+    chn: 16        # init channel
+    groups: 3
+    blocks: 1
+    alpha: 1
+    conv_groups: 2
+    bottleneck_ratio: 4
 log:
   writer: False
 device:

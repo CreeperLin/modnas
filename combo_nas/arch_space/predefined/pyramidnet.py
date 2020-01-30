@@ -22,13 +22,13 @@ class GroupConv(nn.Module):
         return self.net(x)
 
 class BottleneckBlock(nn.Module):
-    def __init__(self, C_in, C, stride=1, groups=1, bneck_ratio=4,
+    def __init__(self, C_in, C, stride=1, groups=1, bottleneck_ratio=4,
                  downsample=None):
         super(BottleneckBlock, self).__init__()
         self.bottle_in = GroupConv(C_in, C, 1, 1, 0, relu=False)
         self.cell = Slot(C, C, stride, kwargs={'groups': groups})
-        self.bottle_out = GroupConv(C, C * bneck_ratio, 1, 1, 0)
-        self.bn = nn.BatchNorm2d(C * bneck_ratio)
+        self.bottle_out = GroupConv(C, C * bottleneck_ratio, 1, 1, 0)
+        self.bn = nn.BatchNorm2d(C * bottleneck_ratio)
         self.downsample = downsample
         self.stride = stride
 
@@ -61,15 +61,15 @@ class BottleneckBlock(nn.Module):
 
 class PyramidNet(nn.Module):
 
-    def __init__(self, chn_in, chn, n_classes, n_groups, n_blocks, conv_groups, bneck_ratio, alpha):
+    def __init__(self, chn_in, chn, n_classes, groups, blocks, conv_groups, bottleneck_ratio, alpha):
         super(PyramidNet, self).__init__()
         self.chn_in = chn_in
         self.chn = chn
         self.n_classes = n_classes
-        self.n_groups = n_groups
-        self.n_blocks = n_blocks
+        self.n_groups = groups
+        self.n_blocks = blocks
         self.conv_groups = conv_groups
-        self.bneck_ratio = bneck_ratio
+        self.bottleneck_ratio = bottleneck_ratio
         self.addrate = alpha / (self.n_groups*self.n_blocks*1.0)
 
         block = BottleneckBlock
@@ -84,7 +84,7 @@ class PyramidNet(nn.Module):
             groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride))
         self.pyramid = nn.Sequential(*groups)
 
-        self.chn_fin = int(self.chn_cur) * self.bneck_ratio
+        self.chn_fin = int(self.chn_cur) * self.bottleneck_ratio
         self.bn_final = nn.BatchNorm2d(self.chn_fin)
         self.relu_final = nn.ReLU(inplace=True)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
@@ -104,11 +104,11 @@ class PyramidNet(nn.Module):
             blk = block(chn_prev, chn_next,
                         stride=b_stride,
                         groups=self.conv_groups,
-                        bneck_ratio=self.bneck_ratio,
+                        bottleneck_ratio=self.bottleneck_ratio,
                         downsample=downsample)
             layers.append(blk)
             self.chn_cur += self.addrate
-            self.chn_in = chn_next * self.bneck_ratio
+            self.chn_in = chn_next * self.bottleneck_ratio
             downsample = None
         return nn.Sequential(*layers)
 
@@ -128,24 +128,3 @@ class PyramidNet(nn.Module):
 
     def get_predefined_augment_converter(self):
         return lambda slot: GroupConv(slot.chn_in, slot.chn_out, 3, slot.stride, 1, **slot.kwargs)
-
-
-def build_from_config(config):
-    chn_in = config.channel_in
-    chn = config.channel_init
-    n_classes = config.classes
-    n_groups = config.groups
-    conv_groups = config.conv_groups
-    n_blocks = config.blocks
-    alpha = config.alpha
-    pyramidnet_kwargs = {
-        'chn_in': chn_in,
-        'chn': chn,
-        'n_classes': n_classes,
-        'n_groups': n_groups,
-        'n_blocks': n_blocks,
-        'conv_groups': conv_groups,
-        'alpha': alpha,
-        'bneck_ratio': config.bottleneck_ratio,
-    }
-    return PyramidNet(**pyramidnet_kwargs)

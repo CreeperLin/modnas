@@ -84,5 +84,34 @@ class RASPTraversalMetrics(MetricsBase):
                 smt = self.metrics.compute(subn)
                 mixop_mt = mixop_mt + smt * p.to(device=dev_id)
             mt += mixop_mt
-        # print('current flops: {}'.format(mt.item()))
         return mt
+
+
+@register('RASPRootMetrics')
+class RASPRootMetrics(MetricsBase):
+    def __init__(self, input_shape, metrics, args={}, compute=True, timing=False):
+        super().__init__()
+        if rasp is None: raise ValueError('package RASP is not found')
+        self.metrics = build_metrics(metrics, **args)
+        self.eval_compute = compute
+        self.eval_timing = timing
+        self.input_shape = input_shape
+
+    def compute(self, model):
+        net = model.net
+        dev_ids = model.device_ids
+        dev_id = 'cpu' if len(dev_ids) == 0 else dev_ids[0]
+        if not hasattr(net, '_RASPStatNode'):
+            F = rasp.frontend
+            root = F.reg_stats_node(net)
+            if self.eval_compute:
+                F.hook_compute(net)
+            if self.eval_timing:
+                F.hook_timing(net)
+            inputs = F.get_random_data(self.input_shape).to(dev_id)
+            F.run(net, inputs)
+            F.unhook_compute(net)
+            F.unhook_timing(net)
+        else:
+            root = net._RASPStatNode
+        return self.metrics.compute(root)

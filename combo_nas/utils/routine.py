@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import logging
-from .. import utils
 from ..arch_space import genotypes as gt
 from ..estimator import build_estimator
 

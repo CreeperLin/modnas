@@ -136,13 +136,3 @@ class MobileNetV2(nn.Module):
 
     def get_predefined_augment_converter(self):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
-
-
-def mobilenetv2(config):
-    chn_in = config.channel_in
-    n_classes = config.classes
-    kwargs = {
-        'chn_in': chn_in,
-        'n_classes': n_classes,
-    }
-    return MobileNetV2(**kwargs)
