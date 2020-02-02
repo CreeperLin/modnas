@@ -91,16 +91,17 @@ augment:
       w_grad_clip: 0.0
       print_freq: 200
       save_freq: 0
-arch_optim:
+optim:
   type: 'BinGate'
-  n_samples: 2
-  renorm: True
-  a_optim:
-    type: 'adam'
-    args:
-      lr: 0.006
-      betas: [0.0, 0.999]
-      weight_decay: 0
+  args:
+    n_samples: 2
+    renorm: True
+    a_optim:
+      type: 'adam'
+      args:
+        lr: 0.006
+        betas: [0.0, 0.999]
+        weight_decay: 0
 mixed_op:
   type: 'BinGate'
   primitives:

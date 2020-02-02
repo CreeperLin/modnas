@@ -50,25 +50,6 @@ class SubNetEstimator(EstimatorBase):
         self.model.init_model(config.init)
         return self.model
 
-    def train(self):
-        config = self.config
-        tot_epochs = config.epochs
-        subnet = self.construct_subnet()
-
-        best_val_top1 = 0.
-        for epoch in itertools.count(self.init_epoch+1):
-            if epoch == tot_epochs: break
-            # train
-            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
-            # validate
-            val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
-            if val_top1 is None: val_top1 = trn_top1
-            best_val_top1 = max(best_val_top1, val_top1)
-            # save
-            if config.save_freq != 0 and epoch % config.save_freq == 0:
-                self.save_checkpoint(epoch)
-        return best_val_top1
-
     def validate(self):
         subnet = self.construct_subnet()
         top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0, model=subnet)
@@ -111,4 +92,8 @@ class SubNetEstimator(EstimatorBase):
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
             logger.info('SubNet Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))
-        return best_top1, best_genotype, genotypes
+        return {
+            'best_top1': best_top1,
+            'best_gt': best_genotype,
+            'gts': genotypes
+        }

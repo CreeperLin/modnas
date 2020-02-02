@@ -2,10 +2,10 @@ import logging
 import time
 import random
 import numpy as np
-from ..base import ArchOptimBase
+from ..base import OptimBase
 from ...utils import accuracy
 
-class CategoricalSpaceArchOptim(ArchOptimBase):
+class CategoricalSpaceOptim(OptimBase):
     def __init__(self, space):
         super().__init__(space)
         self.space_size = self.space.categorical_size
@@ -22,7 +22,7 @@ class CategoricalSpaceArchOptim(ArchOptimBase):
         return batch
 
 
-class GridSearchArchOptim(CategoricalSpaceArchOptim):
+class GridSearchOptim(CategoricalSpaceOptim):
     def __init__(self, space):
         super().__init__(space)
         self.counter = 0
@@ -36,7 +36,7 @@ class GridSearchArchOptim(CategoricalSpaceArchOptim):
         return self.counter < self.space_size()
 
 
-class RandomSearchArchOptim(CategoricalSpaceArchOptim):
+class RandomSearchOptim(CategoricalSpaceOptim):
     def __init__(self, space, seed=None):
         super().__init__(space)
         self.visited = set()

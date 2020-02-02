@@ -58,15 +58,16 @@ search:
       arch_update_batch: 1
       plot: False
       aux_weight: 0.0
-arch_optim:
+optim:
   type: 'REINFORCE'
-  batch_size: 10
-  a_optim:
-    type: 'adam'
-    args:
-      lr: 0.006
-      betas: [0.0, 0.999]
-      weight_decay: 0.0
+  args:
+    batch_size: 10
+    a_optim:
+      type: 'adam'
+      args:
+        lr: 0.006
+        betas: [0.0, 0.999]
+        weight_decay: 0.0
 mixed_op:
   type: 'BinGate'
   primitives:

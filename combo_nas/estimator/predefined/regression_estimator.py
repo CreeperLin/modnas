@@ -70,4 +70,8 @@ class RegressionEstimator(EstimatorBase):
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
             logger.info('Regression Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, best_top1_batch, best_top1))
-        return best_top1, best_genotype, genotypes
+        return {
+            'best_top1': best_top1,
+            'best_gt': best_genotype,
+            'gts': genotypes
+        }

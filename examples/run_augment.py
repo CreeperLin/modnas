@@ -4,10 +4,10 @@ import argparse
 from combo_nas.utils.wrapper import run_augment
 
 def main():
-    parser = argparse.ArgumentParser(description='Proxyless-NAS augment')
+    parser = argparse.ArgumentParser(description='ComboNAS augment routine')
     parser.add_argument('-n', '--name', type=str, required=True,
                         help="name of the model")
-    parser.add_argument('-c', '--config', type=str, default='./config/default.yaml',
+    parser.add_argument('-c', '--config', type=str, required=True,
                         help="yaml config file")
     parser.add_argument('-e', '--exp', type=str, default='exp',
                         help="experiment root dir")
@@ -19,7 +19,7 @@ def main():
                         help="override genotype file")
     args = parser.parse_args()
 
-    run_augment(args.config, args.name, args.exp, args.chkpt, args.device, args.genotype)
+    run_augment(**args)
 
 
 if __name__ == '__main__':

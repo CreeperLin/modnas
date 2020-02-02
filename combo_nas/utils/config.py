@@ -33,7 +33,7 @@ class Config(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-    def __init__(self, file, dct=None):
+    def __init__(self, file=None, dct={}):
         super().__init__()
         if not file is None:
             dct = load_config(file)

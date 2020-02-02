@@ -1,7 +1,7 @@
 import time
 from collections import OrderedDict
-import combo_nas.arch_optim as arch_optim
-from combo_nas.arch_optim.base import ArchOptimBase
+import combo_nas.optim as optim
+from combo_nas.optim.base import OptimBase
 from combo_nas.core.param_space import ParamCategorical, ParamNumeric
 try:
     import skopt
@@ -10,8 +10,8 @@ try:
 except ImportError:
     skopt = None
 
-@arch_optim.register('Skopt')
-class SkoptParamOptim(ArchOptimBase):
+@optim.register('Skopt')
+class SkoptParamOptim(OptimBase):
     def __init__(self, space, skopt_args={}):
         super().__init__(space)
         if skopt is None:

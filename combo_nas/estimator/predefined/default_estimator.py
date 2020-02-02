@@ -33,7 +33,9 @@ class DefaultEstimator(EstimatorBase):
             # save
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-        return best_val_top1
+        return {
+            'best_top1': best_val_top1
+        }
 
     def validate(self):
         top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0)

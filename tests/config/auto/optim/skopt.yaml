@@ -5,7 +5,7 @@ hpspace:
   hp_dict:
     augment.estimator.train.w_optim.args.lr: [[0.01, 1]]
     augment.estimator.train.w_optim.args.momentum: [[0.5, 0.9]]
-hptuner:
+optim:
   type: 'Skopt'
 log:
   writer: False

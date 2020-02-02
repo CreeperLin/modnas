@@ -1,10 +1,10 @@
 """ Architect controls architecture of cell by computing gradients of alphas """
 import copy
 import torch
-from ..base import ArchOptimBase
+from ..base import OptimBase
 from ...utils import get_optim, accuracy
 
-class GradientBasedArchOptim(ArchOptimBase):
+class GradientBasedOptim(OptimBase):
     def __init__(self, space, a_optim):
         super().__init__(space)
         self.a_optim = get_optim(self.space.tensor_values(), a_optim)
@@ -24,7 +24,7 @@ class GradientBasedArchOptim(ArchOptimBase):
         self.a_optim.zero_grad()
 
 
-class DARTSArchOptim(GradientBasedArchOptim):
+class DARTSOptim(GradientBasedOptim):
     """ Compute gradients of alphas """
     def __init__(self, space, a_optim, w_momentum, w_weight_decay):
         super().__init__(space, a_optim)
@@ -124,7 +124,7 @@ class DARTSArchOptim(GradientBasedArchOptim):
         return hessian
 
 
-class BinaryGateArchOptim(GradientBasedArchOptim):
+class BinaryGateOptim(GradientBasedOptim):
     """ Compute gradients of alphas """
     def __init__(self, space, a_optim, n_samples, renorm):
         super().__init__(space, a_optim)
@@ -182,7 +182,7 @@ class BinaryGateArchOptim(GradientBasedArchOptim):
             m.reset_ops()
 
 
-class DirectGradArchOptim(GradientBasedArchOptim):
+class DirectGradOptim(GradientBasedOptim):
     def __init__(self, space, a_optim):
         super().__init__(space, a_optim)
 
@@ -191,7 +191,7 @@ class DirectGradArchOptim(GradientBasedArchOptim):
         self.optim_reset()
 
 
-class REINFORCEArchOptim(GradientBasedArchOptim):
+class REINFORCEOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, batch_size):
         super().__init__(space, a_optim)
         self.batch_size = batch_size

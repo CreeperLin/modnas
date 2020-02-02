@@ -9,11 +9,10 @@ class Slot(nn.Module):
     _slot_id = -1
     _convert_fn = None
 
-    def __init__(self, chn_in, chn_out, stride, name=None, arch_param_map=None, kwargs={}):
+    def __init__(self, chn_in, chn_out, stride, name=None, kwargs={}):
         super().__init__()
         Slot.register(self)
         self.name = str(self.sid) if name is None else name
-        self.arch_param_map = arch_param_map
         self.e_chn_in = chn_in
         self.e_chn_out = chn_in if chn_out is None else chn_out
         self.stride = stride
@@ -23,8 +22,8 @@ class Slot(nn.Module):
         self.fixed = False
         self.visited = False
         self.built = False
-        logging.debug('slot {} {} {}: declared {} {} {}'.format(
-            self.sid, self.arch_param_map, self.name, self.chn_in, self.chn_out, self.stride))
+        logging.debug('slot {} {}: declared {} {} {}'.format(
+            self.sid, self.name, self.chn_in, self.chn_out, self.stride))
 
     @staticmethod
     def register(slot):

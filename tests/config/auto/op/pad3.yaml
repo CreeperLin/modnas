@@ -59,7 +59,7 @@ search:
       aux_weight: 0.0
       init:
         type: 'he_normal_fout'
-arch_optim:
+optim:
   type: 'Random'
 layers:
   - 

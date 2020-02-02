@@ -2,10 +2,10 @@ import logging
 import time
 import random
 import numpy as np
-from ..base import ArchOptimBase
+from ..base import OptimBase
 from ...utils import accuracy
 from ...core.param_space import ArchParamSpace
-from .gridsearch import CategoricalSpaceArchOptim
+from .gridsearch import CategoricalSpaceOptim
 
 class CostModel():
     def __init__(self,):
@@ -26,7 +26,7 @@ class ModelOptimizer():
         pass
 
 
-class ModelBasedArchOptim(CategoricalSpaceArchOptim):
+class ModelBasedOptim(CategoricalSpaceOptim):
     def __init__(self, space, cost_model, model_optimizer):
         super().__init__(space)
         self.cost_model = cost_model

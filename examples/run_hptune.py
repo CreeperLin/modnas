@@ -4,10 +4,10 @@ import argparse
 from combo_nas.utils.wrapper import run_hptune
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='ComboNAS hparam tuning routine')
     parser.add_argument('-n', '--name', type=str, required=True,
                         help="name of the model")
-    parser.add_argument('-c', '--config', type=str, default='./config/default.yaml',
+    parser.add_argument('-c', '--config', type=str, required=True,
                         help="yaml config file")
     parser.add_argument('-e', '--exp', type=str, default='exp',
                         help="experiment root dir")
@@ -17,7 +17,7 @@ def main():
                         help="override device ids")
     args = parser.parse_args()
 
-    run_hptune(args.config, args.name, args.exp, args.chkpt, args.device, measure_fn=None)
+    run_hptune(**args)
 
 
 if __name__ == '__main__':

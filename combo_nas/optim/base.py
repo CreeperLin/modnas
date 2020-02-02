@@ -1,6 +1,6 @@
-""" arch_optim base """
+""" optim base """
 
-class ArchOptimBase():
+class OptimBase():
     def __init__(self, space):
         self.space = space
 

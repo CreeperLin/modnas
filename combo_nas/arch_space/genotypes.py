@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 """ Genotypes
-    - Genotype: normal/reduce gene + normal/reduce cell output connection (concat)
-    - gene: discrete ops information (w/o output connection)
-    - dag: real ops (can be mixed or discrete, but Genotype has only discrete information itself)
 """
 import logging
 import os
@@ -35,10 +32,14 @@ def from_str(g_str):
 
 
 def get_genotype(config, ovr_genotype):
-    if not ovr_genotype is None:
-        genotype = from_file(ovr_genotype)
+    if isinstance(ovr_genotype, Genotype):
+        return ovr_genotype
+    elif isinstance(ovr_genotype, str):
+        if ovr_genotype.startswith('Genotype'):
+            return from_str(ovr_genotype)
+        else: return from_file(ovr_genotype)
     elif config.gt_str == '':
-        genotype = from_file(config.gt_path)
+        return from_file(config.gt_path)
     else:
-        genotype = from_str(config.gt_str)
-    return genotype
+        return from_str(config.gt_str)
+    return None

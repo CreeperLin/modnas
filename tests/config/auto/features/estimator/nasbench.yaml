@@ -8,7 +8,7 @@ search:
       arch_update_epoch_start: 0
       arch_update_epoch_intv: 1
       arch_update_batch: 1
-arch_optim:
+optim:
   type: 'Random'
 log:
   writer: False

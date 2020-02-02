@@ -8,11 +8,11 @@ import torch.nn as nn
 from .BoT import *
 try:
     from tensorboardX import SummaryWriter
-except:
+except ImportError:
     SummaryWriter = None
 try:
     import adabound
-except:
+except ImportError:
     adabound = None
 
 def get_current_device():
@@ -27,40 +27,13 @@ def parse_gpus(gpus):
     else:
         return [int(s) for s in gpus.split(',')]
 
-def check_config(hp, excludes=[]):
+def check_config(hp):
     flag = False
-    required = (
-        'search.data.type',
-        'augment.data.type',
-        'search.data.train_root',
-        'search.data.valid_root',
-        'augment.data.train_root',
-        'augment.data.valid_root',
-    )
-
-    for i in required:
-        try:
-            ddict = hp
-            for a in i.split('.'):
-                ddict = getattr(ddict, a)
-            if ddict == '':
-                logging.error('check_config: field {} requires non-empty value'.format(i))
-                flag = True
-        except:
-            if a in excludes: continue
-            if a != i.split('.')[-1]:
-                logging.warning('check_config: node {} in field {} missing'.format(a, i))
-                continue
-            logging.error('check_config: field {} is missing'.format(i))
-            flag = True
 
     defaults = {
-        'search.data.dloader.prefetch': False,
-        'augment.data.dloader.prefetch': False,
-        'search.data.dloader.cutout': 0,
-        'augment.data.dloader.cutout': 16,
-        'search.data.dloader.jitter': True,
-        'augment.data.dloader.jitter': True,
+        'data.dloader.prefetch': False,
+        'data.dloader.cutout': 0,
+        'data.dloader.jitter': False,
         'ops.ops_order': 'act_weight_bn',
         'ops.affine': False,
         'log.writer': False,
@@ -78,21 +51,19 @@ def check_config(hp, excludes=[]):
     for i in defaults:
         a = ''
         ddict = hp
+        keys = i.split('.')
         try:
-            for a in i.split('.'):
+            for a in keys:
                 ddict = getattr(ddict, a)
-        except:
-            if a in excludes: continue
-            if a != i.split('.')[-1]:
-                logging.warning('check_config: node {} in field {} missing'.format(a, i))
+        except KeyError:
+            if a != keys[-1]:
+                logging.warning('check_config: key {} in field {} missing'.format(a, i))
                 continue
             else:
                 logging.warning('check_config: setting field {} to default: {}'.format(i, defaults[i]))
                 setattr(ddict, a, defaults[i])
-
     if flag:
-        return True
-
+        raise ValueError('check_config: Failed')
     logging.info('check_config: OK')
     return False
 

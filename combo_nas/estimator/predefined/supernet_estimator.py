@@ -50,7 +50,11 @@ class SuperNetEstimator(EstimatorBase):
             self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-        return best_top1, best_genotype, genotypes
+        return {
+            'best_top1': best_top1,
+            'best_gt': best_genotype,
+            'gts': genotypes
+        }
 
     def get_lr(self):
         return self.lr_scheduler.get_lr()[0]

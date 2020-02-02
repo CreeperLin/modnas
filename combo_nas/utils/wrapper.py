@@ -1,4 +1,5 @@
 import os
+import queue
 import importlib
 from ..utils.exp_manager import ExpManager
 from ..data_provider.dataloader import load_data
@@ -10,20 +11,22 @@ from ..arch_space import build_arch_space
 from ..arch_space.constructor import Slot
 from ..core.param_space import ArchParamSpace
 from ..core.controller import NASController
-from ..arch_optim import build_arch_optim
+from ..optim import build_optim
 from .. import utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 from .routine import search, augment, hptune
 
-def load_config(conf, excludes):
+def load_config(conf):
     if isinstance(conf, Config):
         config = conf
+    elif isinstance(conf, str):
+        config = Config(file=conf)
+    elif isinstance(conf, dict):
+        config = Config(dct=conf)
     else:
-        config = Config(conf)
-    if utils.check_config(config, excludes):
-        raise Exception("config error.")
+        raise ValueError('invalid config type')
     return config
 
 
@@ -35,10 +38,22 @@ def import_modules(modules):
             print(exc)
 
 
-def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=None):
+def _elevate_config(config, key):
+    '''
+        legacy config support
+    '''
+    if key in config:
+        dct = config.pop(key)
+        config.update(dct)
+
+
+def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
     trn_loader = val_loader = model_builder = model = None
     ArchParamSpace.reset()
-    config = load_config(config, excludes=['augment'])
+    # config
+    config = load_config(config)
+    _elevate_config(config, 'search')
+    utils.check_config(config)
     # imports
     import_modules(config.get('imports', []))
     # dir
@@ -49,12 +64,12 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    if 'data' in config.search:
-        sp_ratio = config.search.data.dloader.split_ratio
+    if 'data' in config:
+        sp_ratio = config.data.dloader.split_ratio
         if sp_ratio > 0:
-            trn_loader, val_loader = load_data(config.search.data, validation=False)
+            trn_loader, val_loader = load_data(config.data, validation=False)
         else:
-            trn_loader = load_data(config.search.data, validation=False)
+            trn_loader = load_data(config.data, validation=False)
             val_loader = None
     # ops
     if 'ops' in config:
@@ -106,17 +121,15 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
             return model
         model = default_model_builder()
         model_builder = default_model_builder
-    # arch
-    arch_kwargs = dict(config.arch_optim.copy())
-    del arch_kwargs['type']
-    arch_kwargs = config.arch_optim.get('args', arch_kwargs)
-    arch = build_arch_optim(config.arch_optim.type, space=ArchParamSpace, **arch_kwargs)
+    # optim
+    optim_kwargs = config.optim.get('args', {})
+    optim = build_optim(config.optim.type, space=ArchParamSpace, **optim_kwargs)
     # chkpt
     chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
-        'config': config.search,
+        'config': config.estimator,
         'chkpt_path': chkpt,
-        'arch_optim': arch,
+        'optim': optim,
         'estim_kwargs': {
             'expman': expman,
             'train_loader': trn_loader,
@@ -130,8 +143,10 @@ def init_all_search(config, name, exp, chkpt, device, genotype=None, convert_fn=
     }
 
 
-def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None):
-    config = load_config(config, excludes=['search'])
+def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
+    config = load_config(config)
+    _elevate_config(config, 'augment')
+    utils.check_config(config)
     # imports
     import_modules(config.get('imports', []))
     # dir
@@ -141,8 +156,8 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    val_loader = load_data(config.augment.data, validation=True)
-    trn_loader = load_data(config.augment.data, validation=False)
+    val_loader = load_data(config.data, validation=True)
+    trn_loader = load_data(config.data, validation=False)
     # ops
     if 'ops' in config:
         config.ops.affine = True
@@ -181,7 +196,7 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
     # chkpt
     chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
-        'config': config.augment,
+        'config': config.estimator,
         'chkpt_path': chkpt,
         'estim_kwargs': {
             'expman': expman,
@@ -196,9 +211,11 @@ def init_all_augment(config, name, exp, chkpt, device, genotype, convert_fn=None
     }
 
 
-def init_all_hptune(config, name, exp, chkpt, device, measure_fn=None):
+def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_fn=None):
     HParamSpace.reset()
-    config = load_config(config, excludes=['search', 'augment'])
+    config = load_config(config)
+    _elevate_config(config, 'hptune')
+    utils.check_config(config)
     # imports
     import_modules(config.get('imports', []))
     # dir
@@ -212,15 +229,13 @@ def init_all_hptune(config, name, exp, chkpt, device, measure_fn=None):
     if hp_path is None:
         build_hparam_space_from_dict(config.hpspace.hp_dict)
     # optim
-    optim_kwargs = dict(config.hptuner.copy())
-    del optim_kwargs['type']
-    optim_kwargs = config.hptuner.get('args', optim_kwargs)
-    optim = build_arch_optim(config.hptuner.type, space=HParamSpace, **optim_kwargs)
+    optim_kwargs = config.optim.get('args', {})
+    optim = build_optim(config.optim.type, space=HParamSpace, **optim_kwargs)
     # measure_fn
     if measure_fn is None:
         measure_fn = default_measure_fn
     return {
-        'config': config.hptune,
+        'config': config.estimator,
         'chkpt_path': chkpt,
         'optim': optim,
         'estim_kwargs': {
@@ -237,28 +252,17 @@ def init_all_hptune(config, name, exp, chkpt, device, measure_fn=None):
     }
 
 
-def default_measure_fn(proc, *args, **kwargs):
-    if proc == 'search':
-        return default_search_measure_fn(*args, **kwargs)
-    elif proc == 'augment':
-        return default_augment_measure_fn(*args, **kwargs)
-    elif proc == 'hptune':
-        return default_hptune_measure_fn(*args, **kwargs)
-
-
-def default_search_measure_fn(*args, **kwargs):
-    best_top1, _, _ = run_search(*args, **kwargs)
-    return best_top1
-
-
-def default_augment_measure_fn(*args, **kwargs):
-    best_top1 = run_augment(*args, **kwargs)
-    return best_top1
-
-
-def default_hptune_measure_fn(*args, **kwargs):
-    _, _, best_hparams = run_hptune(*args, **kwargs)
-    return best_hparams
+def default_measure_fn(rtype, *args, **kwargs):
+    proc = get_runner(rtype)
+    ret = proc(*args, **kwargs)
+    if rtype == 'search':
+        return ret['best_top1']
+    elif rtype == 'augment':
+        return ret['best_top1']
+    elif rtype == 'hptune':
+        return ret['best_score']
+    elif rtype == 'pipeline':
+        return ret['final']['best_top1']
 
 
 def run_search(*args, **kwargs):
@@ -271,3 +275,72 @@ def run_augment(*args, **kwargs):
 
 def run_hptune(*args, **kwargs):
     return hptune(**init_all_hptune(*args, **kwargs))
+
+
+def run_pipeline(config, name, exp='exp'):
+    config = load_config(config)
+    utils.check_config(config)
+    # imports
+    import_modules(config.get('imports', []))
+    # dir
+    expman = ExpManager(exp, name)
+    logger = utils.get_logger(expman.logs_path, name, config.log)
+    writer = utils.get_writer(expman.writer_path, config.log.writer)
+    logger.info('config loaded:\n{}'.format(config))
+    pipeconf = config.get('pipeline', {})
+    pending = queue.Queue()
+    for name in pipeconf.keys():
+        pending.put(name)
+    finished = set()
+    ret_values = dict()
+    while not pending.empty():
+        pname = pending.get()
+        pconf = pipeconf.get(pname)
+        dep_sat = True
+        for dep in pconf.get('depends', []):
+            if not dep in finished:
+                dep_sat = False
+                break
+        if not dep_sat:
+            pending.put(pname)
+            continue
+        ptype = pconf.type
+        proc = get_runner(ptype)
+        pargs = pconf.get('args', {})
+        pargs.exp = os.path.join(expman.root_dir, pargs.get('exp', ''))
+        for inp_kw, inp_idx in pconf.get('inputs', {}).items():
+            keys = inp_idx.split('.')
+            inp_val = ret_values
+            for k in keys:
+                inp_val = inp_val[k]
+            pargs[inp_kw] = inp_val
+        logger.info('pipeline: running {}, type={}'.format(pname, ptype))
+        ret = proc(**pargs)
+        ret_values[pname] = ret
+        logger.info('pipeline: finished {}, results={}'.format(pname, ret))
+        finished.add(pname)
+    ret_values['final'] = ret
+    logger.info('pipeline: all finished')
+    return ret_values
+
+
+_runner_map = {
+    'search': run_search,
+    'augment': run_augment,
+    'hptune': run_hptune,
+    'pipeline': run_pipeline
+}
+
+
+def get_runner(rtype):
+    if rtype in _runner_map:
+        return _runner_map[rtype]
+    else:
+        raise ValueError('pipeline: unknown type: {}'.format(rtype))
+
+
+def run(config, *args, proc=None, **kwargs):
+    config = load_config(config)
+    proc = config.get('proc', None) if proc is None else proc
+    proc = get_runner(proc)
+    return proc(*args, config=config, **kwargs)

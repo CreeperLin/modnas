@@ -73,7 +73,7 @@ augment:
       w_grad_clip: 0.0
       print_freq: 200
       save_freq: 0
-arch_optim:
+optim:
   type: 'Random'
 mixed_op:
   type: 'Index'

@@ -2,7 +2,7 @@ import pytest
 import os
 import yaml
 from functools import partial
-from combo_nas.utils.wrapper import run_search, run_augment, run_hptune
+from combo_nas.utils.wrapper import run_search, run_augment, run_hptune, run_pipeline
 import testnet
 
 class TestAuto():
@@ -35,6 +35,9 @@ class TestAuto():
                     if 'hptune' in conf:
                         print('name: {} hptune'.format(casename))
                         run_hptune(conf_path, casename, exp, None, None, measure_fn=None)
+                    if 'pipeline' in conf:
+                        print('name: {} pipeline'.format(casename))
+                        run_pipeline(conf_path, casename, exp)
                 case_runner = partial(case_fn, testname, config_path)
                 fn_name = 'test_'+testname
                 case_runner.__name__ = fn_name

@@ -3,7 +3,7 @@ hpspace:
   hp_dict:
     augment.estimator.train.w_optim.args.lr: [0.01, 0.1, 1.0]
     # augment.estimator.train.epochs: [1, 2, 3]
-hptuner:
+optim:
   type: 'Random'
 log:
   writer: False

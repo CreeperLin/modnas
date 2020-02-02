@@ -37,14 +37,15 @@ search:
       arch_update_intv: -1
       arch_update_batch: 1
       # plot: False
-arch_optim:
+optim:
   type: 'DirectGrad'
-  a_optim:
-    type: 'adam'
-    args:
-      lr: 0.006
-      betas: [0.0, 0.999]
-      weight_decay: 0.0
+  args:
+    a_optim:
+      type: 'adam'
+      args:
+        lr: 0.006
+        betas: [0.0, 0.999]
+        weight_decay: 0.0
 mixed_op:
   type: 'BinGateUniform'
   primitives:

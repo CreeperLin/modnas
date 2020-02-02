@@ -91,12 +91,13 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
 
     def __init__(self, chn_in, chn, block, layers, n_classes, zero_init_residual=False,
-                 groups=1, width_per_group=None, norm_layer=None, expansion=None):
+                 groups=1, width_per_group=None, use_bn=False, expansion=None):
         super(ResNet, self).__init__()
-        if norm_layer is None:
-            norm_layer = Identity
-        elif norm_layer == 'bn':
+        if use_bn:
             norm_layer = nn.BatchNorm2d
+        else:
+            norm_layer = Identity
+        self.use_bn = use_bn
         if not expansion is None:
             block.expansion = expansion
         block.chn_init = chn
@@ -104,7 +105,7 @@ class ResNet(nn.Module):
         self.chn = chn
         self.groups = groups
         self.base_width = chn // groups if width_per_group is None else width_per_group
-        self.conv1 = self.get_stem(chn_in, chn, norm_layer)
+        self.conv1 = self.get_stem(chn_in, chn, nn.BatchNorm2d)
 
         self.layers = nn.Sequential(*[
             self._make_layer(block, (2 ** i) * chn, layers[i],
@@ -152,8 +153,15 @@ class ResNet(nn.Module):
         return x
 
     def get_predefined_augment_converter(self):
-        return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, stride=slot.stride,
-                                      padding=1, bias=False, **slot.kwargs)
+        if self.use_bn:
+            return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1,
+                                          stride=slot.stride, bias=False, **slot.kwargs)
+        else:
+            return lambda slot: nn.Sequential(
+                nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1,
+                          stride=slot.stride, bias=False, **slot.kwargs),
+                nn.BatchNorm2d(slot.chn_out)
+            )
 
 
 class ImageNetResNet(ResNet):

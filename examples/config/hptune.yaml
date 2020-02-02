@@ -6,7 +6,7 @@ hpspace:
     # search.estimator.search.warmup_epochs: [0, 20, 40, 60]
     # search.estimator.search.epochs: [25, 50, 100, 200]
     # search.estimator.search.w_optim.args.lr: [0.035, 0.01, 0.1]
-hptuner:
+optim:
   type: 'Random'
 log:
   writer: False
@@ -101,7 +101,7 @@ hptune:
               w_grad_clip: 0.0
               print_freq: 200
               save_freq: 0
-        arch_optim:
+        optim:
           type: 'Random'
         mixed_op:
           type: 'Index'

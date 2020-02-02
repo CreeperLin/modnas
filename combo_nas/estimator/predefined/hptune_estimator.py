@@ -22,9 +22,6 @@ class HPTuneEstimator(EstimatorBase):
         measure_args = copy.deepcopy(config.trial_args)
         measure_args.name = '{}_{}'.format(measure_args.get('name', 'trial'), self.trial_index)
         measure_args.exp = os.path.join(self.expman.root_dir, measure_args.get('exp', ''))
-        measure_args.chkpt = measure_args.get('chkpt', None)
-        measure_args.device = measure_args.get('device', 'all')
-        measure_args.genotype = measure_args.get('genotype', None)
         measure_args.config = trial_config
         self.trial_index += 1
         try:
@@ -40,6 +37,9 @@ class HPTuneEstimator(EstimatorBase):
             'error_no': error_no,
         }
         return result
+
+    def load(self, chkpt_path):
+        pass
 
     def predict(self, ):
         pass
@@ -93,4 +93,8 @@ class HPTuneEstimator(EstimatorBase):
                 break
             if error_ct > 150:
                 logger.warning('hptune: Too many errors in tuning: {}'.format(error_ct))
-        return best_iter, best_score, best_hparams
+        return {
+            'best_iter': best_iter,
+            'best_score': best_score,
+            'best_hparams': best_hparams
+        }
