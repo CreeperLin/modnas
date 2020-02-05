@@ -21,6 +21,7 @@ class SuperNetEstimator(EstimatorBase):
         self.w_optim = utils.get_optim(self.model.weights(), self.config.w_optim)
         self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
                                                    self.config.epochs)
+        self.print_model_info()
 
     def predict(self, ):
         pass
@@ -47,7 +48,8 @@ class SuperNetEstimator(EstimatorBase):
                 best_top1 = val_top1
                 best_genotype = genotype
             # save
-            self.save_genotype(epoch)
+            if config.save_gt:
+                self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
         return {

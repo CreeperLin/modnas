@@ -1,28 +1,8 @@
 """ Architect controls architecture of cell by computing gradients of alphas """
 import copy
 import torch
-from ..base import OptimBase
-from ...utils import get_optim, accuracy
-
-class GradientBasedOptim(OptimBase):
-    def __init__(self, space, a_optim):
-        super().__init__(space)
-        self.a_optim = get_optim(self.space.tensor_values(), a_optim)
-
-    def state_dict(self):
-        return {
-            'a_optim': self.a_optim.state_dict()
-        }
-
-    def load_state_dict(self, sd):
-        self.a_optim.load_state_dict(sd['a_optim'])
-
-    def optim_step(self):
-        self.a_optim.step()
-
-    def optim_reset(self):
-        self.a_optim.zero_grad()
-
+from ..base import GradientBasedOptim
+from ...utils import accuracy
 
 class DARTSOptim(GradientBasedOptim):
     """ Compute gradients of alphas """

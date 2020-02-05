@@ -1,15 +1,19 @@
+imports:
+  - 'combo_nas.contrib.nasbench'
 search:
   estimator:
     nasbench:
       type: 'NASBench'
-      epochs: 200
-      save_freq: 0
-      record_path: './data/nasbench101/nasbench_full.tfrecord'
-      arch_update_epoch_start: 0
+      epochs: 5000
+      save_gt: False
+      record_path: './data/nasbench101/nasbench_only108.tfrecord'
+      arch_update_epoch_start: 1
       arch_update_epoch_intv: 1
-      arch_update_batch: 2048
+      arch_update_batch: 1
 optim:
   type: 'Random'
+model:
+  type: 'NASBench'
 log:
   writer: False
 device:

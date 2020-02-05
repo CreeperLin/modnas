@@ -1,3 +1,5 @@
+imports:
+  - 'combo_nas.contrib.nasbench'
 search:
   estimator:
     nasbench:
@@ -8,6 +10,8 @@ search:
       arch_update_epoch_start: 0
       arch_update_epoch_intv: 1
       arch_update_batch: 1
+model:
+  type: 'NASBench'
 optim:
   type: 'Random'
 log:

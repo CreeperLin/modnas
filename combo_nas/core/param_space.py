@@ -82,13 +82,24 @@ class ParamSpace():
     def get_tensor_value(self, idx):
         return list(self.tensor_params())[idx].value()
 
-    def get_categorical_map(self, idx):
-        arch_param = {}
+    def get_categorical_params(self, idx):
+        arch_param = OrderedDict()
         for ap in self.categorical_params():
             ap_dim = len(ap)
             arch_param[ap.name] = ap.get_value(idx % ap_dim)
             idx //= ap_dim
         return arch_param
+
+    def get_categorical_index(self, param):
+        idx = 0
+        base = 1
+        for n, v in param.items():
+            p = self.get_param(n)
+            p_dim = len(p)
+            p_idx = p.get_index(v)
+            idx += base * p_idx
+            base *= p_dim
+        return idx
 
     def set_categorical_params(self, idx):
         for ap in self.categorical_params():

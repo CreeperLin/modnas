@@ -6,8 +6,7 @@ from ...core.param_space import ArchParamSpace
 class SubNetEstimator(EstimatorBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.results = []
-        self.inputs = []
+        self.print_model_info()
 
     def step(self, params):
         ArchParamSpace.set_params_map(params)
@@ -40,9 +39,6 @@ class SubNetEstimator(EstimatorBase):
 
     def predict(self, ):
         pass
-
-    def get_last_results(self, ):
-        return self.inputs, self.results
 
     def construct_subnet(self):
         config = self.config
@@ -88,7 +84,8 @@ class SubNetEstimator(EstimatorBase):
                     best_top1 = val_top1
                     best_genotype = genotype
             # save
-            self.save_genotype(epoch)
+            if config.save_gt:
+                self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
             logger.info('SubNet Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, val_top1, best_top1))

@@ -3,7 +3,7 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..utils.registration import Registry, build, get_builder, register_wrapper
+from ..utils.registration import Registry, build, get_builder, register_as
 from ..utils import get_same_padding
 from functools import partial
 
@@ -19,7 +19,7 @@ def update_op(ops):
 
 get_op_builder = partial(get_builder, op_registry)
 build_op = partial(build, op_registry)
-register = partial(register_wrapper, op_registry)
+register = partial(register_as, op_registry)
 
 register_op(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'none', 'NIL')
 register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'avg_pool', 'AVG')

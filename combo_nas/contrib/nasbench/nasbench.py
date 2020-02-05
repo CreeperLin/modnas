@@ -1,5 +1,8 @@
-from .regression_estimator import RegressionEstimator, ArchPredictor
-from ...core.param_space import ArchParamCategorical
+import torch.nn as nn
+from combo_nas.core.param_space import ArchParamCategorical
+from combo_nas.estimator.predefined.regression_estimator import RegressionEstimator, ArchPredictor
+import combo_nas.arch_space
+import combo_nas.estimator
 try:
     from nasbench import api
 except ImportError:
@@ -7,18 +10,21 @@ except ImportError:
 
 INPUT = 'input'
 OUTPUT = 'output'
+
 CONV1X1 = 'conv1x1-bn-relu'
 CONV3X3 = 'conv3x3-bn-relu'
 MAXPOOL3X3 = 'maxpool3x3'
 
-class NASBenchNet():
+@combo_nas.arch_space.register('NASBench')
+class NASBenchNet(nn.Module):
     def __init__(self, n_nodes=7):
+        super().__init__()
         matrix = []
         ops = []
         n_states = n_nodes - 2
         n_edges = n_nodes * (n_nodes-1) // 2
         for _ in range(n_edges):
-            matrix.append(ArchParamCategorical([0, 1]))
+            matrix.append(ArchParamCategorical(['0', '1']))
         for _ in range(n_states):
             ops.append(ArchParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]))
         self.matrix_params = matrix
@@ -31,7 +37,6 @@ class NASBenchNet():
             matrix,
             ops
         )
-
 
 class NASBenchPredictor(ArchPredictor):
     def __init__(self, record_path):
@@ -51,7 +56,7 @@ class NASBenchPredictor(ArchPredictor):
         k = 0
         for i in range(max_nodes):
             for j in range(i+1, max_nodes):
-                matrix[i][j] = g_matrix[k]
+                matrix[i][j] = int(g_matrix[k])
                 k+=1
         ops = [INPUT] + genotype[1] + [OUTPUT]
         model_spec = api.ModelSpec(matrix=matrix, ops=ops)
@@ -62,13 +67,11 @@ class NASBenchPredictor(ArchPredictor):
             val_acc = 0
         return val_acc
 
-
+@combo_nas.estimator.register('NASBench')
 class NASBenchEstimator(RegressionEstimator):
 
     def search(self, optim):
         config = self.config
-        self.logger.info('generating NASBench param space')
-        self.model = NASBenchNet()
         self.logger.info('loading NASBench data')
         self.predictor = NASBenchPredictor(config.record_path)
         return super().search(optim)

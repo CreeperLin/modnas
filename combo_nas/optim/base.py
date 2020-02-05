@@ -1,4 +1,6 @@
 """ optim base """
+import random
+from ..utils import get_optim
 
 class OptimBase():
     def __init__(self, space):
@@ -28,4 +30,66 @@ class OptimBase():
         pass
 
     def update(self, estim):
-        pass
+        return self.step(estim)
+
+
+class GradientBasedOptim(OptimBase):
+    def __init__(self, space, a_optim):
+        super().__init__(space)
+        self.a_optim = get_optim(self.space.tensor_values(), a_optim)
+
+    def state_dict(self):
+        return {
+            'a_optim': self.a_optim.state_dict()
+        }
+
+    def load_state_dict(self, sd):
+        self.a_optim.load_state_dict(sd['a_optim'])
+
+    def optim_step(self):
+        self.a_optim.step()
+
+    def optim_reset(self):
+        self.a_optim.zero_grad()
+
+
+class CategoricalSpaceOptim(OptimBase):
+    def __init__(self, space):
+        super().__init__(space)
+        self.space_size = self.space.categorical_size
+        self.visited = set()
+
+    def has_next(self):
+        return len(self.visited) < self.space_size()
+
+    def get_random_index(self):
+        index = random.randint(0, self.space_size())
+        while index in self.visited:
+            index = random.randint(0, self.space_size())
+        return index
+
+    def is_visited(self, idx):
+        return idx in self.visited
+
+    def set_visited(self, idx):
+        self.visited.add(idx)
+
+    def get_random_params(self):
+        return self.space.get_categorical_params(self.get_random_index())
+
+    def is_visited_params(self, params):
+        return self.is_visited(self.space.get_categorical_index(params))
+
+    def set_visited_params(self, params):
+        self.visited.add(self.space.get_categorical_index(params))
+
+    def _next(self):
+        raise NotImplementedError
+
+    def next(self, batch_size):
+        batch = []
+        for _ in range(batch_size):
+            if not self.has_next(): break
+            index = self._next()
+            batch.append(index)
+        return batch

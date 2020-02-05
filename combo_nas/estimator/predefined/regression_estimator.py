@@ -51,10 +51,11 @@ class RegressionEstimator(EstimatorBase):
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
-            next_batch = optim.next(batch_size=arch_batch_size)
+            self.inputs = optim.next(batch_size=arch_batch_size)
+            self.results = []
             best_top1_batch = 0.
             best_gt_batch = None
-            for params in next_batch:
+            for params in self.inputs:
                 ArchParamSpace.set_params_map(params)
                 # estim step
                 genotype, val_top1 = self.step()
@@ -64,12 +65,13 @@ class RegressionEstimator(EstimatorBase):
                 if val_top1 > best_top1_batch:
                     best_top1_batch = val_top1
                     best_gt_batch = genotype
+                self.results.append(val_top1)
             genotypes.append(best_gt_batch)
             # save
-            self.save_genotype(epoch, genotype=best_gt_batch)
-            if config.save_freq != 0 and epoch % config.save_freq == 0:
-                self.save_checkpoint(epoch)
-            logger.info('Regression Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, best_top1_batch, best_top1))
+            if config.save_gt:
+                self.save_genotype(epoch, genotype=best_gt_batch)
+            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(
+                epoch, tot_epochs, best_top1_batch, best_top1))
         return {
             'best_top1': best_top1,
             'best_gt': best_genotype,

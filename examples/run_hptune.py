@@ -17,7 +17,7 @@ def main():
                         help="override device ids")
     args = parser.parse_args()
 
-    run_hptune(**args)
+    run_hptune(**vars(args))
 
 
 if __name__ == '__main__':

@@ -4,13 +4,13 @@ from functools import partial
 import torch.nn as nn
 from .defs import get_merger, get_allocator, get_enumerator
 from ..utils import param_count
-from ..utils.registration import Registry, build, get_builder, register, register_wrapper
+from ..utils.registration import Registry, build, get_builder, register, register_as
 
 layer_registry = Registry('layer')
 register_layer = partial(register, layer_registry)
 get_layer_builder = partial(get_builder, layer_registry)
 build_layer = partial(build, layer_registry)
-register = partial(register_wrapper, layer_registry)
+register = partial(register_as, layer_registry)
 
 class DAGLayer(nn.Module):
     def __init__(self, chn_in, chn_out, stride, n_nodes,

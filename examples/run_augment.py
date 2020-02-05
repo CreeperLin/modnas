@@ -19,7 +19,7 @@ def main():
                         help="override genotype file")
     args = parser.parse_args()
 
-    run_augment(**args)
+    run_augment(**vars(args))
 
 
 if __name__ == '__main__':

@@ -1,77 +1,44 @@
-import logging
-import time
-import random
-import numpy as np
-from ..base import OptimBase
-from ...utils import accuracy
-from ...core.param_space import ArchParamSpace
-from .gridsearch import CategoricalSpaceOptim
-
-class CostModel():
-    def __init__(self,):
-        pass
-
-    def fit(self, params, results):
-        pass
-
-    def predict(self, params):
-        pass
-
-
-class ModelOptimizer():
-    def __init__(self):
-        pass
-
-    def get_maximums(self, model, size, ):
-        pass
-
+from ..base import CategoricalSpaceOptim
+from .. import cost_model, model_optimizer
 
 class ModelBasedOptim(CategoricalSpaceOptim):
-    def __init__(self, space, cost_model, model_optimizer):
+    def __init__(self, space, cost_model_config, model_optimizer_config,
+                 greedy_e=0.05, n_next_pts=32,):
         super().__init__(space)
-        self.cost_model = cost_model
-        self.model_optimizer = model_optimizer
-        self.visited = set()
-        self.trials = []
-        self.trial_pt = 0
+        self.cost_model = cost_model.build(cost_model_config['type'], space=space,
+                                           **cost_model_config.get('args', {}))
+        self.model_optimizer = model_optimizer.build(model_optimizer_config['type'], space=space,
+                                                     **model_optimizer_config.get('args', {}))
+        self.n_next_pts = n_next_pts
+        self.greedy_e = greedy_e
+        self.train_x = []
+        self.train_y = []
+        self.next_xs = []
+        self.next_pt = 0
         self.train_ct = 0
 
-    def has_next(self):
-        return len(self.visited) < self.space_size()
-
     def _next(self):
-        while self.trial_pt < len(self.trials):
-            index = self.trials[self.trial_pt]
-            if index not in self.visited:
+        while self.next_pt < len(self.next_xs):
+            params = self.next_xs[self.next_pt]
+            if not self.is_visited_params(params):
                 break
-            self.trial_pt += 1
-        if self.trial_pt >= len(self.trials) - int(0.05 * self.plan_size):
-            index = np.random.randint(self.space_size())
-            while index in self.visited:
-                index = np.random.randint(self.space_size())
-        return self.space.get(index)
-
-    def next(self, batch_size):
-        batch = []
-        for i in range(batch_size):
-            if not self.has_next():
-                break
-            ret = self._next()
-            batch.append(ret)
-            self.visited.add(ret)
-        return batch
+            self.next_pt += 1
+        if self.next_pt >= len(self.next_xs) - int(self.greedy_e * self.n_next_pts):
+            params = self.get_random_params()
+        self.set_visited_params(params)
+        return params
 
     def step(self, estim):
         inputs, results = estim.get_last_results()
         for inp, res in zip(inputs, results):
-            self.xs.append(inp)
-            self.ys.append(res)
+            self.train_x.append(inp)
+            self.train_y.append(res)
 
-        if len(self.xs) >= self.plan_size * (self.train_ct + 1):
-            self.cost_model.fit(self.xs, self.ys, self.plan_size)
-            maximums = self.model_optimizer.find_maximums(
-                self.cost_model, self.plan_size, self.visited)
+        if len(self.train_x) < self.n_next_pts * (self.train_ct + 1):
+            return
 
-            self.trials = maximums
-            self.trial_pt = 0
-            self.train_ct += 1
+        self.cost_model.fit(self.train_x, self.train_y)
+        self.next_xs = self.model_optimizer.get_maximums(
+            self.cost_model, self.n_next_pts, self.visited)
+        self.next_pt = 0
+        self.train_ct += 1

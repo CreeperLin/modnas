@@ -8,6 +8,7 @@ class DefaultEstimator(EstimatorBase):
         self.w_optim = utils.get_optim(self.model.weights(), self.config.w_optim)
         self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
                                                    self.config.epochs)
+        self.print_model_info()
 
     def predict(self, ):
         pass

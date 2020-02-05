@@ -27,10 +27,39 @@ def parse_gpus(gpus):
     else:
         return [int(s) for s in gpus.split(',')]
 
-def check_config(hp):
+def check_config(config):
+    
+    def check_field(config, field, default=None):
+        cur_key = ''
+        idx = -1
+        keys = field.split('.')
+        cur_dict = config
+        try:
+            for idx in range(len(keys)):
+                cur_key = keys[idx]
+                if cur_key == '*':
+                    for k in cur_dict.keys():
+                        keys[idx] = k
+                        nfield = '.'.join(keys)
+                        if check_field(config, nfield, default):
+                            return True
+                    return False
+                cur_dict = cur_dict[cur_key]
+        except KeyError:
+            if idx != len(keys) - 1:
+                logging.warning('check_config: key \'{}\' in field \'{}\' missing'.format(cur_key, field))
+            elif default is None:
+                logging.error('missing field \'{}\''.format(field))
+                return True
+            else:
+                logging.warning('check_config: setting field \'{}\' to default: {}'.format(field, default))
+                cur_dict[cur_key] = default
+        return False
+
     flag = False
 
     defaults = {
+        'data.dloader.split_ratio': 0,
         'data.dloader.prefetch': False,
         'data.dloader.cutout': 0,
         'data.dloader.jitter': False,
@@ -46,22 +75,12 @@ def check_config(hp):
         'genotypes.build_args': {},
         'init.type': 'he_normal_fout',
         'init.conv_div_groups': True,
+        'estimator.*.save_gt': True,
     }
 
-    for i in defaults:
-        a = ''
-        ddict = hp
-        keys = i.split('.')
-        try:
-            for a in keys:
-                ddict = getattr(ddict, a)
-        except KeyError:
-            if a != keys[-1]:
-                logging.warning('check_config: key {} in field {} missing'.format(a, i))
-                continue
-            else:
-                logging.warning('check_config: setting field {} to default: {}'.format(i, defaults[i]))
-                setattr(ddict, a, defaults[i])
+    for key, val in defaults.items():
+        if check_field(config, key, val):
+            flag = True
     if flag:
         raise ValueError('check_config: Failed')
     logging.info('check_config: OK')

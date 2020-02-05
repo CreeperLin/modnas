@@ -10,8 +10,6 @@ class HPTuneEstimator(EstimatorBase):
         super().__init__(*args, **kwargs)
         self.trial_index = 0
         self.measure_fn = measure_fn
-        self.hparams = []
-        self.results = []
 
     def step(self, hp):
         logger = self.logger
@@ -50,9 +48,6 @@ class HPTuneEstimator(EstimatorBase):
     def validate(self):
         pass
 
-    def get_last_results(self):
-        return (self.hparams, self.results)
-
     def search(self, optim):
         logger = self.logger
         config = self.config
@@ -70,9 +65,9 @@ class HPTuneEstimator(EstimatorBase):
             if not optim.has_next():
                 logger.info('hptune: optim stop iter: {}'.format(epoch))
                 break
-            self.hparams = optim.next(batch_size)
+            self.inputs = optim.next(batch_size)
             self.results = []
-            for hp in self.hparams:
+            for hp in self.inputs:
                 res = self.step(hp)
                 # keep best config
                 if res['error_no'] == 0:
@@ -87,7 +82,7 @@ class HPTuneEstimator(EstimatorBase):
                     best_iter = epoch
                 self.results.append(score)
             logger.info('hptune: iter: {}\t score: {:.4f}/{:.4f}'.format(epoch+1, score, best_score))
-            optim.update(self)
+            optim.step(self)
             if epoch >= best_iter + early_stopping:
                 logger.info('hptune: early stopped: {}'.format(epoch))
                 break

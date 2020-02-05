@@ -17,7 +17,7 @@ def main():
                         help="override device ids")
     args = parser.parse_args()
 
-    run_search(**args)
+    run_search(**vars(args))
 
 
 if __name__ == '__main__':

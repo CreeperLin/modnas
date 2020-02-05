@@ -1,5 +1,6 @@
 import importlib
 import logging
+from functools import partial
 
 class Registry(object):
     """
@@ -48,10 +49,18 @@ def build(reg, rid, *args, **kwargs):
     # logging.debug('build {}: {}'.format(reg.name, rid))
     return reg.get(rid)(*args, **kwargs)
 
-def register_wrapper(reg, rid):
+def register_as(reg, rid):
     def reg_builder(func):
         register(reg, func, rid)
         def reg_builder_rid(*args, **kwargs):
             return func(*args, **kwargs)
         return reg_builder_rid
     return reg_builder
+
+def get_registry_utils(name):
+    _registry = Registry(name)
+    _register = partial(register, _registry)
+    _get_builder = partial(get_builder, _registry)
+    _build = partial(build, _registry)
+    _register_as = partial(register_as, _registry)
+    return _registry, _register, _get_builder, _build, _register_as

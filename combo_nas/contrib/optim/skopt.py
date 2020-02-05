@@ -46,17 +46,19 @@ class SkoptParamOptim(OptimBase):
             next_params[n] = p
         return next_params
 
-    # def next(self, batch_size):
-    #     next_pts = self.skoptim.ask(n_points=batch_size)
-    #     next_params = []
-    #     for pt in next_pts:
-    #         params = OrderedDict()
-    #         for n, p in zip(self.param_names, pt):
-    #             params[n] = p
-    #         next_params.append(params)
-    #     return next_params
+    def next(self, batch_size):
+        if batch_size == 1:
+            return [self._next()]
+        next_pts = self.skoptim.ask(n_points=batch_size)
+        next_params = []
+        for pt in next_pts:
+            params = OrderedDict()
+            for n, p in zip(self.param_names, pt):
+                params[n] = p
+            next_params.append(params)
+        return next_params
 
-    def update(self, estim):
+    def step(self, estim):
         inputs, results = estim.get_last_results()
         skinputs = [list(inp.values()) for inp in inputs]
         skresults = [-r for r in results]

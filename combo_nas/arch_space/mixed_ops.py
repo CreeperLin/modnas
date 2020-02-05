@@ -5,13 +5,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ..core.param_space import ArchParamCategorical, ArchParamTensor
 from .ops import build_op
-from ..utils.registration import Registry, build, get_builder, register, register_wrapper
+from ..utils.registration import Registry, build, get_builder, register, register_as
 
 mixed_op_registry = Registry('mixed_op')
 register_mixed_op = partial(register, mixed_op_registry)
 get_mixed_op_builder = partial(get_builder, mixed_op_registry)
 build_mixed_op = partial(build, mixed_op_registry)
-register = partial(register_wrapper, mixed_op_registry)
+register = partial(register_as, mixed_op_registry)
 
 class MixedOp(nn.Module):
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map):

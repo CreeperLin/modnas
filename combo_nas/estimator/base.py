@@ -136,9 +136,6 @@ class EstimatorBase():
                 self.model = model_builder()
             except Exception as e:
                 logger.info('Model build failed: {}'.format(e))
-        if not self.model is None:
-            logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
-                utils.param_count(model), utils.param_size(model)))
         self.writer = writer
         self.logger = logger
         self.device = device
@@ -154,6 +151,17 @@ class EstimatorBase():
                 metrics_args = mt_conf.get('args', {})
                 metrics.append(build_metrics(mt_conf.type, **metrics_args))
         self.metrics = metrics
+        self.results = []
+        self.inputs = []
+
+    def print_model_info(self):
+        model = self.model
+        if not self.model is None:
+            self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
+                utils.param_count(model), utils.param_size(model)))
+
+    def get_last_results(self):
+        return self.inputs, self.results
 
     def compute_metrics(self, *args, **kwargs):
         ret = {}

@@ -13,7 +13,7 @@ def main():
                         help="experiment root dir")
     args = parser.parse_args()
 
-    run_pipeline(**args)
+    run_pipeline(**vars(args))
 
 
 if __name__ == '__main__':

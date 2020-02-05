@@ -30,6 +30,20 @@ def load_config(conf):
     return config
 
 
+def load_data_loader(config, val):
+    if config is None:
+        return None, None
+    sp_ratio = config.dloader.split_ratio
+    if sp_ratio > 0:
+        trn_loader, val_loader = load_data(config, validation=False)
+    else:
+        trn_loader = load_data(config, validation=False)
+        val_loader = None
+        if val:
+            val_loader = load_data(config, validation=True)
+    return trn_loader, val_loader
+
+
 def import_modules(modules):
     for m in modules:
         try:
@@ -48,7 +62,7 @@ def _elevate_config(config, key):
 
 
 def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
-    trn_loader = val_loader = model_builder = model = None
+    model_builder = model = None
     ArchParamSpace.reset()
     # config
     config = load_config(config)
@@ -64,13 +78,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    if 'data' in config:
-        sp_ratio = config.data.dloader.split_ratio
-        if sp_ratio > 0:
-            trn_loader, val_loader = load_data(config.data, validation=False)
-        else:
-            trn_loader = load_data(config.data, validation=False)
-            val_loader = None
+    trn_loader, val_loader = load_data_loader(config.get('data', None), val=False)
     # ops
     if 'ops' in config:
         configure_ops(config.ops)
@@ -108,16 +116,19 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 fn_kwargs.update(config.genotypes.build_args)
                 convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
             # controller
-            crit = utils.get_net_crit(config.criterion)
-            model = NASController(net, crit, dev_list).to(device=dev)
-            # genotype
-            if config.genotypes.disable_dag:
-                model.to_genotype = model.to_genotype_ops
-            if config.genotypes.use_slot:
-                model.to_genotype_ops = model.to_genotype_slots
-            model.to_genotype_args = config.genotypes.to_args
-            # init
-            model.init_model(config.init)
+            if 'criterion' in config:
+                crit = utils.get_net_crit(config.criterion)
+                model = NASController(net, crit, dev_list).to(device=dev)
+                # genotype
+                if config.genotypes.disable_dag:
+                    model.to_genotype = model.to_genotype_ops
+                if config.genotypes.use_slot:
+                    model.to_genotype_ops = model.to_genotype_slots
+                model.to_genotype_args = config.genotypes.to_args
+                # init
+                model.init_model(config.init)
+            else:
+                model = net
             return model
         model = default_model_builder()
         model_builder = default_model_builder
@@ -153,11 +164,11 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
+    logger.info('config loaded:\n{}'.format(config))
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    val_loader = load_data(config.data, validation=True)
-    trn_loader = load_data(config.data, validation=False)
+    trn_loader, val_loader = load_data_loader(config.get('data', None), val=True)
     # ops
     if 'ops' in config:
         config.ops.affine = True
@@ -187,10 +198,13 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
             fn_kwargs.update(config.genotypes.build_args)
             convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
         # controller
-        crit = utils.get_net_crit(config.criterion)
-        model = NASController(net, crit, dev_list).to(device=dev)
-        # init
-        model.init_model(config.init)
+        if 'criterion' in config:
+            crit = utils.get_net_crit(config.criterion)
+            model = NASController(net, crit, dev_list).to(device=dev)
+            # init
+            model.init_model(config.init)
+        else:
+            model = net
         return model
     model = model_builder()
     # chkpt
@@ -222,6 +236,7 @@ def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_f
     expman = ExpManager(exp, name)
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
+    logger.info('config loaded:\n{}'.format(config))
     # device
     dev, _ = utils.init_device(config.device, device)
     # hpspace
@@ -252,16 +267,16 @@ def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_f
     }
 
 
-def default_measure_fn(rtype, *args, **kwargs):
-    proc = get_runner(rtype)
-    ret = proc(*args, **kwargs)
-    if rtype == 'search':
+def default_measure_fn(proc, *args, **kwargs):
+    runner = get_runner(proc)
+    ret = runner(*args, **kwargs)
+    if proc == 'search':
         return ret['best_top1']
-    elif rtype == 'augment':
+    elif proc == 'augment':
         return ret['best_top1']
-    elif rtype == 'hptune':
+    elif proc == 'hptune':
         return ret['best_score']
-    elif rtype == 'pipeline':
+    elif proc == 'pipeline':
         return ret['final']['best_top1']
 
 
