@@ -1,12 +1,12 @@
 from ..base import MetricsBase
-from .. import register, build_metrics
+from .. import register_as, build
 from ...arch_space.mixed_ops import MixedOp
 
-@register('ModuleMetrics')
+@register_as('ModuleMetrics')
 class ModuleMetrics(MetricsBase):
     def __init__(self, metrics, args={}):
         super().__init__()
-        self.metrics = build_metrics(metrics, **args)
+        self.metrics = build(metrics, **args)
 
     def compute(self, m):
         if not isinstance(m, MixedOp):
@@ -17,11 +17,11 @@ class ModuleMetrics(MetricsBase):
         return mt
 
 
-@register('MixedOpTraversalMetrics')
+@register_as('MixedOpTraversalMetrics')
 class MixedOpTraversalMetrics(MetricsBase):
     def __init__(self, metrics, args={}):
         super().__init__()
-        self.metrics = build_metrics(metrics, **args)
+        self.metrics = build(metrics, **args)
 
     def compute(self, model):
         mt = 0
@@ -31,11 +31,11 @@ class MixedOpTraversalMetrics(MetricsBase):
         return mt
 
 
-@register('ModuleTraversalMetrics')
+@register_as('ModuleTraversalMetrics')
 class ModuleTraversalMetrics(MetricsBase):
     def __init__(self, metrics, args={}):
         super().__init__()
-        self.metrics = build_metrics(metrics, **args)
+        self.metrics = build(metrics, **args)
 
     def compute(self, model):
         mt = 0

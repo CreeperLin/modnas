@@ -1,5 +1,5 @@
 import torch.nn as nn
-from combo_nas.arch_space.ops import register_op
+from combo_nas.arch_space.ops import register
 
 class HardSigmoid(nn.Module):
     def __init__(self, inplace=True):
@@ -29,6 +29,6 @@ class HardSwish(nn.Module):
         return x * self.sigmoid(x)
 
 
-register_op(HardSigmoid, 'hSigmoid')
-register_op(Swish, 'Swish')
-register_op(HardSwish, 'hSwish')
+register(HardSigmoid, 'hSigmoid')
+register(Swish, 'Swish')
+register(HardSwish, 'hSwish')

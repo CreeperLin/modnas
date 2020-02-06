@@ -1,7 +1,7 @@
 from functools import partial
 import torch.nn as nn
 from ...arch_space.constructor import Slot
-from .. import register_arch_space
+from .. import register
 from ..ops import Identity
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
@@ -266,14 +266,14 @@ def resnet(resnet_cls, **kwargs):
 
 for net_cls in [CIFARResNet, ImageNetResNet]:
     name = 'CIFAR-' if net_cls == CIFARResNet else 'ImageNet-'
-    register_arch_space(partial(resnet10, net_cls), name+'ResNet-10')
-    register_arch_space(partial(resnet18, net_cls), name+'ResNet-18')
-    register_arch_space(partial(resnet32, net_cls), name+'ResNet-32')
-    register_arch_space(partial(resnet34, net_cls), name+'ResNet-34')
-    register_arch_space(partial(resnet50, net_cls), name+'ResNet-50')
-    register_arch_space(partial(resnet56, net_cls), name+'ResNet-56')
-    register_arch_space(partial(resnet101, net_cls), name+'ResNet-101')
-    register_arch_space(partial(resnet152, net_cls), name+'ResNet-152')
-    register_arch_space(partial(resnext50_32x4d, net_cls), name+'ResNeXt-50')
-    register_arch_space(partial(resnext101_32x8d, net_cls), name+'ResNeXt-101')
-    register_arch_space(partial(resnet, net_cls), name+'ResNet')
+    register(partial(resnet10, net_cls), name+'ResNet-10')
+    register(partial(resnet18, net_cls), name+'ResNet-18')
+    register(partial(resnet32, net_cls), name+'ResNet-32')
+    register(partial(resnet34, net_cls), name+'ResNet-34')
+    register(partial(resnet50, net_cls), name+'ResNet-50')
+    register(partial(resnet56, net_cls), name+'ResNet-56')
+    register(partial(resnet101, net_cls), name+'ResNet-101')
+    register(partial(resnet152, net_cls), name+'ResNet-152')
+    register(partial(resnext50_32x4d, net_cls), name+'ResNeXt-50')
+    register(partial(resnext101_32x8d, net_cls), name+'ResNeXt-101')
+    register(partial(resnet, net_cls), name+'ResNet')

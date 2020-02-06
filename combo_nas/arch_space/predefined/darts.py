@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import torch.nn as nn
-from ..layers import build_layer
+from ..layers import build as build_layer
 from ..ops import FactorizedReduce, StdConv
 from ..constructor import Slot, default_predefined_converter
 

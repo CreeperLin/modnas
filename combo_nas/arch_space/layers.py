@@ -1,17 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
-from functools import partial
 import torch.nn as nn
 from .defs import get_merger, get_allocator, get_enumerator
-from ..utils import param_count
-from ..utils.registration import Registry, build, get_builder, register, register_as
-
-layer_registry = Registry('layer')
-register_layer = partial(register, layer_registry)
-get_layer_builder = partial(get_builder, layer_registry)
-build_layer = partial(build, layer_registry)
-register = partial(register_as, layer_registry)
-
+from ..utils.registration import get_registry_utils
+registry, register, get_builder, build, register_as = get_registry_utils('layers')
 class DAGLayer(nn.Module):
     def __init__(self, chn_in, chn_out, stride, n_nodes,
                  allocator, merger_state, merger_out, enumerator, preproc,
@@ -226,5 +218,5 @@ class MultiChainLayer(nn.Module):
                 e.build_from_genotype(g_edge, *args, **kwargs)
 
 
-register_layer(DAGLayer, 'DAG')
-register_layer(MultiChainLayer, 'MultiChain')
+register(DAGLayer, 'DAG')
+register(MultiChainLayer, 'MultiChain')

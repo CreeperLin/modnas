@@ -7,11 +7,11 @@ from ..arch_space.constructor import convert_from_predefined_net
 from ..arch_space.constructor import convert_from_genotype
 from ..arch_space.constructor import convert_from_layers
 from ..arch_space.ops import configure_ops
-from ..arch_space import build_arch_space
+from ..arch_space import build as build_arch_space
 from ..arch_space.constructor import Slot
 from ..core.param_space import ArchParamSpace
 from ..core.controller import NASController
-from ..optim import build_optim
+from ..optim import build as build_optim
 from .. import utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt

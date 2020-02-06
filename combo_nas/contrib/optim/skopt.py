@@ -10,7 +10,7 @@ try:
 except ImportError:
     skopt = None
 
-@optim.register('Skopt')
+@optim.register_as('Skopt')
 class SkoptParamOptim(OptimBase):
     def __init__(self, space, skopt_args={}):
         super().__init__(space)

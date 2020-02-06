@@ -1,17 +1,12 @@
 import logging
-from functools import partial
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .ops import build as build_ops
 from ..core.param_space import ArchParamCategorical, ArchParamTensor
-from .ops import build_op
-from ..utils.registration import Registry, build, get_builder, register, register_as
+from ..utils.registration import get_registry_utils
 
-mixed_op_registry = Registry('mixed_op')
-register_mixed_op = partial(register, mixed_op_registry)
-get_mixed_op_builder = partial(get_builder, mixed_op_registry)
-build_mixed_op = partial(build, mixed_op_registry)
-register = partial(register_as, mixed_op_registry)
+registry, register, get_builder, build, register_as = get_registry_utils('mixed_ops')
 
 class MixedOp(nn.Module):
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map):
@@ -26,7 +21,7 @@ class MixedOp(nn.Module):
         self.stride = stride
         self.w_max = 0
         self._ops = nn.ModuleList([
-            build_op(prim, self.chn_in, self.chn_out, stride) for prim in ops
+            build_ops(prim, self.chn_in, self.chn_out, stride) for prim in ops
         ])
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
 
@@ -256,7 +251,7 @@ class IndexMixedOp(MixedOp):
         return self.arch_param_value('ops')
 
 
-register_mixed_op(WeightedSumMixedOp, 'WeightedSum')
-register_mixed_op(BinGateMixedOp, 'BinGate')
-register_mixed_op(BinGateUniformMixedOp, 'BinGateUniform')
-register_mixed_op(IndexMixedOp, 'Index')
+register(WeightedSumMixedOp, 'WeightedSum')
+register(BinGateMixedOp, 'BinGate')
+register(BinGateUniformMixedOp, 'BinGateUniform')
+register(IndexMixedOp, 'Index')

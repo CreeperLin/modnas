@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from ..arch_space import genotypes as gt
-from ..estimator import build_estimator
+from ..estimator import build as build_estimator
 
 def search(config, chkpt_path, optim, estim_kwargs):
     expman = estim_kwargs['expman']

@@ -1,11 +1,11 @@
 from ..base import MetricsBase
-from .. import register, build_metrics
+from .. import register_as, build
 try:
     import rasp
 except ImportError:
     rasp = None
 
-@register('RASPLatencyMetrics')
+@register_as('RASPLatencyMetrics')
 class RASPLatencyMetrics(MetricsBase):
     def __init__(self):
         super().__init__()
@@ -14,7 +14,7 @@ class RASPLatencyMetrics(MetricsBase):
         return 0 if node['lat'] is None else node['lat']
 
 
-@register('RASPFLOPSMetrics')
+@register_as('RASPFLOPSMetrics')
 class RASPFLOPSMetrics(MetricsBase):
     def __init__(self):
         super().__init__()
@@ -23,11 +23,11 @@ class RASPFLOPSMetrics(MetricsBase):
         return 0 if node['flops'] is None else node['flops']
 
 
-@register('RASPStatsDelegateMetrics')
+@register_as('RASPStatsDelegateMetrics')
 class RASPStatsDelegateMetrics(MetricsBase):
     def __init__(self, metrics, args={}, ignore_none=True):
         super().__init__()
-        self.metrics = build_metrics(metrics, **args)
+        self.metrics = build(metrics, **args)
         self.ignore_none = ignore_none
 
     def compute(self, node):
@@ -38,12 +38,12 @@ class RASPStatsDelegateMetrics(MetricsBase):
         return 0 if mt is None else mt
 
 
-@register('RASPTraversalMetrics')
+@register_as('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
     def __init__(self, input_shape, metrics, args={}, compute=True, timing=False):
         super().__init__()
         if rasp is None: raise ValueError('package RASP is not found')
-        self.metrics = build_metrics(metrics, **args)
+        self.metrics = build(metrics, **args)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape
@@ -87,12 +87,12 @@ class RASPTraversalMetrics(MetricsBase):
         return mt
 
 
-@register('RASPRootMetrics')
+@register_as('RASPRootMetrics')
 class RASPRootMetrics(MetricsBase):
     def __init__(self, input_shape, metrics, args={}, compute=True, timing=False):
         super().__init__()
         if rasp is None: raise ValueError('package RASP is not found')
-        self.metrics = build_metrics(metrics, **args)
+        self.metrics = build(metrics, **args)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape

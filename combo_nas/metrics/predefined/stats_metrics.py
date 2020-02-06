@@ -1,9 +1,9 @@
 import yaml
 import pickle
 from ..base import MetricsBase
-from .. import register
+from .. import register_as
 
-@register('StatsLUTMetrics')
+@register_as('StatsLUTMetrics')
 class StatsLUTMetrics(MetricsBase):
     def __init__(self, lut_path, head=None):
         super().__init__()
@@ -26,7 +26,7 @@ class StatsLUTMetrics(MetricsBase):
         return val
 
 
-@register('StatsModelMetrics')
+@register_as('StatsModelMetrics')
 class StatsModelMetrics(MetricsBase):
     def __init__(self, model_path, head):
         super().__init__()

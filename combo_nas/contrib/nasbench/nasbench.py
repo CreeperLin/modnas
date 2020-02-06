@@ -15,7 +15,7 @@ CONV1X1 = 'conv1x1-bn-relu'
 CONV3X3 = 'conv3x3-bn-relu'
 MAXPOOL3X3 = 'maxpool3x3'
 
-@combo_nas.arch_space.register('NASBench')
+@combo_nas.arch_space.register_as('NASBench')
 class NASBenchNet(nn.Module):
     def __init__(self, n_nodes=7):
         super().__init__()
@@ -67,7 +67,7 @@ class NASBenchPredictor(ArchPredictor):
             val_acc = 0
         return val_acc
 
-@combo_nas.estimator.register('NASBench')
+@combo_nas.estimator.register_as('NASBench')
 class NASBenchEstimator(RegressionEstimator):
 
     def search(self, optim):

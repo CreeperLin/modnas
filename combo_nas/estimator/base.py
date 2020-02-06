@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 from .. import utils
-from ..metrics import build_metrics
+from ..metrics import build
 from ..utils.profiling import tprof
 from ..arch_space.ops import Identity, DropPath_
 from ..arch_space.constructor import Slot
@@ -149,7 +149,7 @@ class EstimatorBase():
                 mt_configs = [mt_configs]
             for mt_conf in mt_configs:
                 metrics_args = mt_conf.get('args', {})
-                metrics.append(build_metrics(mt_conf.type, **metrics_args))
+                metrics.append(build(mt_conf.type, **metrics_args))
         self.metrics = metrics
         self.results = []
         self.inputs = []

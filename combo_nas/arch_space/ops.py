@@ -3,28 +3,19 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..utils.registration import Registry, build, get_builder, register_as
+from ..utils.registration import get_registry_utils
 from ..utils import get_same_padding
-from functools import partial
 
-op_registry = Registry('op')
+registry, _register, get_builder, build, register_as = get_registry_utils('ops')
 
-def register_op(net_builder, rid=None, abbr=None):
-    op_registry.register(net_builder, rid)
-    if not abbr is None: op_registry.register(net_builder, abbr)
-    logging.debug('registered op: {} {}'.format(rid, abbr))
+def register(op_builder, rid=None, abbr=None):
+    _register(op_builder, rid)
+    if not abbr is None: _register(op_builder, abbr)
 
-def update_op(ops):
-    op_registry.update(ops)
-
-get_op_builder = partial(get_builder, op_registry)
-build_op = partial(build, op_registry)
-register = partial(register_as, op_registry)
-
-register_op(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'none', 'NIL')
-register_op(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'avg_pool', 'AVG')
-register_op(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'max_pool', 'MAX')
-register_op(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
+register(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'none', 'NIL')
+register(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'avg_pool', 'AVG')
+register(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'max_pool', 'MAX')
+register(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
                                         else FactorizedReduce(C_in, C_out), 'skip_connect', 'IDT')
 kernel_sizes = [1, 3, 5, 7, 9, 11, 13]
 for k in kernel_sizes:
@@ -33,17 +24,17 @@ for k in kernel_sizes:
     p3 = get_same_padding(3*k-2)
     kstr = '_{k}x{k}'.format(k=k)
     kabbr = str(k)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, C_out, ks, stride, pd), 'avg_pool'+kstr, 'AP'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, C_out, ks, stride, pd), 'max_pool'+kstr, 'MP'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: SepConv(C_in, C_out, ks, stride, pd), 'sep_conv'+kstr, 'SC'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: SepSingle(C_in, C_out, ks, stride, pd), 'sep_sing'+kstr, 'SS'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: StdConv(C_in, C_out, ks, stride, pd), 'std_conv'+kstr, 'NC'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p2: DilConv(C_in, C_out, ks, stride, pd, 2), 'dil_conv'+kstr, 'DC'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'dil2_conv'+kstr, 'DD'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'fac_conv_{}'.format(k), 'FC'+kabbr)
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 1), 'mbconv_{}_e1'.format(k), 'MB{}E1'.format(k))
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 3), 'mbconv_{}_e3'.format(k), 'MB{}E3'.format(k))
-    register_op(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 6), 'mbconv_{}_e6'.format(k), 'MB{}E6'.format(k))
+    register(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, C_out, ks, stride, pd), 'avg_pool'+kstr, 'AP'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, C_out, ks, stride, pd), 'max_pool'+kstr, 'MP'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p: SepConv(C_in, C_out, ks, stride, pd), 'sep_conv'+kstr, 'SC'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p: SepSingle(C_in, C_out, ks, stride, pd), 'sep_sing'+kstr, 'SS'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p: StdConv(C_in, C_out, ks, stride, pd), 'std_conv'+kstr, 'NC'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p2: DilConv(C_in, C_out, ks, stride, pd, 2), 'dil_conv'+kstr, 'DC'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'dil2_conv'+kstr, 'DD'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'fac_conv_{}'.format(k), 'FC'+kabbr)
+    register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 1), 'mbconv_{}_e1'.format(k), 'MB{}E1'.format(k))
+    register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 3), 'mbconv_{}_e3'.format(k), 'MB{}E3'.format(k))
+    register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 6), 'mbconv_{}_e6'.format(k), 'MB{}E6'.format(k))
 
 OPS_ORDER = ['bn','act','weight']
 AFFINE = True

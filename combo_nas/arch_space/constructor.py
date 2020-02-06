@@ -1,8 +1,6 @@
 import logging
 import torch.nn as nn
-from .ops import build_op
-from .mixed_ops import build_mixed_op
-from .layers import build_layer
+from . import ops, mixed_ops, layers
 
 class Slot(nn.Module):
     _slots = []
@@ -131,7 +129,7 @@ class Slot(nn.Module):
 
 
 def default_mixed_op_converter(slot, rid, ops, **fn_kwargs):
-    ent = build_mixed_op(rid,
+    ent = mixed_ops.build(rid,
                          chn_in=slot.chn_in,
                          chn_out=slot.chn_out,
                          stride=slot.stride,
@@ -146,7 +144,7 @@ default_predefined_converter = default_mixed_op_converter
 def default_genotype_converter(slot, gene):
     if isinstance(gene, list): gene = gene[0]
     op_name = gene
-    ent = build_op(op_name, slot.chn_in, slot.chn_out, slot.stride)
+    ent = ops.build(op_name, slot.chn_in, slot.chn_out, slot.stride)
     return ent
 
 
@@ -191,7 +189,7 @@ def default_layer_converter(slot, layer_cls, **fn_kwargs):
             'chn_out': None,
             'stride': None,
         }
-    ent = build_layer(layer_cls,
+    ent = layers.build(layer_cls,
                       chn_in=slot.chn_in,
                       chn_out=slot.chn_out,
                       stride=slot.stride,

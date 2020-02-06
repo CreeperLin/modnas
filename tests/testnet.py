@@ -1,8 +1,7 @@
 import torch.nn as nn
 from combo_nas.arch_space.constructor import Slot
 import combo_nas.arch_space as arch_space
-from combo_nas.arch_space.ops import build_op
-from combo_nas.arch_space.mixed_ops import build_mixed_op
+from combo_nas.arch_space import ops, mixed_ops
 
 class TestNet(nn.Module):
     def __init__(self, chn_in, chn, n_classes, rep=10, stage=1):
@@ -62,9 +61,9 @@ class TestNetSpace(TestNet):
         def convert_fn(slot, gene, *args, **kwargs):
             if isinstance(gene, list): gene = gene[0]
             if gene == 'NIL' or gene == 'IDT':
-                return build_op(gene, slot.chn_in, slot.chn_out, slot.stride)
+                return ops.build(gene, slot.chn_in, slot.chn_out, slot.stride)
             else:
-                return build_mixed_op(chn_in=slot.chn_in,
+                return mixed_ops.build(chn_in=slot.chn_in,
                                       chn_out=slot.chn_out,
                                       stride=slot.stride,
                                       ops=ops_map[gene],
@@ -72,16 +71,16 @@ class TestNetSpace(TestNet):
         return convert_fn
 
 
-@arch_space.register('TestNet')
+@arch_space.register_as('TestNet')
 def get_testnet(*args, **kwargs):
     return TestNet(*args, **kwargs)
 
 
-@arch_space.register('TestNetSpace')
+@arch_space.register_as('TestNetSpace')
 def get_testnet_space(*args, **kwargs):
     return TestNetSpace(*args, **kwargs)
 
 
-@arch_space.register('TestAugNet')
+@arch_space.register_as('TestAugNet')
 def get_testaugnet(*args, **kwargs):
     return TestAugNet(*args, **kwargs)
