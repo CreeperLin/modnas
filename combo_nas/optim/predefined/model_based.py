@@ -19,14 +19,14 @@ class ModelBasedOptim(CategoricalSpaceOptim):
 
     def _next(self):
         while self.next_pt < len(self.next_xs):
-            params = self.next_xs[self.next_pt]
-            if not self.is_visited_params(params):
+            index = self.next_xs[self.next_pt]
+            if not self.is_visited(index):
                 break
             self.next_pt += 1
         if self.next_pt >= len(self.next_xs) - int(self.greedy_e * self.n_next_pts):
-            params = self.get_random_params()
-        self.set_visited_params(params)
-        return params
+            index = self.get_random_index()
+        self.set_visited(index)
+        return self.space.get_categorical_params(index)
 
     def step(self, estim):
         inputs, results = estim.get_last_results()

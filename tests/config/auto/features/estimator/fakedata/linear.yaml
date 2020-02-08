@@ -1,0 +1,32 @@
+imports:
+  - 'combo_nas.contrib.estimator.fakedata'
+search:
+  estimator:
+    nasbench:
+      type: 'FakeData'
+      epochs: 100
+      save_gt: False
+      arch_update_epoch_start: 1
+      arch_update_epoch_intv: 1
+      arch_update_batch: 1
+optim:
+  type: 'ModelBased'
+  args:
+    cost_model_config:
+      type: 'sklearn'
+      args:
+        model_cls: 'LinearRegression'
+        module: 'sklearn.linear_model'
+    model_optimizer_config:
+      type: 'SimulatedAnnealing'
+      # type: 'RandomSampling'
+model:
+  type: 'FakeData'
+log:
+  writer: False
+device:
+  gpus: 'all'
+  seed: 2
+genotypes:
+  gt_str: ''
+  gt_path: ''

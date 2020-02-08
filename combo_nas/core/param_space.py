@@ -107,7 +107,7 @@ class ParamSpace():
             ap.set_value(idx % ap_dim)
             idx //= ap_dim
 
-    def set_params_map(self, pmap):
+    def update_params(self, pmap):
         for k, v in pmap.items():
             self.get_param(k).set_value(v)
 

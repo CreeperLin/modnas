@@ -154,9 +154,9 @@ class EstimatorBase():
         self.results = []
         self.inputs = []
 
-    def print_model_info(self):
-        model = self.model
-        if not self.model is None:
+    def print_model_info(self, model=None):
+        model = self.model if model is None else model
+        if not model is None:
             self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
                 utils.param_count(model), utils.param_size(model)))
 

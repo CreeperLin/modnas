@@ -1,5 +1,5 @@
 imports:
-  - 'combo_nas.contrib.nasbench'
+  - 'combo_nas.contrib.estimator.nasbench'
 search:
   estimator:
     nasbench:

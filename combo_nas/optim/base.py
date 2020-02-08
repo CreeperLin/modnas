@@ -63,9 +63,9 @@ class CategoricalSpaceOptim(OptimBase):
         return len(self.visited) < self.space_size()
 
     def get_random_index(self):
-        index = random.randint(0, self.space_size())
+        index = random.randint(0, self.space_size() - 1)
         while index in self.visited:
-            index = random.randint(0, self.space_size())
+            index = random.randint(0, self.space_size() - 1)
         return index
 
     def is_visited(self, idx):

@@ -32,7 +32,6 @@ class SuperNetEstimator(EstimatorBase):
         tot_epochs = config.epochs
 
         best_top1 = 0.
-        genotypes = []
         best_genotype = None
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
@@ -42,7 +41,6 @@ class SuperNetEstimator(EstimatorBase):
             # validate
             val_top1 = self.validate_epoch(epoch, tot_epochs)
             genotype = model.to_genotype()
-            genotypes.append(genotype)
             if val_top1 is None: val_top1 = trn_top1
             if val_top1 > best_top1:
                 best_top1 = val_top1
@@ -55,7 +53,6 @@ class SuperNetEstimator(EstimatorBase):
         return {
             'best_top1': best_top1,
             'best_gt': best_genotype,
-            'gts': genotypes
         }
 
     def get_lr(self):
