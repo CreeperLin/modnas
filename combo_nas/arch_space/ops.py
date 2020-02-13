@@ -2,7 +2,6 @@
 import logging
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from ..utils.registration import get_registry_utils
 from ..utils import get_same_padding
 
@@ -36,17 +35,28 @@ for k in kernel_sizes:
     register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 3), 'mbconv_{}_e3'.format(k), 'MB{}E3'.format(k))
     register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 6), 'mbconv_{}_e6'.format(k), 'MB{}E6'.format(k))
 
+
 OPS_ORDER = ['bn','act','weight']
 AFFINE = True
+BIAS = False
+INPLACE = False
+
 
 def configure_ops(config):
     global OPS_ORDER
     OPS_ORDER = config.ops_order.split('_')
-    logging.info('configure ops: ops order set to: {}'.format(OPS_ORDER))
-
     global AFFINE
     AFFINE = config.affine
-    logging.info('configure ops: affine: {}'.format(AFFINE))
+    global BIAS
+    BIAS = False if OPS_ORDER[-1] == 'bn' else True
+    if 'bias' in config:
+        BIAS = config.bias
+    global INPLACE
+    INPLACE = False if OPS_ORDER[0]=='act' else True
+    if 'inplace' in config:
+        INPLACE = config.inplace
+    logging.info('ops config: ops_order: {} affine: {} bias: {} inplace: {}'.format(OPS_ORDER, AFFINE, BIAS, INPLACE))
+
 
 def drop_path_(x, drop_prob, training):
     if training and drop_prob > 0.:
@@ -80,13 +90,13 @@ class MBConv(nn.Module):
         C_t = C_in * expansion
         nets = [] if expansion == 1 else [
             nn.Conv2d(C_in, C_t, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(C_t, AFFINE),
-            nn.ReLU6(),
+            nn.BatchNorm2d(C_t, affine=True),
+            nn.ReLU6(inplace=True),
         ]
         nets.extend([
             nn.Conv2d(C_t, C_t, kernel_size, stride, padding, groups=C_t, bias=False),
-            nn.BatchNorm2d(C_t, AFFINE),
-            nn.ReLU6(),
+            nn.BatchNorm2d(C_t, affine=True),
+            nn.ReLU6(inplace=True),
             nn.Conv2d(C_t, C_out, 1, 1, 0, bias=False),
             nn.BatchNorm2d(C_out, AFFINE)
         ])
@@ -142,11 +152,10 @@ class StdConv(nn.Module):
             if i=='bn':
                 nets.append(nn.BatchNorm2d(C, affine=AFFINE))
             elif i=='weight':
-                bias = False if OPS_ORDER[-1] == 'bn' else True
-                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, bias=bias))
+                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, bias=BIAS))
                 C = C_out
             elif i=='act':
-                nets.append(nn.ReLU(inplace=False if OPS_ORDER[0]=='act' else True))
+                nets.append(nn.ReLU(inplace=INPLACE))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -165,12 +174,11 @@ class FacConv(nn.Module):
             if i=='bn':
                 nets.append(nn.BatchNorm2d(C, affine=AFFINE))
             elif i=='weight':
-                bias = False if OPS_ORDER[-1] == 'bn' else True
-                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), bias=bias))
-                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), bias=bias))
+                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), bias=BIAS))
                 C = C_out
             elif i=='act':
-                nets.append(nn.ReLU(inplace=False if OPS_ORDER[0]=='act' else True))
+                nets.append(nn.ReLU(inplace=INPLACE))
 
         self.net = nn.Sequential(*nets)
 
@@ -193,12 +201,11 @@ class DilConv(nn.Module):
             if i=='bn':
                 nets.append(nn.BatchNorm2d(C, affine=AFFINE))
             elif i=='weight':
-                bias = False if OPS_ORDER[-1] == 'bn' else True
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation=dilation, groups=C_in, bias=bias))
-                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=bias))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation=dilation, groups=C_in, bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=BIAS))
                 C = C_out
             elif i=='act':
-                nets.append(nn.ReLU(inplace=False if OPS_ORDER[0]=='act' else True))
+                nets.append(nn.ReLU(inplace=INPLACE))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -232,12 +239,11 @@ class SepSingle(nn.Module):
             if i=='bn':
                 nets.append(nn.BatchNorm2d(C, affine=AFFINE))
             elif i=='weight':
-                bias = False if OPS_ORDER[-1] == 'bn' else True
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, groups=C_in, bias=bias))
-                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=bias))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, groups=C_in, bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=BIAS))
                 C = C_out
             elif i=='act':
-                nets.append(nn.ReLU(inplace=False if OPS_ORDER[0]=='act' else True))
+                nets.append(nn.ReLU(inplace=INPLACE))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -284,4 +290,3 @@ class FactorizedReduce(nn.Module):
         out = torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
         out = self.bn(out)
         return out
-

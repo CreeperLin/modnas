@@ -36,6 +36,3 @@ class ExpManager():
     @property
     def config_path(self):
         return self.join('', 'config.yaml')
-
-    def save_model(self, model, path):
-        pass

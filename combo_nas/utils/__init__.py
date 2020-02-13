@@ -65,6 +65,7 @@ def check_config(config):
         'data.dloader.jitter': False,
         'ops.ops_order': 'act_weight_bn',
         'ops.affine': False,
+        'ops.bias': False,
         'log.writer': False,
         'log.debug': False,
         'genotypes.disable_dag': False,
