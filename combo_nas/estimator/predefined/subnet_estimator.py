@@ -8,7 +8,7 @@ class SubNetEstimator(EstimatorBase):
         super().__init__(*args, **kwargs)
 
     def step(self, params):
-        ArchParamSpace.set_params_map(params)
+        ArchParamSpace.update_params(params)
         config = self.config
         tot_epochs = config.subnet_epochs
         subnet = self.construct_subnet()

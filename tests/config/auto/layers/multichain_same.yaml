@@ -11,7 +11,7 @@ augment:
       split_ratio: 0
       trn_batch_size: 4
       val_batch_size: 4
-      workers: 2
+      workers: 0
       cutout: 16
       jitter: True
   estimator:

@@ -38,7 +38,7 @@ hptune:
               size: 0.1
               trn_batch_size: 64
               val_batch_size: 64
-              workers: 2
+              workers: 0
               cutout: 0
               jitter: False
           estimator:
