@@ -5,8 +5,8 @@ from combo_nas.metrics.base import MetricsBase
 
 @metrics.register_as('LocalProfilerMetrics')
 class LocalProfilerMetrics(MetricsBase):
-    def __init__(self, device=None, head=None, rep=50, warmup=10):
-        super().__init__()
+    def __init__(self, logger, device=None, head=None, rep=50, warmup=10):
+        super().__init__(logger)
         if head is None:
             head = ['name']
         self.results = {}
@@ -40,6 +40,6 @@ class LocalProfilerMetrics(MetricsBase):
         lat = 1000. * (toc - tic) / self.rep
         self.results[key] = lat
         op.to(device=last_device)
-        print('measure: {} {} {} {:.3f}'.format(key, in_shape, device, lat))
+        self.logger.info('local profiler: {}\tdev: {}\tlat: {:.3f} ms'.format(key, device, lat))
         return lat
         

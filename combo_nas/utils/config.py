@@ -74,4 +74,14 @@ class Config(dict):
         for k, v in dct.items():
             Config.set_value(config, k, v)
 
-
+    @staticmethod
+    def load(conf):
+        if isinstance(conf, Config):
+            config = conf
+        elif isinstance(conf, str):
+            config = Config(file=conf)
+        elif isinstance(conf, dict):
+            config = Config(dct=conf)
+        else:
+            raise ValueError('invalid config type')
+        return config

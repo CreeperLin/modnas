@@ -18,18 +18,6 @@ from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 from .routine import search, augment, hptune
 
-def load_config(conf):
-    if isinstance(conf, Config):
-        config = conf
-    elif isinstance(conf, str):
-        config = Config(file=conf)
-    elif isinstance(conf, dict):
-        config = Config(dct=conf)
-    else:
-        raise ValueError('invalid config type')
-    return config
-
-
 def load_data_loader(config, val):
     if config is None:
         return None, None
@@ -65,7 +53,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     model_builder = model = None
     ArchParamSpace.reset()
     # config
-    config = load_config(config)
+    config = Config.load(config)
     _elevate_config(config, 'search')
     utils.check_config(config)
     # imports
@@ -155,7 +143,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
 
 
 def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
-    config = load_config(config)
+    config = Config.load(config)
     _elevate_config(config, 'augment')
     utils.check_config(config)
     # imports
@@ -227,7 +215,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
 
 def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_fn=None):
     HParamSpace.reset()
-    config = load_config(config)
+    config = Config.load(config)
     _elevate_config(config, 'hptune')
     utils.check_config(config)
     # imports
@@ -293,7 +281,7 @@ def run_hptune(*args, **kwargs):
 
 
 def run_pipeline(config, name, exp='exp'):
-    config = load_config(config)
+    config = Config.load(config)
     utils.check_config(config)
     # imports
     import_modules(config.get('imports', []))
@@ -355,7 +343,7 @@ def get_runner(rtype):
 
 
 def run(config, *args, proc=None, **kwargs):
-    config = load_config(config)
+    config = Config.load(config)
     proc = config.get('proc', None) if proc is None else proc
     proc = get_runner(proc)
     return proc(*args, config=config, **kwargs)

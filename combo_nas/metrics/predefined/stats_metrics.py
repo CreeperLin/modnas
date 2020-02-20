@@ -5,8 +5,8 @@ from .. import register_as
 
 @register_as('StatsLUTMetrics')
 class StatsLUTMetrics(MetricsBase):
-    def __init__(self, lut_path, head=None):
-        super().__init__()
+    def __init__(self, logger, lut_path, head=None):
+        super().__init__(logger)
         with open(lut_path, 'r') as f:
             self.lut = yaml.load(f, Loader=yaml.Loader)
         if self.lut is None:
@@ -28,8 +28,8 @@ class StatsLUTMetrics(MetricsBase):
 
 @register_as('StatsModelMetrics')
 class StatsModelMetrics(MetricsBase):
-    def __init__(self, model_path, head):
-        super().__init__()
+    def __init__(self, logger, model_path, head):
+        super().__init__(logger)
         with open(model_path, 'rb') as f:
             self.model = pickle.load(f)
         self.head = head

@@ -7,8 +7,8 @@ except ImportError:
 
 @register_as('RASPLatencyMetrics')
 class RASPLatencyMetrics(MetricsBase):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, logger):
+        super().__init__(logger)
 
     def compute(self, node):
         return 0 if node['lat'] is None else node['lat']
@@ -16,8 +16,8 @@ class RASPLatencyMetrics(MetricsBase):
 
 @register_as('RASPFLOPSMetrics')
 class RASPFLOPSMetrics(MetricsBase):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, logger):
+        super().__init__(logger)
 
     def compute(self, node):
         return 0 if node['flops'] is None else node['flops']
@@ -25,9 +25,9 @@ class RASPFLOPSMetrics(MetricsBase):
 
 @register_as('RASPStatsDelegateMetrics')
 class RASPStatsDelegateMetrics(MetricsBase):
-    def __init__(self, metrics, args={}, ignore_none=True):
-        super().__init__()
-        self.metrics = build(metrics, **args)
+    def __init__(self, logger, metrics, args={}, ignore_none=True):
+        super().__init__(logger)
+        self.metrics = build(metrics, logger, **args)
         self.ignore_none = ignore_none
 
     def compute(self, node):
@@ -40,18 +40,17 @@ class RASPStatsDelegateMetrics(MetricsBase):
 
 @register_as('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
-    def __init__(self, input_shape, metrics, args={}, compute=True, timing=False):
-        super().__init__()
+    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
+        super().__init__(logger)
         if rasp is None: raise ValueError('package RASP is not found')
-        self.metrics = build(metrics, **args)
+        self.metrics = build(metrics, logger, **args)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape
+        self.device = device
 
     def compute(self, model):
         net = model.net
-        dev_ids = model.device_ids
-        dev_id = 'cpu' if len(dev_ids) == 0 else dev_ids[0]
         if not hasattr(net, '_RASPStatNode'):
             F = rasp.frontend
             root = F.reg_stats_node(net)
@@ -59,8 +58,8 @@ class RASPTraversalMetrics(MetricsBase):
                 F.hook_compute(net)
             if self.eval_timing:
                 F.hook_timing(net)
-            inputs = F.get_random_data(self.input_shape).to(dev_id)
-            F.run(net, inputs)
+            inputs = F.get_random_data(self.input_shape)
+            F.run(net, inputs, self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
         else:
@@ -82,25 +81,24 @@ class RASPTraversalMetrics(MetricsBase):
                 if subn['compute_updated'] is None:
                     rasp.profiler.eval.eval_compute_nofwd(subn, m_in, m_out)
                 smt = self.metrics.compute(subn)
-                mixop_mt = mixop_mt + smt * p.to(device=dev_id)
+                mixop_mt = mixop_mt + smt * p
             mt += mixop_mt
         return mt
 
 
 @register_as('RASPRootMetrics')
 class RASPRootMetrics(MetricsBase):
-    def __init__(self, input_shape, metrics, args={}, compute=True, timing=False):
-        super().__init__()
+    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
+        super().__init__(logger)
         if rasp is None: raise ValueError('package RASP is not found')
-        self.metrics = build(metrics, **args)
+        self.metrics = build(metrics, logger, **args)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape
+        self.device = device
 
     def compute(self, model):
         net = model.net
-        dev_ids = model.device_ids
-        dev_id = 'cpu' if len(dev_ids) == 0 else dev_ids[0]
         if not hasattr(net, '_RASPStatNode'):
             F = rasp.frontend
             root = F.reg_stats_node(net)
@@ -108,8 +106,8 @@ class RASPRootMetrics(MetricsBase):
                 F.hook_compute(net)
             if self.eval_timing:
                 F.hook_timing(net)
-            inputs = F.get_random_data(self.input_shape).to(dev_id)
-            F.run(net, inputs)
+            inputs = F.get_random_data(self.input_shape)
+            F.run(net, inputs, self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
         else:

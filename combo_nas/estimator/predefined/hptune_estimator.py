@@ -15,7 +15,7 @@ class HPTuneEstimator(EstimatorBase):
         logger = self.logger
         logger.info('measuring hparam: {}'.format(hp))
         config = self.config
-        trial_config = copy.deepcopy(config.trial_config)
+        trial_config = copy.deepcopy(Config.load(config.trial_config))
         Config.apply(trial_config, hp)
         measure_args = copy.deepcopy(config.trial_args)
         measure_args.name = '{}_{}'.format(measure_args.get('name', 'trial'), self.trial_index)

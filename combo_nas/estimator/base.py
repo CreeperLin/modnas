@@ -149,7 +149,8 @@ class EstimatorBase():
                 mt_configs = [mt_configs]
             for mt_conf in mt_configs:
                 metrics_args = mt_conf.get('args', {})
-                metrics.append(build(mt_conf.type, **metrics_args))
+                metrics.append(build(mt_conf.type, self.logger, **metrics_args))
+                self.logger.info('using metrics: {}'.format(mt_conf.type))
         self.metrics = metrics
         self.results = []
         self.inputs = []

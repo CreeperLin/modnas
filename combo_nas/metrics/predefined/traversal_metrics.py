@@ -4,9 +4,9 @@ from ...arch_space.mixed_ops import MixedOp
 
 @register_as('ModuleMetrics')
 class ModuleMetrics(MetricsBase):
-    def __init__(self, metrics, args={}):
-        super().__init__()
-        self.metrics = build(metrics, **args)
+    def __init__(self, logger, metrics, args={}):
+        super().__init__(logger)
+        self.metrics = build(metrics, logger, **args)
 
     def compute(self, m):
         if not isinstance(m, MixedOp):
@@ -19,9 +19,9 @@ class ModuleMetrics(MetricsBase):
 
 @register_as('MixedOpTraversalMetrics')
 class MixedOpTraversalMetrics(MetricsBase):
-    def __init__(self, metrics, args={}):
-        super().__init__()
-        self.metrics = build(metrics, **args)
+    def __init__(self, logger, metrics, args={}):
+        super().__init__(logger)
+        self.metrics = build(metrics, logger, **args)
 
     def compute(self, model):
         mt = 0
@@ -33,9 +33,9 @@ class MixedOpTraversalMetrics(MetricsBase):
 
 @register_as('ModuleTraversalMetrics')
 class ModuleTraversalMetrics(MetricsBase):
-    def __init__(self, metrics, args={}):
-        super().__init__()
-        self.metrics = build(metrics, **args)
+    def __init__(self, logger, metrics, args={}):
+        super().__init__(logger)
+        self.metrics = build(metrics, logger, **args)
 
     def compute(self, model):
         mt = 0
