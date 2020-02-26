@@ -31,7 +31,7 @@ def fast_collate(batch):
         tensor[i] += torch.from_numpy(nump_array)
     return tensor, targets
 
-class data_prefetcher():
+class DataPrefetcher():
     def __init__(self, loader, mean, std, cutout_impl):
         self.loader = loader
         self.iter = iter(loader)

@@ -59,10 +59,8 @@ def check_config(config):
     flag = False
 
     defaults = {
-        'data.dloader.split_ratio': 0,
-        'data.dloader.prefetch': False,
-        'data.dloader.cutout': 0,
-        'data.dloader.jitter': False,
+        'data.type': 'pytorch',
+        'data_loader.type': 'pytorch',
         'ops.ops_order': 'act_weight_bn',
         'ops.affine': False,
         'ops.bias': False,

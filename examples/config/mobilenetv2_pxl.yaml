@@ -1,0 +1,119 @@
+search:
+  data:
+    args:
+      dataset: 'ImageNet'
+      train_root: './data'
+      valid_root: './data'
+      cutout: 0
+      jitter: 'normal'
+      resize_scale: 0.08
+  data_loader:
+    args:
+      valid_size: 50000
+      trn_batch_size: 2048
+      val_batch_size: 8192
+      workers: 32
+  estimator:
+    warmup:
+      type: 'Default'
+      w_optim:
+        type: 'sgd'
+        args:
+          lr: 0.05
+          momentum: 0.9
+          nesterov: False
+          weight_decay: 0.00004
+      lr_scheduler:
+        type: 'cosine'
+        args:
+          eta_min: 0.0
+      w_grad_clip: 0.0
+      drop_path_prob: 0.0
+      epochs: 40
+      print_freq: 200
+      save_freq: 0
+      aux_weight: 0.0
+    search:
+      type: 'SuperNet'
+      w_optim:
+        type: 'sgd'
+        args:
+          lr: 0.025
+          momentum: 0.9
+          nesterov: False
+          weight_decay: 0.00004
+      lr_scheduler:
+        type: 'cosine'
+        args:
+          eta_min: 0.0
+      w_grad_clip: 5.0
+      drop_path_prob: 0.0
+      epochs: 120
+      print_freq: 200
+      save_freq: 0
+      arch_update_epoch_start: 1
+      arch_update_epoch_intv: 1
+      arch_update_intv: 5
+      arch_update_batch: 1
+      plot: False
+      aux_weight: 0.0
+optim:
+  type: 'BinGate'
+  args:
+    n_samples: 2
+    renorm: True
+    a_optim:
+      type: 'adam'
+      args:
+        lr: 0.001
+        betas: [0.0, 0.999]
+        weight_decay: 0
+mixed_op:
+  type: 'BinGate'
+  primitives:
+    - 'MB3E3'
+    - 'MB3E6'
+    - 'MB5E3'
+    - 'MB5E6'
+    - 'MB7E3'
+    - 'MB7E6'
+  args:
+    fix_first: True
+    add_zero_op: True
+ops:
+  ops_order: 'weight'
+  affine: True
+criterion:
+  type: 'LS'
+  args:
+    eta: 0.1
+model:
+  type: 'Imagenet_MobileNetV2'
+  args:
+    chn_in: 3
+    n_classes: 1000
+    dropout_rate: 0
+    cfgs: [
+      # t, c, n, s,
+      [0, 32, 1, 2],
+      [1, 16, 1, 1],
+      [6, 24, 4, 2],
+      [6, 40, 4, 2],
+      [6, 80, 4, 2],
+      [6, 96, 4, 1],
+      [6, 192, 4, 2],
+      [6, 320, 1, 1]
+    ]
+log:
+  writer: False
+device:
+  gpus: '0,1,2,3,4,5,6,7'
+  seed: 0
+genotypes:
+  gt_str: ''
+  gt_path: ''
+init:
+  type: 'he_normal_fout'
+  init_div_groups: True
+  bn_momentum: 0.1
+  bn_eps: 0.001

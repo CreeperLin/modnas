@@ -1,18 +1,14 @@
 search:
   data:
-    type: 'CIFAR10'
-    # type: 'MNIST'
-    # type: 'ImageNet'
-    train_root: './data'
-    valid_root: './data'
-    dloader:
-      type: 'pytorch'
-      split_ratio: 0.8
+    args:
+      dataset: 'CIFAR10'
+      train_root: './data'
+      valid_root: './data'
+  data_loader:
+    args:
+      valid_ratio: 0.2
       trn_batch_size: 64
       val_batch_size: 64
-      workers: 2
-      cutout: 0
-      jitter: True
   estimator:
     warmup:
       type: 'Default'
@@ -58,19 +54,15 @@ search:
       arch_update_batch: 1
 augment:
   data:
-    type: 'CIFAR10'
-    # type: 'MNIST'
-    # type: 'ImageNet'
-    train_root: './data'
-    valid_root: './data'
-    dloader:
-      type: 'pytorch'
-      split_ratio: 0
+    args:
+      dataset: 'CIFAR10'
+      train_root: './data'
+      valid_root: './data'
+  data_loader:
+    args:
+      valid_ratio: 0
       trn_batch_size: 64
       val_batch_size: 64
-      workers: 2
-      cutout: 0
-      jitter: False
   estimator:
     train:
       type: 'Default'

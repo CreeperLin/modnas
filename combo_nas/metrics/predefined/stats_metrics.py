@@ -22,7 +22,7 @@ class StatsLUTMetrics(MetricsBase):
         key = '#'.join(keys)
         val = self.lut.get(key, None)
         if val is None:
-            print('StatsLUTMetrics: missing key in LUT: {}'.format(key))
+            self.logger.warning('StatsLUTMetrics: missing key in LUT: {}'.format(key))
         return val
 
 

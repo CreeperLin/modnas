@@ -84,9 +84,11 @@ class BinGateMixedOp(MixedOp):
             }
         super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
         self.n_samples = n_samples
-        self.reset_ops()
         self.s_path_f = None
+        self.last_samples = []
+        self.s_op = []
         self.a_grad_enabled = False
+        self.reset_ops()
         # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
 
     def arch_param_grad(self, enabled):
@@ -112,7 +114,6 @@ class BinGateMixedOp(MixedOp):
     def forward(self, x):
         self.sample_path()
         x = x[0] if isinstance(x, list) else x
-
         s_path_f = self.s_path_f
         ops = self._ops
         if self.training: 
@@ -133,13 +134,19 @@ class BinGateMixedOp(MixedOp):
         return m_out
 
     def swap_ops(self, samples):
-        for i in samples:
-            for p in self._ops[i].parameters():
-                p.requires_grad_(True)
         for i in self.last_samples:
+            if i in samples:
+                continue
             for p in self._ops[i].parameters():
+                if not p.grad_fn is None:
+                    continue
                 p.requires_grad = False
                 p.grad = None
+        for i in samples:
+            for p in self._ops[i].parameters():
+                if not p.grad_fn is None:
+                    continue
+                p.requires_grad_(True)
 
     def to_genotype(self, k=1):
         ops = self.ops

@@ -123,8 +123,8 @@ class SuperNetEstimator(EstimatorBase):
             update_arch = True
             arch_update_intv = config.arch_update_intv
             if arch_update_intv == -1: # update proportionally
-                arch_update_intv = n_trn_batch // n_val_batch if not valid_loader is None else 1
-            elif arch_update_intv == 0: # update every step
+                arch_update_intv = max(n_trn_batch // n_val_batch, 1) if not valid_loader is None else 1
+            elif arch_update_intv == 0: # update last step
                 arch_update_intv = n_trn_batch
             arch_update_batch = config.arch_update_batch
 

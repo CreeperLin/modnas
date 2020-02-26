@@ -1,6 +1,6 @@
 import math
 import torch.nn as nn
-from ...arch_space.constructor import Slot
+from ...arch_space.constructor import Slot, default_predefined_converter
 from collections import OrderedDict
 
 def round_filters(filters, width_coeff, divisor, min_depth=None):
@@ -57,8 +57,8 @@ class MobileInvertedResidualBlock(nn.Module):
 
 class MobileNetV2(nn.Module):
 
-    def __init__(self, chn_in, n_classes, cfgs,
-                 width_coeff=1.0, depth_coeff=1.0, resolution=None, dropout_rate=0.2, activation=nn.ReLU6):
+    def __init__(self, chn_in, n_classes, cfgs, width_coeff=1.0, depth_coeff=1.0,
+                 resolution=None, dropout_rate=0.2, activation=nn.ReLU6):
         del resolution
         super(MobileNetV2, self).__init__()
         self.activation = activation
@@ -127,9 +127,22 @@ class MobileNetV2(nn.Module):
     def get_predefined_augment_converter(self):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
+    def get_predefined_search_converter(self):
+        def convert_fn(slot, ops, fix_first=True, add_zero_op=True, *args, **kwargs):
+            if fix_first and not hasattr(convert_fn, 'first'):
+                ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+                convert_fn.first = True
+            else:
+                ops = ops[:]
+                if add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
+                    ops.append('NIL')
+                ent = default_predefined_converter(slot, ops=ops, *args, **kwargs)
+            return ent
+        return convert_fn
 
-def imagenet_mobilenetv2(chn_in, n_classes, **kwargs):
-    cfgs = [
+
+def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
+    default_cfgs = [
         # t, c, n, s,
         [0, 32, 1, 2],
         [1, 16, 1, 1],
@@ -140,11 +153,13 @@ def imagenet_mobilenetv2(chn_in, n_classes, **kwargs):
         [6, 160, 3, 2],
         [6, 320, 1, 1]
     ]
+    if cfgs is None:
+        cfgs = default_cfgs
     return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
 
 
-def cifar_mobilenetv2(chn_in, n_classes, **kwargs):
-    cfgs = [
+def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
+    default_cfgs = [
         # t, c, n, s,
         [0, 32, 1, 1], # stride = 1
         [1, 16, 1, 1],
@@ -155,4 +170,6 @@ def cifar_mobilenetv2(chn_in, n_classes, **kwargs):
         [6, 160, 3, 1], # stride = 1
         [6, 320, 1, 1]
     ]
+    if cfgs is None:
+        cfgs = default_cfgs
     return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)

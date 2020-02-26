@@ -1,153 +1,110 @@
 import logging
-import torch
-from torchvision import transforms, datasets
+import random
+import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-import numpy as np
-from .prefetcher import fast_collate, data_prefetcher
+from .prefetcher import fast_collate, DataPrefetcher
+from .dataloader import register_as
+from .dataset import build, get_metadata
 
-class Cutout(object):
-    def __init__(self, length):
-        self.length = length
-
-    def __call__(self, img):
-        h, w = img.size(1), img.size(2)
-        mask = np.ones((h, w), np.float32)
-        y = np.random.randint(h)
-        x = np.random.randint(w)
-
-        y1 = np.clip(y - self.length // 2, 0, h)
-        y2 = np.clip(y + self.length // 2, 0, h)
-        x1 = np.clip(x - self.length // 2, 0, w)
-        x2 = np.clip(x + self.length // 2, 0, w)
-
-        mask[y1: y2, x1: x2] = 0.
-        mask = torch.from_numpy(mask)
-        mask = mask.expand_as(img)
-        img *= mask
-
-        return img
-
-
-def get_torch_dataloader(config, metadata):
-    dataset, root, mean, stddev, validation = metadata
-    prefetch = config.prefetch
-    size = config.get('size', 1)
-    collate_fn = fast_collate if prefetch else None
-
-    if dataset == 'cifar10':
-        dset = datasets.CIFAR10
-        trn_transf = [
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip()
-        ]
-        val_transf = []
-    elif dataset == 'cifar100':
-        dset = datasets.CIFAR100
-        trn_transf = [
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip()
-        ]
-        val_transf = []
-    elif dataset == 'mnist':
-        dset = datasets.MNIST
-        trn_transf = [
-            transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0.1)
-        ]
-        val_transf = []
-    elif dataset == 'fashionmnist':
-        dset = datasets.FashionMNIST
-        trn_transf = [
-            transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0.1),
-            transforms.RandomVerticalFlip()
-        ]
-        val_transf = []
-    elif dataset == 'imagenet':
-        dset = datasets.ImageFolder
-        trn_transf = [
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-        ]
-        val_transf = [
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-        ]
-    elif dataset == 'image':
-        dset = datasets.ImageFolder
-        trn_transf = [
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-        ]
-        val_transf = [
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-        ]
-    else:
-        raise ValueError('not expected dataset = {}'.format(dataset))
-
-    if config.jitter:
-        trn_transf.append(transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1))
-    cutout = config.cutout
-
-    if not prefetch:
-        normalize = [transforms.ToTensor(), transforms.Normalize(mean, stddev)]
-        trn_transf.extend(normalize)
-        val_transf.extend(normalize)
-        if cutout > 0:
-            trn_transf.append(Cutout(cutout))
-
-    if dset == datasets.ImageFolder:
-        if validation:
-            data = dset(root, transform=transforms.Compose(val_transf))
+def train_valid_split(trn_idx, train_labels, valid_size, n_classes):
+    random.shuffle(trn_idx)
+    # return trn_idx[valid_size:], trn_idx[:valid_size]
+    train_idx, valid_idx = [], []
+    per_class_remain = [valid_size // n_classes] * n_classes
+    for i in range(valid_size % n_classes):
+        per_class_remain[i] += 1
+    for idx in trn_idx:
+        label = train_labels[idx]
+        if isinstance(label, float):
+            label = int(label)
+        elif isinstance(label, np.ndarray):
+            label = np.argmax(label)
         else:
-            data = dset(root, transform=transforms.Compose(trn_transf))
-    elif validation:
-        data = dset(root, train=False,
-                    transform=transforms.Compose(val_transf), download=True)
-    else:
-        data = dset(root, train=True,
-                    transform=transforms.Compose(trn_transf), download=True)
+            assert isinstance(label, int)
+        if per_class_remain[label] > 0:
+            valid_idx.append(idx)
+            per_class_remain[label] -= 1
+        else:
+            train_idx.append(idx)
+    return train_idx, valid_idx
 
-    sp_ratio = config.split_ratio
+
+@register_as('pytorch')
+def get_torch_dataloader(data_config, validation,
+                         trn_batch_size=64, val_batch_size=64,
+                         workers=2, prefetch=False, collate_fn=None,
+                         train_size=0, train_ratio=1., train_seed=1,
+                         valid_size=0, valid_ratio=0., valid_seed=1):
+    if prefetch:
+        collate_fn = fast_collate
+    data_args = data_config.get('args', {})
+    if prefetch:
+        data_args['to_tensor'] = False
+        cutout = data_args['cutout']
+        data_args['cutout'] = 0
+        metadata = get_metadata(data_args['dataset'])
+        mean, stddev = metadata['mean'], metadata['stddev']
+    trn_data, val_data = build(data_config.type, validation=validation, **data_args)
     trn_loader = None
     val_loader = None
     extra_kwargs = {
-        'num_workers': config.workers,
+        'num_workers': workers,
         'pin_memory': True,
         # 'collate_fn': collate_fn,
     }
     if not collate_fn is None:
         # backward compatibility for pytorch < 1.2.0
         extra_kwargs['collate_fn'] = collate_fn
-    n_data = int(size * len(data))
-    indices = list(range(n_data))
-    if sp_ratio > 0 and sp_ratio < 1.0:
-        split = int(n_data * sp_ratio)
-        logging.info('data_provider: split data: {}/{}'.format(split, n_data-split))
-        trn_sampler = SubsetRandomSampler(indices[:split])
-        val_sampler = SubsetRandomSampler(indices[split:])
-        trn_loader = DataLoader(data,
-                                batch_size=config.trn_batch_size,
+
+    n_train_data = len(trn_data)
+    n_valid_data = 0 if val_data is None else len(val_data)
+    if train_size <= 0:
+        train_size = int(n_train_data * min(train_ratio, 1.))
+    if train_size < n_train_data:
+        random.seed(train_seed)
+        trn_idx = random.sample(range(n_train_data), train_size)
+    else:
+        trn_idx = list(range(n_train_data))
+    if valid_size <= 0 and valid_ratio > 0:
+        valid_size = int(train_size * min(valid_ratio, 1.))
+    if valid_size > 0:
+        if hasattr(trn_data, 'targets'):
+            labels = [c for c in trn_data.targets]
+        elif hasattr(trn_data, 'samples'):
+            labels = [c for _, c in trn_data.samples]
+        else:
+            raise RuntimeError('data labels not found')
+        if hasattr(trn_data, 'classes'):
+            n_classes = len(trn_data.classes)
+        else:
+            n_classes = len(set(labels))
+        random.seed(valid_seed)
+        trn_idx, val_idx = train_valid_split(trn_idx, labels, valid_size, n_classes)
+        trn_sampler = SubsetRandomSampler(trn_idx)
+        val_sampler = SubsetRandomSampler(val_idx)
+        trn_loader = DataLoader(trn_data,
+                                batch_size=trn_batch_size,
                                 sampler=trn_sampler,
                                 **extra_kwargs)
-        val_loader = DataLoader(data,
-                                batch_size=config.val_batch_size,
+        val_loader = DataLoader(trn_data,
+                                batch_size=val_batch_size,
                                 sampler=val_sampler,
                                 **extra_kwargs)
-    elif validation:
-        val_sampler = SubsetRandomSampler(indices)
-        val_loader = DataLoader(data,
-                                batch_size=config.val_batch_size,
-                                sampler=val_sampler, **extra_kwargs)
+        logging.info('data_loader: split: trn: {} val: {} cls: {}'.format(
+            len(trn_idx), len(val_idx), n_classes))
     else:
-        trn_sampler = SubsetRandomSampler(indices)
-        trn_loader = DataLoader(data,
-                                batch_size=config.trn_batch_size,
+        if validation:
+            val_loader = DataLoader(val_data,
+                                    batch_size=val_batch_size,
+                                    shuffle=False, **extra_kwargs)
+        trn_sampler = SubsetRandomSampler(trn_idx)
+        trn_loader = DataLoader(trn_data,
+                                batch_size=trn_batch_size,
                                 sampler=trn_sampler, **extra_kwargs)
-
+        logging.info('data_loader: trn: {} val: {}'.format(
+            len(trn_idx), n_valid_data))
     if prefetch:
-        if not trn_loader is None: trn_loader = data_prefetcher(trn_loader, mean, stddev, cutout)
-        if not val_loader is None: val_loader = data_prefetcher(val_loader, mean, stddev, cutout)
-    if trn_loader is None: return val_loader
-    if val_loader is None: return trn_loader
+        if not trn_loader is None: trn_loader = DataPrefetcher(trn_loader, mean, stddev, cutout)
+        if not val_loader is None: val_loader = DataPrefetcher(val_loader, mean, stddev, cutout)
     return trn_loader, val_loader

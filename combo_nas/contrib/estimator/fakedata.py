@@ -45,5 +45,6 @@ class FakeDataEstimator(RegressionEstimator):
         self.model = None
         ret = super().search(optim)
         scores = np.array(list(self.predictor.scores.values()))
-        print('global optimum genotype: {}, score: {}'.format(scores.argmax(1), sum(np.max(scores, 1)) / scores.shape[0]))
+        self.logger.info('global optimum genotype: {}, score: {}'.format(
+                         scores.argmax(1), sum(np.max(scores, 1)) / scores.shape[0]))
         return ret

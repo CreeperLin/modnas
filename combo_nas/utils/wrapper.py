@@ -2,7 +2,7 @@ import os
 import queue
 import importlib
 from ..utils.exp_manager import ExpManager
-from ..data_provider.dataloader import load_data
+from ..data_provider import load_data
 from ..arch_space.constructor import convert_from_predefined_net
 from ..arch_space.constructor import convert_from_genotype
 from ..arch_space.constructor import convert_from_layers
@@ -17,20 +17,6 @@ from ..utils.config import Config
 from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 from .routine import search, augment, hptune
-
-def load_data_loader(config, val):
-    if config is None:
-        return None, None
-    sp_ratio = config.dloader.split_ratio
-    if sp_ratio > 0:
-        trn_loader, val_loader = load_data(config, validation=False)
-    else:
-        trn_loader = load_data(config, validation=False)
-        val_loader = None
-        if val:
-            val_loader = load_data(config, validation=True)
-    return trn_loader, val_loader
-
 
 def import_modules(modules):
     for m in modules:
@@ -66,7 +52,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    trn_loader, val_loader = load_data_loader(config.get('data', None), val=False)
+    trn_loader, val_loader = load_data(config, False)
     # ops
     if 'ops' in config:
         configure_ops(config.ops)
@@ -89,9 +75,8 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 # primitives
                 if 'primitives' in config.mixed_op:
                     fn_kwargs['ops'] = config.mixed_op.primitives
-                mixed_op_args = config.mixed_op.get('args', {})
-                fn_kwargs.update(mixed_op_args)
                 fn_kwargs['rid'] = config.mixed_op.type
+                fn_kwargs.update(config.mixed_op.get('args', {}))
             op_convert_fn = convert_fn[-1]
             if genotype is None:
                 if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
@@ -156,7 +141,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    trn_loader, val_loader = load_data_loader(config.get('data', None), val=True)
+    trn_loader, val_loader = load_data(config, True)
     # ops
     if 'ops' in config:
         config.ops.affine = True
