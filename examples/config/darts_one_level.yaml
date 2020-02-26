@@ -23,17 +23,8 @@ search:
         type: 'cosine'
         args:
           eta_min: 0.001
-      aux_weight: 0.0
-      drop_path_prob: 0.0
       w_grad_clip: 5.
       epochs: 50
-      print_freq: 200
-      save_freq: 25
-      plot: False
-      arch_update_epoch_start: 0
-      arch_update_epoch_intv: 1
-      arch_update_intv: -1
-      arch_update_batch: 1
 optim:
   type: 'DirectGrad'
   args:
@@ -71,5 +62,3 @@ device:
 genotypes:
   gt_str: ''
   gt_path: ''
-init:
-  type: 'he_normal_fout'

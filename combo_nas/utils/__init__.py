@@ -29,7 +29,7 @@ def parse_gpus(gpus):
 
 def check_config(config):
     
-    def check_field(config, field, default=None):
+    def check_field(config, field, default, required=False):
         cur_key = ''
         idx = -1
         keys = field.split('.')
@@ -48,7 +48,7 @@ def check_config(config):
         except KeyError:
             if idx != len(keys) - 1:
                 logging.warning('check_config: key \'{}\' in field \'{}\' missing'.format(cur_key, field))
-            elif default is None:
+            elif required:
                 logging.error('missing field \'{}\''.format(field))
                 return True
             else:
@@ -72,9 +72,16 @@ def check_config(config):
         'genotypes.gt_path': '',
         'genotypes.to_args': {},
         'genotypes.build_args': {},
-        'init.type': 'he_normal_fout',
-        'init.conv_div_groups': True,
         'estimator.*.save_gt': True,
+        'estimator.*.save_freq': 0,
+        'estimator.*.print_freq': 200,
+        'estimator.*.drop_path_prob': 0.,
+        'estimator.*.w_grad_clip': 0.,
+        'estimator.*.aux_weight': 0.,
+        'estimator.*.arch_update_epoch_start': 0,
+        'estimator.*.arch_update_epoch_intv': 1,
+        'estimator.*.arch_update_intv': -1,
+        'estimator.*.arch_update_batch': 1,
     }
 
     for key, val in defaults.items():

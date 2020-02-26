@@ -43,7 +43,7 @@ class SubNetEstimator(EstimatorBase):
     def construct_subnet(self):
         config = self.config
         # supernet based
-        self.model.init_model(config.init)
+        self.model.init_model(**config.get('init', {}))
         return self.model
 
     def validate(self):

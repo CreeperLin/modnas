@@ -23,17 +23,8 @@ search:
         type: 'cosine'
         args:
           eta_min: 0.001
-      aux_weight: 0.0
-      w_grad_clip: 0.0
-      drop_path_prob: 0.0
       subnet_epochs: 50
       epochs: 200
-      print_freq: 200
-      save_freq: 0
-      arch_update_epoch_start: 0
-      arch_update_epoch_intv: 1
-      init:
-        type: 'he_normal_fout'
 augment:
   data:
     args:
@@ -61,7 +52,6 @@ augment:
         args:
           eta_min: 0.0
       aux_weight: 0.0
-      drop_path_prob: 0.0
       w_grad_clip: 0.0
       print_freq: 200
       save_freq: 0
@@ -98,5 +88,3 @@ device:
 genotypes:
   gt_str: ''
   gt_path: ''
-init:
-  type: 'he_normal_fout'

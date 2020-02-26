@@ -129,31 +129,27 @@ class NASController(nn.Module):
             if isinstance(module, DropPath_):
                 module.p = p
 
-    def init_model(self, config):
-        init_type = config.type
-        if init_type == 'none': return
-        init_div_groups = config.get('conv_div_groups', False)
-        momentum = config.get('bn_momentum', None)
-        eps = config.get('bn_eps', None)
-        negative_slope = config.get('neg_slope', 0.)
-        nonlinear = config.get('nonlinear', 'leaky_relu')
-        gain = nn.init.calculate_gain(nonlinear, negative_slope)
+    def init_model(self, conv_init_type='he_normal_fout', conv_div_groups=True,
+                   bn_momentum=None, bn_eps=None,
+                   neg_slope=0., nonlinear='leaky_relu'):
+        if conv_init_type == 'none': return
+        gain = nn.init.calculate_gain(nonlinear, neg_slope)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(m.weight)
-                if init_div_groups:
+                if conv_div_groups:
                     fan_in /= m.groups
                     fan_out /= m.groups
-                if init_type == 'he_normal_fout':
+                if conv_init_type == 'he_normal_fout':
                     stdv = gain / math.sqrt(fan_out)
                     nn.init.normal_(m.weight, 0, stdv)
-                elif init_type == 'he_normal_fin':
+                elif conv_init_type == 'he_normal_fin':
                     stdv = gain / math.sqrt(fan_in)
                     nn.init.normal_(m.weight, 0, stdv)
-                elif init_type == 'he_uniform_fout':
+                elif conv_init_type == 'he_uniform_fout':
                     b = math.sqrt(3.) * gain / math.sqrt(fan_out)
                     nn.init.uniform_(m.weight, -b, b)
-                elif init_type == 'he_uniform_fin':
+                elif conv_init_type == 'he_uniform_fin':
                     b = math.sqrt(3.) * gain / math.sqrt(fan_in)
                     nn.init.uniform_(m.weight, -b, b)
                 else:
@@ -164,8 +160,8 @@ class NASController(nn.Module):
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 if not m.weight is None: nn.init.ones_(m.weight)
                 if not m.bias is None: nn.init.zeros_(m.bias)
-                if not momentum is None: m.momentum = momentum
-                if not eps is None: m.eps = eps
+                if not bn_momentum is None: m.momentum = bn_momentum
+                if not bn_eps is None: m.eps = bn_eps
             elif isinstance(m, nn.Linear):
                 stdv = 1. / math.sqrt(m.weight.size(1))
                 nn.init.uniform_(m.weight, -stdv, stdv)

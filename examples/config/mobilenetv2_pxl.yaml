@@ -28,7 +28,6 @@ search:
         args:
           eta_min: 0.0
       w_grad_clip: 0.0
-      drop_path_prob: 0.0
       epochs: 40
       print_freq: 200
       save_freq: 0
@@ -46,17 +45,12 @@ search:
         type: 'cosine'
         args:
           eta_min: 0.0
-      w_grad_clip: 5.0
-      drop_path_prob: 0.0
       epochs: 120
-      print_freq: 200
-      save_freq: 0
+      print_freq: 500
       arch_update_epoch_start: 1
       arch_update_epoch_intv: 1
       arch_update_intv: 5
       arch_update_batch: 1
-      plot: False
-      aux_weight: 0.0
 optim:
   type: 'BinGate'
   args:
@@ -113,7 +107,7 @@ genotypes:
   gt_str: ''
   gt_path: ''
 init:
-  type: 'he_normal_fout'
-  init_div_groups: True
+  conv_init_type: 'he_normal_fout'
+  conv_div_groups: True
   bn_momentum: 0.1
   bn_eps: 0.001

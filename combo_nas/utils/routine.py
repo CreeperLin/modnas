@@ -9,6 +9,7 @@ def search(config, chkpt_path, optim, estim_kwargs):
         estim_type = estim_conf.type
         logging.info('running estimator: {} type: {}'.format(estim_name, estim_type))
         estim_kwargs['config'] = estim_conf
+        estim_kwargs.update(estim_conf.get('args', {}))
         estim = build_estimator(estim_type, **estim_kwargs)
         estim.load(chkpt_path)
         ret = estim.search(optim)
@@ -23,6 +24,7 @@ def augment(config, chkpt_path, estim_kwargs):
         estim_type = estim_conf.type
         logging.info('running estimator: {} type: {}'.format(estim_name, estim_type))
         estim_kwargs['config'] = estim_conf
+        estim_kwargs.update(estim_conf.get('args', {}))
         estim = build_estimator(estim_type, **estim_kwargs)
         estim.load(chkpt_path)
         ret = estim.train()
@@ -35,6 +37,7 @@ def hptune(config, chkpt_path, optim, estim_kwargs):
         estim_type = estim_conf.type
         logging.info('running estimator: {} type: {}'.format(estim_name, estim_type))
         estim_kwargs['config'] = estim_conf
+        estim_kwargs.update(estim_conf.get('args', {}))
         estim = build_estimator(estim_type, **estim_kwargs)
         estim.load(chkpt_path)
         ret = estim.search(optim)

@@ -29,8 +29,6 @@ augment:
       drop_path_prob: 0.2
       w_grad_clip: 5.
       epochs: 600
-      print_freq: 200
-      save_freq: 200
 ops:
   ops_order: 'act_weight_bn'
   affine: True
@@ -56,5 +54,3 @@ device:
 genotypes:
   gt_str: ''
   gt_path: ''
-init:
-  type: 'he_normal_fout'

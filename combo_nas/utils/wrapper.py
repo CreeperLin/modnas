@@ -99,7 +99,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                     model.to_genotype_ops = model.to_genotype_slots
                 model.to_genotype_args = config.genotypes.to_args
                 # init
-                model.init_model(config.init)
+                model.init_model(**config.get('init',{}))
             else:
                 model = net
             return model
@@ -175,7 +175,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
             crit = utils.get_net_crit(config.criterion)
             model = NASController(net, crit, dev_list).to(device=dev)
             # init
-            model.init_model(config.init)
+            model.init_model(**config.get('init',{}))
         else:
             model = net
         return model
