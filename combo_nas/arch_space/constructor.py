@@ -110,7 +110,7 @@ class Slot(nn.Module):
             return self.ent.to_genotype(*args, **kwargs)
         else:
             logging.debug('slot {} default genotype {}'.format(self.sid, self.gene))
-            return 1, self.gene
+            return self.gene
 
     def build_from_genotype(self, gene, *args, **kwargs):
         self.gene = gene

@@ -1,6 +1,6 @@
 import math
 import torch.nn as nn
-from ...arch_space.constructor import Slot, default_predefined_converter
+from ...arch_space.constructor import Slot, default_predefined_converter, default_genotype_converter
 from collections import OrderedDict
 
 def round_filters(filters, width_coeff, divisor, min_depth=None):
@@ -128,7 +128,7 @@ class MobileNetV2(nn.Module):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
     def get_predefined_search_converter(self):
-        def convert_fn(slot, ops, fix_first=True, add_zero_op=True, *args, **kwargs):
+        def convert_fn(slot, ops, *args, fix_first=True, add_zero_op=True, **kwargs):
             if fix_first and not hasattr(convert_fn, 'first'):
                 ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
                 convert_fn.first = True
@@ -137,6 +137,16 @@ class MobileNetV2(nn.Module):
                 if add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
                     ops.append('NIL')
                 ent = default_predefined_converter(slot, ops=ops, *args, **kwargs)
+            return ent
+        return convert_fn
+
+    def get_genotype_augment_converter(self):
+        def convert_fn(slot, *args, fix_first=True, **kwargs):
+            if fix_first and not hasattr(convert_fn, 'first'):
+                ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+                convert_fn.first = True
+            else:
+                ent = default_genotype_converter(slot, *args, **kwargs)
             return ent
         return convert_fn
 
@@ -172,4 +182,8 @@ def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     ]
     if cfgs is None:
         cfgs = default_cfgs
+    return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
+
+
+def mobilenetv2(chn_in, n_classes, cfgs, **kwargs):
     return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)

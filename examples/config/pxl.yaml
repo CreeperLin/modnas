@@ -114,11 +114,3 @@ model:
     use_avg: False
     bn_before_add: True
     ops_order: 'bn_act_weight'
-log:
-  writer: False
-device:
-  gpus: 'all'
-  seed: 2
-genotypes:
-  gt_str: ''
-  gt_path: ''

@@ -14,11 +14,3 @@ optim:
   type: 'Random'
 model:
   type: 'NASBench'
-log:
-  writer: False
-device:
-  gpus: 'all'
-  seed: 2
-genotypes:
-  gt_str: ''
-  gt_path: ''

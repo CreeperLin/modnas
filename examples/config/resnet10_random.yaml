@@ -80,11 +80,3 @@ model:
     n_classes: 10             # use 10 for MNIST, CIFAR10
     chn_in: 3   
     chn: 16
-log:
-  writer: False
-device:
-  gpus: 'all'
-  seed: 2
-genotypes:
-  gt_str: ''
-  gt_path: ''

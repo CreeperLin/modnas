@@ -22,14 +22,10 @@ class MaskedConv(nn.Conv2d):
         self.kernel_shape = (self.chn_out, self.chn_in, self.kernel_size[0], self.kernel_size[1])
         self.weight = nn.Parameter(torch.Tensor(*self.kernel_shape))
         if mask is None:
-            mask = torch.ones(*self.kernel_shape)
-        elif len(mask.shape) <= 2:
-            mask = mask.repeat(self.chn_out, self.chn_in, 1, 1)
-        if mask.shape != self.kernel_shape:
-            raise ValueError('invalid mask shape: {}'.format(mask.shape))
+            mask = torch.ones(*self.kernel_size)
         self.mask = mask
         self.reset_parameters()
-    
+
     def reset_parameters(self):
         init.kaiming_uniform_(self.weight, a=math.sqrt(5))
         if self.bias is not None:

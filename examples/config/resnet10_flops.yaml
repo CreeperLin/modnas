@@ -114,11 +114,3 @@ model:
     n_classes: 10             # use 10 for MNIST, CIFAR10
     chn_in: 3           # 3 for ImageNet/CIFAR10, 1 for MNIST
     chn: 16        # init channel
-log:
-  writer: False
-device:
-  gpus: 'all'
-  seed: 2
-genotypes:
-  gt_str: ''
-  gt_path: ''

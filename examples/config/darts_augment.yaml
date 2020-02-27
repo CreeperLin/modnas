@@ -46,11 +46,3 @@ model:
     layers: 20              # num of DAG layers (cells) in model
     shared_a: True
     auxiliary: True
-log:
-  writer: False
-device:
-  gpus: 'all'
-  seed: 2
-genotypes:
-  gt_str: ''
-  gt_path: ''

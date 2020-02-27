@@ -171,6 +171,20 @@ class DirectGradOptim(GradientBasedOptim):
         self.optim_reset()
 
 
+class DirectGradBiLevelOptim(GradientBasedOptim):
+    def __init__(self, space, a_optim):
+        super().__init__(space, a_optim)
+
+    def step(self, estim):
+        self.optim_reset()
+        model = estim.model
+        val_X, val_y = estim.get_next_val_batch()
+        loss = estim.model.loss(val_X, val_y)
+        loss = estim.compute_metrics_agg(loss, model)
+        loss.backward()
+        self.optim_step()
+
+
 class REINFORCEOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, batch_size):
         super().__init__(space, a_optim)

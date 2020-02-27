@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from .BoT import *
+from .config import Config
 try:
     from tensorboardX import SummaryWriter
 except ImportError:
@@ -27,7 +28,10 @@ def parse_gpus(gpus):
     else:
         return [int(s) for s in gpus.split(',')]
 
-def check_config(config):
+def check_config(config, top_keys=[]):
+    for k in top_keys:
+        if not k in config:
+            config[k] = Config()
     
     def check_field(config, field, default, required=False):
         cur_key = ''
@@ -66,12 +70,15 @@ def check_config(config):
         'ops.bias': False,
         'log.writer': False,
         'log.debug': False,
+        'device.seed': 2,
+        'device.gpus': 'all',
         'genotypes.disable_dag': False,
         'genotypes.use_slot': True,
         'genotypes.gt_str': '',
         'genotypes.gt_path': '',
         'genotypes.to_args': {},
-        'genotypes.build_args': {},
+        'convert.search_args': {},
+        'convert.augment_args': {},
         'estimator.*.save_gt': True,
         'estimator.*.save_freq': 0,
         'estimator.*.print_freq': 200,

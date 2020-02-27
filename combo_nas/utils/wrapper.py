@@ -41,11 +41,11 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     # config
     config = Config.load(config)
     _elevate_config(config, 'search')
-    utils.check_config(config)
+    utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
     # imports
     import_modules(config.get('imports', []))
     # dir
-    expman = ExpManager(exp, name)
+    expman = ExpManager(exp, name, **config.log.get('expman', {}))
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
@@ -78,6 +78,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 fn_kwargs['rid'] = config.mixed_op.type
                 fn_kwargs.update(config.mixed_op.get('args', {}))
             op_convert_fn = convert_fn[-1]
+            fn_kwargs.update(config.convert.get('search_args', {}))
             if genotype is None:
                 if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
                     op_convert_fn = net.get_predefined_search_converter()
@@ -86,7 +87,6 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
                     op_convert_fn = net.get_genotype_search_converter()
                 genotype = gt.get_genotype(config.genotypes, genotype)
-                fn_kwargs.update(config.genotypes.build_args)
                 convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
             # controller
             if 'criterion' in config:
@@ -130,11 +130,11 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
 def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
     config = Config.load(config)
     _elevate_config(config, 'augment')
-    utils.check_config(config)
+    utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
     # imports
     import_modules(config.get('imports', []))
     # dir
-    expman = ExpManager(exp, name)
+    expman = ExpManager(exp, name, **config.log.get('expman', {}))
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
@@ -160,6 +160,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         fn_kwargs = {}
         # op
         op_convert_fn = convert_fn[-1]
+        fn_kwargs.update(config.convert.get('augment_args', {}))
         if genotype is None:
             if op_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
                 op_convert_fn = net.get_predefined_augment_converter()
@@ -168,7 +169,6 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
             if op_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
                 op_convert_fn = net.get_genotype_augment_converter()
             genotype = gt.get_genotype(config.genotypes, genotype)
-            fn_kwargs.update(config.genotypes.build_args)
             convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
         # controller
         if 'criterion' in config:
@@ -202,11 +202,11 @@ def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_f
     HParamSpace.reset()
     config = Config.load(config)
     _elevate_config(config, 'hptune')
-    utils.check_config(config)
+    utils.check_config(config, top_keys=['log', 'device'])
     # imports
     import_modules(config.get('imports', []))
     # dir
-    expman = ExpManager(exp, name)
+    expman = ExpManager(exp, name, **config.log.get('expman', {}))
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
@@ -267,18 +267,18 @@ def run_hptune(*args, **kwargs):
 
 def run_pipeline(config, name, exp='exp'):
     config = Config.load(config)
-    utils.check_config(config)
+    utils.check_config(config, top_keys=['log'])
     # imports
     import_modules(config.get('imports', []))
     # dir
-    expman = ExpManager(exp, name)
+    expman = ExpManager(exp, name, **config.log.get('expman', {}))
     logger = utils.get_logger(expman.logs_path, name, config.log)
-    writer = utils.get_writer(expman.writer_path, config.log.writer)
+    # writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
     pipeconf = config.get('pipeline', {})
     pending = queue.Queue()
-    for name in pipeconf.keys():
-        pending.put(name)
+    for pn in pipeconf.keys():
+        pending.put(pn)
     finished = set()
     ret_values = dict()
     while not pending.empty():
@@ -296,6 +296,7 @@ def run_pipeline(config, name, exp='exp'):
         proc = get_runner(ptype)
         pargs = pconf.get('args', {})
         pargs.exp = os.path.join(expman.root_dir, pargs.get('exp', ''))
+        pargs.name = pargs.get('name', pname)
         for inp_kw, inp_idx in pconf.get('inputs', {}).items():
             keys = inp_idx.split('.')
             inp_val = ret_values

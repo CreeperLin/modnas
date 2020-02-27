@@ -71,9 +71,12 @@ mixed_op:
     - 'MB5E6'
     - 'MB7E3'
     - 'MB7E6'
-  args:
+convert:
+  search_args:
     fix_first: True
     add_zero_op: True
+  augment_args:
+    fix_first: True
 ops:
   ops_order: 'weight'
   affine: True
@@ -98,14 +101,9 @@ model:
       [6, 192, 4, 2],
       [6, 320, 1, 1]
     ]
-log:
-  writer: False
 device:
   gpus: '0,1,2,3,4,5,6,7'
   seed: 0
-genotypes:
-  gt_str: ''
-  gt_path: ''
 init:
   conv_init_type: 'he_normal_fout'
   conv_div_groups: True
