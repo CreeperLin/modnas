@@ -73,6 +73,8 @@ def get_torch_dataloader(data_config, validation,
             labels = [c for c in trn_data.targets]
         elif hasattr(trn_data, 'samples'):
             labels = [c for _, c in trn_data.samples]
+        elif hasattr(trn_data, 'train_labels'): # backward compatibility for pytorch<1.2.0
+            labels = trn_data.train_labels
         else:
             raise RuntimeError('data labels not found')
         if hasattr(trn_data, 'classes'):

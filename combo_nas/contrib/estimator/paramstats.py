@@ -33,5 +33,5 @@ class ParamStatsEstimator(SuperNetEstimator):
                 plt.plot(epochs, prob[:, a])
             legends = mixed_ops[aidx].ops
             plt.legend(legends)
-            plt.savefig(os.path.join(self.expman.plot_path(), 'prob_{}.png'.format(aidx)))
+            plt.savefig(os.path.join(self.expman.plot_path, 'prob_{}.png'.format(aidx)))
         return ret
