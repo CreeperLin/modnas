@@ -3,8 +3,9 @@ import random
 from ..utils import get_optim
 
 class OptimBase():
-    def __init__(self, space):
+    def __init__(self, space, logger=None):
         self.space = space
+        self.logger = logger
 
     def state_dict(self):
         return {}
@@ -34,8 +35,8 @@ class OptimBase():
 
 
 class GradientBasedOptim(OptimBase):
-    def __init__(self, space, a_optim):
-        super().__init__(space)
+    def __init__(self, space, a_optim, logger=None):
+        super().__init__(space, logger)
         self.a_optim = get_optim(self.space.tensor_values(), a_optim)
 
     def state_dict(self):
@@ -54,8 +55,8 @@ class GradientBasedOptim(OptimBase):
 
 
 class CategoricalSpaceOptim(OptimBase):
-    def __init__(self, space):
-        super().__init__(space)
+    def __init__(self, space, logger=None):
+        super().__init__(space, logger)
         self.space_size = self.space.categorical_size
         self.visited = set()
 

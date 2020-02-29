@@ -107,7 +107,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
         model_builder = default_model_builder
     # optim
     optim_kwargs = config.optim.get('args', {})
-    optim = build_optim(config.optim.type, space=ArchParamSpace, **optim_kwargs)
+    optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
     # chkpt
     chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
@@ -218,7 +218,7 @@ def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_f
         build_hparam_space_from_dict(config.hpspace.hp_dict)
     # optim
     optim_kwargs = config.optim.get('args', {})
-    optim = build_optim(config.optim.type, space=HParamSpace, **optim_kwargs)
+    optim = build_optim(config.optim.type, space=HParamSpace, logger=logger, **optim_kwargs)
     # measure_fn
     if measure_fn is None:
         measure_fn = default_measure_fn

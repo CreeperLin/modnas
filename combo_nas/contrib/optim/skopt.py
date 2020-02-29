@@ -12,8 +12,8 @@ except ImportError:
 
 @optim.register_as('Skopt')
 class SkoptParamOptim(OptimBase):
-    def __init__(self, space, skopt_args={}):
-        super().__init__(space)
+    def __init__(self, space, skopt_args={}, logger=None):
+        super().__init__(space, logger)
         if skopt is None:
             raise ValueError('scikit-optimize is not installed')
         skopt_dims = []

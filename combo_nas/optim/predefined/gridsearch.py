@@ -3,8 +3,8 @@ import random
 from ..base import CategoricalSpaceOptim
 
 class GridSearchOptim(CategoricalSpaceOptim):
-    def __init__(self, space):
-        super().__init__(space)
+    def __init__(self, space, logger=None):
+        super().__init__(space, logger)
         self.counter = 0
 
     def _next(self):
@@ -17,8 +17,8 @@ class GridSearchOptim(CategoricalSpaceOptim):
 
 
 class RandomSearchOptim(CategoricalSpaceOptim):
-    def __init__(self, space, seed=None):
-        super().__init__(space)
+    def __init__(self, space, seed=None, logger=None):
+        super().__init__(space, logger)
         seed = int(time.time()) if seed is None else seed
         random.seed(seed)
 

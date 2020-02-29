@@ -144,7 +144,7 @@ class StdConv(nn.Module):
     """ Standard conv
     ReLU - Conv - BN
     """
-    def __init__(self, C_in, C_out, kernel_size, stride, padding):
+    def __init__(self, C_in, C_out, kernel_size, stride, padding, groups=1):
         super().__init__()
         C = C_in
         nets = []
@@ -152,7 +152,7 @@ class StdConv(nn.Module):
             if i=='bn':
                 nets.append(nn.BatchNorm2d(C, affine=AFFINE))
             elif i=='weight':
-                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, bias=BIAS, groups=groups))
                 C = C_out
             elif i=='act':
                 nets.append(nn.ReLU(inplace=INPLACE))

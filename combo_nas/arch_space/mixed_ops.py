@@ -60,13 +60,12 @@ class WeightedSumMixedOp(MixedOp):
 
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
-        p = self.arch_param_value('p')
-        w_path = F.softmax(p.to(device=x.device), dim=-1)
+        w_path = F.softmax(self.alpha().to(device=x.device), dim=-1)
         return sum(w * op(x) for w, op in zip(w_path, self._ops))
 
     def to_genotype(self, k=1):
         ops = self.ops
-        w = F.softmax(self.arch_param_value('p').detach(), dim=-1)
+        w = F.softmax(self.alpha().detach(), dim=-1)
         w_max, prim_idx = torch.topk(w, k)
         gene = [ops[i] for i in prim_idx]
         if gene == []: return [None]
@@ -102,8 +101,7 @@ class BinGateMixedOp(MixedOp):
         self.s_path_f = [s_op[i] for i in samples]
 
     def sample_ops(self, n_samples):
-        p = self.arch_param_value('p')
-        samples = F.softmax(p, dim=-1).multinomial(n_samples).detach()
+        samples = self.prob().multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
 
     def reset_ops(self):
@@ -150,8 +148,7 @@ class BinGateMixedOp(MixedOp):
 
     def to_genotype(self, k=1):
         ops = self.ops
-        p = self.arch_param_value('p')
-        w = F.softmax(p.detach(), dim=-1)
+        w = F.softmax(self.alpha().detach(), dim=-1)
         w_max, prim_idx = torch.topk(w, k)
         gene = [ops[i] for i in prim_idx]
         if gene == []: return [None]
@@ -215,6 +212,43 @@ class BinGateUniformMixedOp(BinGateMixedOp):
         self.s_op = list(samples.flatten().cpu().numpy())
 
 
+class GumbelSumMixedOp(MixedOp):
+    """ Mixed operation as weighted sum """
+    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
+        if arch_param_map is None:
+            params_shape = (len(ops), )
+            arch_param_map = {
+                'p': ArchParamTensor(params_shape),
+            }
+        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
+        self.temp = 1e5
+
+    def set_temperature(self, temp):
+        self.temp = temp
+
+    def prob(self):
+        p = self.alpha()
+        eps = 1e-7
+        uniforms = torch.rand(p.shape, device=p.device).clamp(eps, 1-eps)
+        gumbels = -((-(uniforms.log())).log())
+        scores = (p + gumbels) / self.temp
+        return F.softmax(scores, dim=-1)
+
+    def forward(self, x):
+        x = x[0] if isinstance(x, list) else x
+        w_path = self.prob().to(x.device)
+        return sum(w * op(x) for w, op in zip(w_path, self._ops))
+
+    def to_genotype(self, k=1):
+        ops = self.ops
+        w = F.softmax(self.alpha().detach(), dim=-1) # use alpha softmax
+        w_max, prim_idx = torch.topk(w, k)
+        gene = [ops[i] for i in prim_idx]
+        if gene == []: return [None]
+        self.w_max = w_max
+        return gene
+
+
 class IndexMixedOp(MixedOp):
     """ Mixed operation controlled by external index """
     def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
@@ -261,4 +295,5 @@ class IndexMixedOp(MixedOp):
 register(WeightedSumMixedOp, 'WeightedSum')
 register(BinGateMixedOp, 'BinGate')
 register(BinGateUniformMixedOp, 'BinGateUniform')
+register(GumbelSumMixedOp, 'GumbelSum')
 register(IndexMixedOp, 'Index')

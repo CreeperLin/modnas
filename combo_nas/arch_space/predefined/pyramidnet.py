@@ -18,7 +18,6 @@ class GroupConv(nn.Module):
         self.net = nn.Sequential(*net)
 
     def forward(self, x):
-        x = x[0] if isinstance(x, list) else x
         return self.net(x)
 
 class BottleneckBlock(nn.Module):
@@ -35,7 +34,7 @@ class BottleneckBlock(nn.Module):
     def forward(self, x):
 
         out = self.bottle_in(x)
-        out = self.cell([out])
+        out = self.cell(out)
         out = self.bottle_out(out)
         out = self.bn(out)
 

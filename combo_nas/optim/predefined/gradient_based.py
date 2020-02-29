@@ -1,4 +1,5 @@
 """ Architect controls architecture of cell by computing gradients of alphas """
+import math
 import copy
 import torch
 from ..base import GradientBasedOptim
@@ -6,8 +7,8 @@ from ...utils import accuracy
 
 class DARTSOptim(GradientBasedOptim):
     """ Compute gradients of alphas """
-    def __init__(self, space, a_optim, w_momentum, w_weight_decay):
-        super().__init__(space, a_optim)
+    def __init__(self, space, a_optim, w_momentum, w_weight_decay, logger=None):
+        super().__init__(space, a_optim, logger)
         self.v_net = None
         self.w_momentum = w_momentum
         self.w_weight_decay = w_weight_decay
@@ -106,8 +107,8 @@ class DARTSOptim(GradientBasedOptim):
 
 class BinaryGateOptim(GradientBasedOptim):
     """ Compute gradients of alphas """
-    def __init__(self, space, a_optim, n_samples, renorm):
-        super().__init__(space, a_optim)
+    def __init__(self, space, a_optim, n_samples, renorm, logger=None):
+        super().__init__(space, a_optim, logger)
         self.n_samples = n_samples
         self.sample = (self.n_samples!=0)
         self.renorm = renorm and self.sample
@@ -163,8 +164,8 @@ class BinaryGateOptim(GradientBasedOptim):
 
 
 class DirectGradOptim(GradientBasedOptim):
-    def __init__(self, space, a_optim):
-        super().__init__(space, a_optim)
+    def __init__(self, space, a_optim, logger=None):
+        super().__init__(space, a_optim, logger)
 
     def step(self, estim):
         self.optim_step()
@@ -172,8 +173,8 @@ class DirectGradOptim(GradientBasedOptim):
 
 
 class DirectGradBiLevelOptim(GradientBasedOptim):
-    def __init__(self, space, a_optim):
-        super().__init__(space, a_optim)
+    def __init__(self, space, a_optim, logger=None):
+        super().__init__(space, a_optim, logger)
 
     def step(self, estim):
         self.optim_reset()
@@ -186,8 +187,8 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
 
 
 class REINFORCEOptim(GradientBasedOptim):
-    def __init__(self, space, a_optim, batch_size):
-        super().__init__(space, a_optim)
+    def __init__(self, space, a_optim, batch_size, logger=None):
+        super().__init__(space, a_optim, logger)
         self.batch_size = batch_size
         self.baseline = None
         self.baseline_decay_weight = 0.99
@@ -247,3 +248,34 @@ class REINFORCEOptim(GradientBasedOptim):
             p.grad.data /= self.batch_size
         # apply gradients
         self.optim_step()
+
+
+class GumbelAnnealingOptim(GradientBasedOptim):
+    def __init__(self, space, a_optim, init_temp=500., exp_anneal_rate=0.0003,
+                 restart_period=None, logger=None):
+        super().__init__(space, a_optim, logger)
+        self.init_temp = init_temp
+        self.exp_anneal_rate = exp_anneal_rate
+        self.temp = self.init_temp
+        if restart_period is None:
+            restart_period = 0
+        self.restart_period = int(restart_period)
+        self.cur_step = 0
+
+    def step(self, estim):
+        self.optim_reset()
+        model = estim.model
+        self.apply_temp(model)
+        val_X, val_y = estim.get_next_val_batch()
+        loss = estim.model.loss(val_X, val_y)
+        loss = estim.compute_metrics_agg(loss, model)
+        loss.backward()
+        self.optim_step()
+        self.cur_step += 1
+        if self.restart_period > 0 and self.cur_step >= self.restart_period:
+            self.cur_step = 0
+        self.temp = self.init_temp * math.exp(-self.exp_anneal_rate * self.cur_step)
+
+    def apply_temp(self, model):
+        for m in model.mixed_ops():
+            m.set_temperature(self.temp)

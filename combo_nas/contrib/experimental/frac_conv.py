@@ -89,18 +89,18 @@ class IndexedConv(nn.Conv2d):
 
 
 @register_as('IC3[x]')
-def cross_conv_3x3(*args, **kwargs):
+def cross_conv_3x3(chn_in, chn_out, stride, **kwargs):
     indices = [
         [0,0,1,2,2],
         [0,2,1,0,2],
     ]
-    return IndexedConv(*args, **kwargs, indices=indices)
+    return IndexedConv(chn_in, chn_out, 3, stride, 1, **kwargs, indices=indices)
 
 
 @register_as('IC3[+]')
-def plus_conv_3x3(*args, **kwargs):
+def plus_conv_3x3(chn_in, chn_out, stride, **kwargs):
     indices = [
         [0,1,1,1,2],
         [1,0,1,2,1],
     ]
-    return IndexedConv(*args, **kwargs, indices=indices)
+    return IndexedConv(chn_in, chn_out, 3, stride, 1, **kwargs, indices=indices)
