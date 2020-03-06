@@ -256,10 +256,7 @@ def resnext101_32x8d(resnet_cls, **kwargs):
                       groups=32, width_per_group=8, **kwargs)
 
 
-def resnet(resnet_cls, **kwargs):
-    bottleneck = False
-    if 'bottleneck' in kwargs:
-        bottleneck = kwargs.pop('bottleneck')
+def resnet(resnet_cls, bottleneck=False, **kwargs):
     block = Bottleneck if bottleneck else BasicBlock
     return resnet_cls(block=block, **kwargs)
 

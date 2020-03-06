@@ -18,25 +18,23 @@ class TestAuto():
                 def case_fn(casename, conf_path, *args, **kwargs):
                     exp = 'exp'
                     conf = yaml.load(open(conf_path, 'r'), Loader=yaml.Loader)
+                    best_gt = None
                     if 'search' in conf:
-                        print('name: {} search'.format(casename))
                         gt_file = os.path.join(root_dir, 'genotype', 'search', casename+'.gt')
                         if not os.path.isfile(gt_file):
                             gt_file = None
-                        else: print('gt_file: {}'.format(gt_file))
-                        run_search(conf_path, casename, exp, None, None, genotype=gt_file)
+                        ret = run_search(conf_path, casename, exp, None, None, genotype=gt_file)
+                        best_gt = ret.get('best_gt', None)
                     if 'augment' in conf:
-                        print('name: {} augment'.format(casename))
                         gt_file = os.path.join(root_dir, 'genotype', 'augment', casename+'.gt')
                         if not os.path.isfile(gt_file):
                             gt_file = None
-                        else: print('gt_file: {}'.format(gt_file))
                         run_augment(conf_path, casename, exp, None, None, genotype=gt_file)
+                        if not best_gt is None:
+                            run_augment(conf_path, casename, exp, None, None, genotype=best_gt)
                     if 'hptune' in conf:
-                        print('name: {} hptune'.format(casename))
                         run_hptune(conf_path, casename, exp, None, None, measure_fn=None)
                     if 'pipeline' in conf:
-                        print('name: {} pipeline'.format(casename))
                         run_pipeline(conf_path, casename, exp)
                 case_runner = partial(case_fn, testname, config_path)
                 fn_name = 'test_'+testname

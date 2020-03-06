@@ -251,7 +251,7 @@ class REINFORCEOptim(GradientBasedOptim):
 
 
 class GumbelAnnealingOptim(GradientBasedOptim):
-    def __init__(self, space, a_optim, init_temp=500., exp_anneal_rate=0.0003,
+    def __init__(self, space, a_optim, init_temp=1e4, exp_anneal_rate=0.0015,
                  restart_period=None, logger=None):
         super().__init__(space, a_optim, logger)
         self.init_temp = init_temp

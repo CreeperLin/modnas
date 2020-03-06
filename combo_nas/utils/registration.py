@@ -22,9 +22,12 @@ class Registry(object):
     def all(self):
         return self._reg_class.values()
 
+    def get_reg_name(self, name):
+        return name.lower().replace('-', '').replace('_', '').replace(' ', '')
+
     def register(self, regclass, rid=None):
         rid = regclass.__name__ if rid is None else rid
-        rid = rid.lower()
+        rid = self.get_reg_name(rid)
         if rid in self._reg_class:
             raise ValueError('Cannot re-register rid: {}'.format(rid))
         self._reg_class[rid] = regclass
@@ -33,7 +36,7 @@ class Registry(object):
         self._reg_class.update(regdict)
 
     def get(self, rid):
-        rid = rid.lower()
+        rid = self.get_reg_name(rid)
         if not rid in self._reg_class: raise ValueError('registry id not found: {}'.format(rid))
         return self._reg_class[rid]
 

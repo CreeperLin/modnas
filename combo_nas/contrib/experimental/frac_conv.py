@@ -19,7 +19,7 @@ class MaskedConv(nn.Conv2d):
         self.dilation = dilation
         self.groups = groups
         self.bias = nn.Parameter(torch.Tensor(chn_out)) if bias else None
-        self.kernel_shape = (self.chn_out, self.chn_in, self.kernel_size[0], self.kernel_size[1])
+        self.kernel_shape = (self.chn_out, self.chn_in // self.groups, self.kernel_size[0], self.kernel_size[1])
         self.weight = nn.Parameter(torch.Tensor(*self.kernel_shape))
         if mask is None:
             mask = torch.ones(*self.kernel_size)
@@ -52,7 +52,7 @@ class IndexedConv(nn.Conv2d):
         self.dilation = dilation
         self.groups = groups
         self.bias = nn.Parameter(torch.Tensor(chn_out)) if bias else None
-        self.kernel_shape = (self.chn_out, self.chn_in, self.kernel_size[0], self.kernel_size[1])
+        self.kernel_shape = (self.chn_out, self.chn_in // self.groups, self.kernel_size[0], self.kernel_size[1])
         if indices is None:
             self.indices = None
             self.weight = nn.Parameter(torch.Tensor(*self.kernel_shape))

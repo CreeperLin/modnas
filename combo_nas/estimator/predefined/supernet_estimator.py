@@ -123,7 +123,7 @@ class SuperNetEstimator(EstimatorBase):
             update_arch = True
             arch_update_intv = config.arch_update_intv
             if arch_update_intv == -1: # update proportionally
-                arch_update_intv = max(n_trn_batch // n_val_batch, 1) if not valid_loader is None else 1
+                arch_update_intv = max(n_trn_batch / n_val_batch, 1) if not valid_loader is None else 1
             elif arch_update_intv == 0: # update last step
                 arch_update_intv = n_trn_batch
             arch_update_batch = config.arch_update_batch
@@ -131,15 +131,17 @@ class SuperNetEstimator(EstimatorBase):
         model.train()
         eta_m = utils.ETAMeter(tot_epochs, epoch, n_trn_batch)
         eta_m.start()
+        arch_step = 0
         for step in range(n_trn_batch):
             trn_X, trn_y = self.get_next_trn_batch()
             N = trn_X.size(0)
             # optim step
-            if update_arch and (step+1) % arch_update_intv == 0:
+            if update_arch and (step+1) // arch_update_intv > arch_step:
                 for _ in range(arch_update_batch):
                     tprof.timer_start('arch')
                     optim.step(self)
                     tprof.timer_stop('arch')
+                arch_step += 1
             # supernet step
             tprof.timer_start('train')
             w_optim.zero_grad()

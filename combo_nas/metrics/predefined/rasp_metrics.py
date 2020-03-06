@@ -2,6 +2,7 @@ from ..base import MetricsBase
 from .. import register_as, build
 try:
     import rasp
+    import rasp.frontend as F
 except ImportError:
     rasp = None
 
@@ -51,8 +52,8 @@ class RASPTraversalMetrics(MetricsBase):
 
     def compute(self, model):
         net = model.net
-        if not hasattr(net, '_RASPStatNode'):
-            F = rasp.frontend
+        root = F.get_stats_node(net)
+        if root is None:
             root = F.reg_stats_node(net)
             if self.eval_compute:
                 F.hook_compute(net)
@@ -62,20 +63,18 @@ class RASPTraversalMetrics(MetricsBase):
             F.run(net, inputs, self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
-        else:
-            root = net._RASPStatNode
         mt = 0
         for node in root.tape.items_all:
             if '_ops' in node.name:
                 continue
             mt = mt + self.metrics.compute(node)
         for m in model.mixed_ops():
-            mixop_node = m._RASPStatNode
+            mixop_node = F.get_stats_node(m)
             assert mixop_node['in_shape'] is not None
             mixop_mt = 0
             m_in, m_out = mixop_node['in_shape'], mixop_node['out_shape']
             for p, (pn, op) in zip(m.prob(), m.named_primitives()):
-                subn = op._RASPStatNode
+                subn = F.get_stats_node(op)
                 if subn['prim_type'] is None:
                     subn['prim_type'] = pn
                 if subn['compute_updated'] is None:
@@ -99,8 +98,8 @@ class RASPRootMetrics(MetricsBase):
 
     def compute(self, model):
         net = model.net
-        if not hasattr(net, '_RASPStatNode'):
-            F = rasp.frontend
+        root = F.get_stats_node(net)
+        if root is None:
             root = F.reg_stats_node(net)
             if self.eval_compute:
                 F.hook_compute(net)
@@ -110,6 +109,4 @@ class RASPRootMetrics(MetricsBase):
             F.run(net, inputs, self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
-        else:
-            root = net._RASPStatNode
         return self.metrics.compute(root)
