@@ -8,7 +8,7 @@ arXiv preprint arXiv:1905.02244.
 
 import math
 import torch.nn as nn
-from ...arch_space.constructor import Slot
+from ...arch_space.constructor import Slot, default_predefined_converter, default_genotype_converter
 
 def _make_divisible(v, divisor, min_value=None):
     """
@@ -163,9 +163,41 @@ class MobileNetV3(nn.Module):
         x = x.view(x.size(0), -1)
         return x
 
+    def get_predefined_search_converter(self):
+        def convert_fn(slot, primitives, *args, fix_first=True, add_zero_op=True, keep_config=True, **kwargs):
+            if fix_first and not hasattr(convert_fn, 'first'):
+                ent = MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
+                convert_fn.first = True
+            else:
+                primitives = primitives[:]
+                if add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
+                    primitives.append('NIL')
+                if keep_config:
+                    if 'primitive_args' not in kwargs:
+                        kwargs['primitive_args'] = {}
+                    kwargs['primitive_args']['use_hs'] = slot.kwargs['use_hs']
+                    kwargs['primitive_args']['use_se'] = slot.kwargs['use_se']
+                ent = default_predefined_converter(slot, primitives=primitives, *args, **kwargs)
+            return ent
+        return convert_fn
+
+    def get_genotype_augment_converter(self):
+        def convert_fn(slot, *args, fix_first=True, keep_config=True, **kwargs):
+            if fix_first and not hasattr(convert_fn, 'first'):
+                ent = MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
+                convert_fn.first = True
+            else:
+                if keep_config:
+                    if 'op_args' not in kwargs:
+                        kwargs['op_args'] = {}
+                    kwargs['op_args']['use_hs'] = slot.kwargs['use_hs']
+                    kwargs['op_args']['use_se'] = slot.kwargs['use_se']
+                ent = default_genotype_converter(slot, *args, **kwargs)
+            return ent
+        return convert_fn
+    
     def get_predefined_augment_converter(self):
-        return lambda slot: MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride,
-                                                 **slot.kwargs)
+        return lambda slot: MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
 
     def init_model(self):
         for m in self.modules():

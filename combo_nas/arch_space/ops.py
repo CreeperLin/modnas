@@ -7,7 +7,6 @@ from ..utils import get_same_padding
 
 registry, register, get_builder, build, register_as = get_registry_utils('ops')
 
-register(lambda C_in, C_out, stride: Zero(C_in, C_out, stride), 'NIL')
 register(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
 register(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'MAX')
 register(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
@@ -254,7 +253,7 @@ class Identity(nn.Module):
 
 
 class Zero(nn.Module):
-    def __init__(self, C_in, C_out, stride):
+    def __init__(self, C_in, C_out, stride, *args, **kwargs):
         super().__init__()
         if C_in != C_out:
             raise ValueError('invalid channel in zero layer')
@@ -285,3 +284,5 @@ class FactorizedReduce(nn.Module):
         out = torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
         out = self.bn(out)
         return out
+
+register(Zero, 'NIL')

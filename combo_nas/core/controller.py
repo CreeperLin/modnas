@@ -130,7 +130,7 @@ class NASController(nn.Module):
                 module.p = p
 
     def init_model(self, conv_init_type='he_normal_fout', conv_div_groups=True,
-                   bn_momentum=None, bn_eps=None,
+                   bn_momentum=None, bn_eps=1e-3,
                    neg_slope=0., nonlinear='leaky_relu'):
         if conv_init_type == 'none': return
         gain = nn.init.calculate_gain(nonlinear, neg_slope)

@@ -1,4 +1,5 @@
 import logging
+from collections import OrderedDict
 import torch.nn as nn
 from . import ops, mixed_ops, layers
 
@@ -42,12 +43,12 @@ class Slot(nn.Module):
     @property
     def chn_in(self):
         chn_in = self.e_chn_in
-        return chn_in[0] if isinstance(chn_in, list) and len(chn_in) == 1 else chn_in
+        return chn_in[0] if isinstance(chn_in, (list, tuple)) and len(chn_in) == 1 else chn_in
 
     @property
     def chn_out(self):
         chn_out = self.e_chn_out
-        return chn_out[0] if isinstance(chn_out, list) and len(chn_out) == 1 else chn_out
+        return chn_out[0] if isinstance(chn_out, (list, tuple)) and len(chn_out) == 1 else chn_out
 
     @staticmethod
     def slots_all():
@@ -128,23 +129,23 @@ class Slot(nn.Module):
         return expr
 
 
-def default_mixed_op_converter(slot, rid, ops, **fn_kwargs):
-    ent = mixed_ops.build(rid,
-                         chn_in=slot.chn_in,
-                         chn_out=slot.chn_out,
-                         stride=slot.stride,
-                         ops=ops,
-                         **fn_kwargs)
+def default_mixed_op_converter(slot, primitives, mixed_op_type, mixed_op_args={}, primitive_args={}):
+    primitives = OrderedDict([
+        (prim, ops.build(prim, slot.chn_in, slot.chn_out, slot.stride, **primitive_args)) for prim in primitives
+    ])
+    ent = mixed_ops.build(mixed_op_type,
+                          primitives=primitives,
+                          **mixed_op_args)
     return ent
 
 
 default_predefined_converter = default_mixed_op_converter
 
 
-def default_genotype_converter(slot, gene):
+def default_genotype_converter(slot, gene, op_args={}):
     if isinstance(gene, list): gene = gene[0]
     op_name = gene
-    ent = ops.build(op_name, slot.chn_in, slot.chn_out, slot.stride)
+    ent = ops.build(op_name, slot.chn_in, slot.chn_out, slot.stride, **op_args)
     return ent
 
 

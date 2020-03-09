@@ -1,4 +1,5 @@
 import torch.nn as nn
+from functools import partial
 from combo_nas.arch_space.ops import register
 
 class HardSigmoid(nn.Module):
@@ -37,7 +38,7 @@ class SELayer(nn.Module):
         return x * y
 
 
-def mbconv_v3(chn_in, chn_out, stride, expansion, kernel_size, use_se, use_hs):
+def mbconv_v3(chn_in, chn_out, stride, expansion, kernel_size, use_se=0, use_hs=0):
     nets = []
     chn = expansion * chn_in
     if chn_in != chn:
@@ -62,7 +63,7 @@ def mbconv_v3(chn_in, chn_out, stride, expansion, kernel_size, use_se, use_hs):
 
 for ksize in [3, 5, 7]:
     for exp in [1, 3, 6]:
-        register(lambda C_in, C_out, S, k=ksize, e=exp: mbconv_v3(C_in, C_out, S, e, k, 0, 0), 'M3B{}E{}'.format(ksize, exp))
+        register(partial(mbconv_v3, expansion=exp, kernel_size=ksize), 'M3B{}E{}'.format(ksize, exp))
         register(lambda C_in, C_out, S, k=ksize, e=exp: mbconv_v3(C_in, C_out, S, e, k, 0, 1), 'M3B{}E{}H'.format(ksize, exp))
         register(lambda C_in, C_out, S, k=ksize, e=exp: mbconv_v3(C_in, C_out, S, e, k, 1, 0), 'M3B{}E{}S'.format(ksize, exp))
         register(lambda C_in, C_out, S, k=ksize, e=exp: mbconv_v3(C_in, C_out, S, e, k, 1, 1), 'M3B{}E{}SH'.format(ksize, exp))

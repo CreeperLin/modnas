@@ -128,7 +128,9 @@ class DARTSLikeNet(nn.Module):
             if not hasattr(convert_fn, 'param_map'):
                 convert_fn.param_map = {}
             if slot.name in convert_fn.param_map:
-                kwargs['arch_param_map'] = convert_fn.param_map[slot.name]
+                if 'mixed_op_args' not in kwargs:
+                    kwargs['mixed_op_args'] = {}
+                kwargs['mixed_op_args']['arch_param_map'] = convert_fn.param_map[slot.name]
             ent = default_predefined_converter(slot, *args, **kwargs)
             if not slot.name in convert_fn.param_map:
                 convert_fn.param_map[slot.name] = ent.arch_param_map

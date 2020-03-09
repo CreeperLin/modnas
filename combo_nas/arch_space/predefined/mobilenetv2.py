@@ -128,15 +128,15 @@ class MobileNetV2(nn.Module):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
     def get_predefined_search_converter(self):
-        def convert_fn(slot, ops, *args, fix_first=True, add_zero_op=True, **kwargs):
+        def convert_fn(slot, primitives, *args, fix_first=True, add_zero_op=True, **kwargs):
             if fix_first and not hasattr(convert_fn, 'first'):
                 ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
                 convert_fn.first = True
             else:
-                ops = ops[:]
+                primitives = primitives[:]
                 if add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
-                    ops.append('NIL')
-                ent = default_predefined_converter(slot, ops=ops, *args, **kwargs)
+                    primitives.append('NIL')
+                ent = default_predefined_converter(slot, primitives=primitives, *args, **kwargs)
             return ent
         return convert_fn
 

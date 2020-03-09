@@ -2,34 +2,40 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .ops import build as build_ops
 from ..core.param_space import ArchParamCategorical, ArchParamTensor
 from ..utils.registration import get_registry_utils
 
 registry, register, get_builder, build, register_as = get_registry_utils('mixed_ops')
 
 class MixedOp(nn.Module):
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map):
+    def __init__(self, primitives, arch_param_map):
         super().__init__()
+        if isinstance(primitives, dict):
+            self._ops_name = list(primitives.keys())
+            self._ops = nn.ModuleList(primitives.values())
+        elif isinstance(primitives, (tuple, list)):
+            self._ops_name = [p[0] for p in primitives]
+            self._ops = nn.ModuleList([p[1] for p in primitives])
+        else:
+            raise ValueError('unsupported primitives type')
+        if arch_param_map is None:
+            arch_param_map = {
+                'p': ArchParamTensor(len(self._ops_name)),
+            }
         self.arch_param_map = arch_param_map
         for ap in arch_param_map.values():
             ap.add_module(self)
-        self.ops = ops
-        self.in_deg = 1 if isinstance(chn_in, int) else len(chn_in)
-        self.chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
-        self.chn_out = chn_out if isinstance(chn_out, int) else chn_in[0]
-        self.stride = stride
         self.w_max = 0
-        self._ops = nn.ModuleList([
-            build_ops(prim, self.chn_in, self.chn_out, stride) for prim in ops
-        ])
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
 
     def primitives(self):
         return self._ops
-    
+
+    def primitive_names(self):
+        return self._ops_name
+
     def named_primitives(self):
-        for n, prim in zip(self.ops, self._ops):
+        for n, prim in zip(self._ops_name, self._ops):
             yield n, prim
 
     def alpha(self):
@@ -50,24 +56,19 @@ class MixedOp(nn.Module):
 
 class WeightedSumMixedOp(MixedOp):
     """ Mixed operation as weighted sum """
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
-        if arch_param_map is None:
-            params_shape = (len(ops), )
-            arch_param_map = {
-                'p': ArchParamTensor(params_shape),
-            }
-        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
+    def __init__(self, primitives, arch_param_map=None):
+        super().__init__(primitives, arch_param_map)
 
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
         w_path = F.softmax(self.alpha().to(device=x.device), dim=-1)
-        return sum(w * op(x) for w, op in zip(w_path, self._ops))
+        return sum(w * op(x) for w, op in zip(w_path, self.primitives()))
 
     def to_genotype(self, k=1):
-        ops = self.ops
+        pname = self.primitive_names()
         w = F.softmax(self.alpha().detach(), dim=-1)
         w_max, prim_idx = torch.topk(w, k)
-        gene = [ops[i] for i in prim_idx]
+        gene = [pname[i] for i in prim_idx]
         if gene == []: return [None]
         self.w_max = w_max
         return gene
@@ -75,20 +76,14 @@ class WeightedSumMixedOp(MixedOp):
 
 class BinGateMixedOp(MixedOp):
     """ Mixed operation controlled by binary gate """
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None, n_samples=1):
-        if arch_param_map is None:
-            params_shape = (len(ops), )
-            arch_param_map = {
-                'p': ArchParamTensor(params_shape),
-            }
-        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
+    def __init__(self, primitives, arch_param_map=None, n_samples=1):
+        super().__init__(primitives, arch_param_map)
         self.n_samples = n_samples
         self.s_path_f = None
         self.last_samples = []
         self.s_op = []
         self.a_grad_enabled = False
         self.reset_ops()
-        # logging.debug("BinGateMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
 
     def arch_param_grad(self, enabled):
         self.a_grad_enabled = enabled
@@ -105,7 +100,7 @@ class BinGateMixedOp(MixedOp):
         self.s_op = list(samples.flatten().cpu().numpy())
 
     def reset_ops(self):
-        s_op = list(range(len(self._ops)))
+        s_op = list(range(len(self.primitives())))
         self.last_samples = s_op
         self.s_op = s_op
 
@@ -113,7 +108,7 @@ class BinGateMixedOp(MixedOp):
         self.sample_path()
         x = x[0] if isinstance(x, list) else x
         s_path_f = self.s_path_f
-        ops = self._ops
+        primitives = self.primitives()
         if self.training: 
             self.swap_ops(s_path_f)
         if self.a_grad_enabled:
@@ -122,35 +117,36 @@ class BinGateMixedOp(MixedOp):
                 's_op': self.s_op,
                 's_path_f': self.s_path_f,
                 'w_path_f': self.w_path_f,
-                'ops': ops,
+                'primitives': primitives,
             }
             m_out = BinGateFunction.apply(x, p, ctx_dict)
         else:
-            if len(s_path_f) == 1: m_out = ops[s_path_f[0]](x)
-            else: m_out = sum(ops[i](x) for i in s_path_f)
+            if len(s_path_f) == 1: m_out = primitives[s_path_f[0]](x)
+            else: m_out = sum(primitives[i](x) for i in s_path_f)
         self.last_samples = s_path_f
         return m_out
 
     def swap_ops(self, samples):
+        prims = self.primitives()
         for i in self.last_samples:
             if i in samples:
                 continue
-            for p in self._ops[i].parameters():
+            for p in prims[i].parameters():
                 if not p.grad_fn is None:
                     continue
                 p.requires_grad = False
                 p.grad = None
         for i in samples:
-            for p in self._ops[i].parameters():
+            for p in prims[i].parameters():
                 if not p.grad_fn is None:
                     continue
                 p.requires_grad_(True)
 
     def to_genotype(self, k=1):
-        ops = self.ops
+        pname = self.primitive_names()
         w = F.softmax(self.alpha().detach(), dim=-1)
         w_max, prim_idx = torch.topk(w, k)
-        gene = [ops[i] for i in prim_idx]
+        gene = [pname[i] for i in prim_idx]
         if gene == []: return [None]
         self.w_max = w_max
         return gene
@@ -161,11 +157,11 @@ class BinGateFunction(torch.autograd.function.Function):
     def forward(ctx, x, alpha, ctx_dict):
         ctx.__dict__.update(ctx_dict)
         ctx.param_shape = alpha.shape
-        ops = ctx.ops
+        primitives = ctx.primitives
         s_path_f = ctx.s_path_f
         with torch.enable_grad():
-            if len(s_path_f) == 1: m_out = ops[s_path_f[0]](x)
-            else: m_out = sum(ops[i](x) for i in s_path_f)
+            if len(s_path_f) == 1: m_out = primitives[s_path_f[0]](x)
+            else: m_out = sum(primitives[i](x) for i in s_path_f)
         ctx.save_for_backward(x, m_out)
         return m_out.data
 
@@ -178,12 +174,12 @@ class BinGateFunction(torch.autograd.function.Function):
             s_op = ctx.s_op
             w_path_f = ctx.w_path_f
             s_path_f = ctx.s_path_f
-            ops = ctx.ops
+            primitives = ctx.primitives
             for j, oj in enumerate(s_op):
                 if oj in s_path_f:
                     op_out = m_out.data
                 else:
-                    op = ops[oj]
+                    op = primitives[oj]
                     op_out = op(x_f.data)
                 g_grad = torch.sum(m_grad * op_out)
                 for i, oi in enumerate(s_op):
@@ -214,13 +210,8 @@ class BinGateUniformMixedOp(BinGateMixedOp):
 
 class GumbelSumMixedOp(MixedOp):
     """ Mixed operation as weighted sum """
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
-        if arch_param_map is None:
-            params_shape = (len(ops), )
-            arch_param_map = {
-                'p': ArchParamTensor(params_shape),
-            }
-        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
+    def __init__(self, primitives, arch_param_map=None):
+        super().__init__(primitives, arch_param_map)
         self.temp = 1e5
 
     def set_temperature(self, temp):
@@ -237,13 +228,13 @@ class GumbelSumMixedOp(MixedOp):
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
         w_path = self.prob().to(x.device)
-        return sum(w * op(x) for w, op in zip(w_path, self._ops))
+        return sum(w * op(x) for w, op in zip(w_path, self.primitives()))
 
     def to_genotype(self, k=1):
-        ops = self.ops
+        pname = self.primitive_names()
         w = F.softmax(self.alpha().detach(), dim=-1) # use alpha softmax
         w_max, prim_idx = torch.topk(w, k)
-        gene = [ops[i] for i in prim_idx]
+        gene = [pname[i] for i in prim_idx]
         if gene == []: return [None]
         self.w_max = w_max
         return gene
@@ -251,18 +242,18 @@ class GumbelSumMixedOp(MixedOp):
 
 class IndexMixedOp(MixedOp):
     """ Mixed operation controlled by external index """
-    def __init__(self, chn_in, chn_out, stride, ops, arch_param_map=None):
+    def __init__(self, primitives, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
-                'ops': ArchParamCategorical(ops),
+                'prims': ArchParamCategorical(list(primitives.keys())),
             }
-        super().__init__(chn_in, chn_out, stride, ops, arch_param_map)
+        super().__init__(primitives, arch_param_map)
+        self.last_samples = []
         self.reset_ops()
-        # logging.debug("IndexMixedOp: chn_in:{} stride:{} #p:{:.6f}".format(self.chn_in, stride, param_count(self)))
 
     def alpha(self):
         alpha = torch.zeros(len(self.primitives()))
-        alpha[self.arch_param('ops').index()] = 1.0
+        alpha[self.arch_param('prims').index()] = 1.0
         return alpha
 
     def prob(self):
@@ -270,7 +261,7 @@ class IndexMixedOp(MixedOp):
 
     def forward(self, x):
         x = x[0] if isinstance(x, list) else x
-        smp = self.arch_param('ops').index()
+        smp = self.arch_param('prims').index()
         if self.training: self.swap_ops([smp])
         self.last_samples = [smp]
         return self._ops[smp](x)
@@ -280,16 +271,23 @@ class IndexMixedOp(MixedOp):
         self.last_samples = s_op
 
     def swap_ops(self, samples):
-        for i in samples:
-            for p in self._ops[i].parameters():
-                p.requires_grad_(True)
+        prims = self.primitives()
         for i in self.last_samples:
-            for p in self._ops[i].parameters():
+            if i in samples:
+                continue
+            for p in prims[i].parameters():
+                if not p.grad_fn is None:
+                    continue
                 p.requires_grad = False
                 p.grad = None
+        for i in samples:
+            for p in prims[i].parameters():
+                if not p.grad_fn is None:
+                    continue
+                p.requires_grad_(True)
 
     def to_genotype(self, *args, **kwargs):
-        return self.arch_param_value('ops')
+        return self.arch_param_value('prims')
 
 
 register(WeightedSumMixedOp, 'WeightedSum')
