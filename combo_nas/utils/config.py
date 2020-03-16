@@ -64,13 +64,19 @@ class Config(dict):
     @staticmethod
     def set_value(config, key, value):
         keywords = key.split('.')
+        if len(keywords) == 1: 
+            config[keywords[0]] = value
+            return
         val = config.get(keywords[0], None)
-        if len(keywords) == 1: config[keywords[0]] = value
-        elif val is None: raise ValueError('invalid key: {}'.format(keywords[0]))
-        else: Config.set_value(val, '.'.join(keywords[1:]), value)
+        if val is None:
+            raise ValueError('invalid key: {}'.format(keywords[0]))
+        else:
+            Config.set_value(val, '.'.join(keywords[1:]), value)
 
     @staticmethod
     def apply(config, dct):
+        if isinstance(dct, dict):
+            dct = Config(dct=dct)
         for k, v in dct.items():
             Config.set_value(config, k, v)
 

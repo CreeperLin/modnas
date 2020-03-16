@@ -13,7 +13,7 @@ class DARTSOptim(GradientBasedOptim):
         self.w_momentum = w_momentum
         self.w_weight_decay = w_weight_decay
 
-    def virtual_step(self, trn_X, trn_y, lr, w_optim, model):
+    def virtual_step(self, trn_X, trn_y, lr, w_optim, estim):
         """
         Compute unrolled weight w' (virtual step)
 
@@ -28,7 +28,8 @@ class DARTSOptim(GradientBasedOptim):
             w_optim: weights optimizer
         """
         # forward & calc loss
-        loss = model.loss(trn_X, trn_y) # L_trn(w)
+        model = estim.model
+        loss = estim.loss(trn_X, trn_y, mode='train') # L_trn(w)
         # compute gradient
         gradients = torch.autograd.grad(loss, model.weights())
         # do virtual step (update gradient)
@@ -58,24 +59,23 @@ class DARTSOptim(GradientBasedOptim):
         model = estim.model
         if self.v_net is None: self.v_net = copy.deepcopy(model)
         # do virtual step (calc w`)
-        self.virtual_step(trn_X, trn_y, lr, w_optim, model)
+        self.virtual_step(trn_X, trn_y, lr, w_optim, estim)
         # calc unrolled loss
-        loss = self.v_net.loss(val_X, val_y) # L_val(w`)
-        loss = estim.compute_metrics_agg(loss, model)
+        loss = estim.loss(val_X, val_y, model=self.v_net, mode='valid') # L_val(w`)
         # compute gradient
         v_alphas = tuple(self.v_net.alphas())
         v_weights = tuple(self.v_net.weights())
         v_grads = torch.autograd.grad(loss, v_alphas + v_weights)
         dalpha = v_grads[:len(v_alphas)]
         dw = v_grads[len(v_alphas):]
-        hessian = self.compute_hessian(dw, trn_X, trn_y, model)
+        hessian = self.compute_hessian(dw, trn_X, trn_y, estim)
         # update final gradient = dalpha - lr*hessian
         with torch.no_grad():
             for alpha, da, h in zip(model.alphas(), dalpha, hessian):
                 alpha.grad = da - lr*h
         self.optim_step()
 
-    def compute_hessian(self, dw, trn_X, trn_y, model):
+    def compute_hessian(self, dw, trn_X, trn_y, estim):
         """
         dw = dw` { L_val(w`, alpha) }
         w+ = w + eps * dw
@@ -83,19 +83,20 @@ class DARTSOptim(GradientBasedOptim):
         hessian = (dalpha { L_trn(w+, alpha) } - dalpha { L_trn(w-, alpha) }) / (2*eps)
         eps = 0.01 / ||dw||
         """
+        model = estim.model
         norm = torch.cat([w.view(-1) for w in dw]).norm()
         eps = 0.01 / norm
         # w+ = w + eps*dw`
         with torch.no_grad():
             for p, d in zip(model.weights(), dw):
                 p += eps * d
-        loss = model.loss(trn_X, trn_y)
+        loss = estim.loss(trn_X, trn_y, mode='train')
         dalpha_pos = torch.autograd.grad(loss, model.alphas()) # dalpha { L_trn(w+) }
         # w- = w - eps*dw`
         with torch.no_grad():
             for p, d in zip(model.weights(), dw):
                 p -= 2. * eps * d
-        loss = model.loss(trn_X, trn_y)
+        loss = estim.loss(trn_X, trn_y, mode='train')
         dalpha_neg = torch.autograd.grad(loss, model.alphas()) # dalpha { L_trn(w-) }
         # recover w
         with torch.no_grad():
@@ -129,8 +130,7 @@ class BinaryGateOptim(GradientBasedOptim):
         # loss
         for m in model.mixed_ops():
             m.arch_param_grad(enabled=True)
-        loss = estim.model.loss(val_X, val_y)
-        loss = estim.compute_metrics_agg(loss, model)
+        loss = estim.loss(val_X, val_y, mode='valid')
         # backward
         loss.backward()
         # renormalization
@@ -178,10 +178,8 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
 
     def step(self, estim):
         self.optim_reset()
-        model = estim.model
         val_X, val_y = estim.get_next_val_batch()
-        loss = estim.model.loss(val_X, val_y)
-        loss = estim.compute_metrics_agg(loss, model)
+        loss = estim.loss(val_X, val_y, mode='valid')
         loss.backward()
         self.optim_step()
 
@@ -205,10 +203,11 @@ class REINFORCEOptim(GradientBasedOptim):
         reward_batch = []
         net_info_batch = []
         val_X, val_y = estim.get_next_val_batch()
-        for i in range(self.batch_size):
+        for _ in range(self.batch_size):
             logits = estim.model.logits(val_X)
-            acc1, acc5 = accuracy(logits, val_y, topk=(1, 5))
+            acc1, _ = accuracy(logits, val_y, topk=(1, 5))
             net_info = {'acc1':acc1.item(), }
+            net_info.update(estim.compute_metrics())
             net_info_batch.append(net_info)
             # calculate reward according to net_info
             reward = self.reward(net_info)
@@ -267,8 +266,7 @@ class GumbelAnnealingOptim(GradientBasedOptim):
         model = estim.model
         self.apply_temp(model)
         val_X, val_y = estim.get_next_val_batch()
-        loss = estim.model.loss(val_X, val_y)
-        loss = estim.compute_metrics_agg(loss, model)
+        loss = estim.loss(val_X, val_y, mode='valid')
         loss.backward()
         self.optim_step()
         self.cur_step += 1

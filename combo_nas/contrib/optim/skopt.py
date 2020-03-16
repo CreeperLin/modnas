@@ -1,4 +1,5 @@
 import time
+import numpy as np
 from collections import OrderedDict
 import combo_nas.optim as optim
 from combo_nas.optim.base import OptimBase
@@ -39,11 +40,16 @@ class SkoptParamOptim(OptimBase):
     def has_next(self):
         return True
 
+    def convert_param(self, p):
+        if isinstance(p, np.float):
+            return float(p)
+        return p
+
     def _next(self):
         next_pt = self.skoptim.ask()
         next_params = OrderedDict()
         for n, p in zip(self.param_names, next_pt):
-            next_params[n] = p
+            next_params[n] = self.convert_param(p)
         return next_params
 
     def next(self, batch_size):
@@ -54,7 +60,7 @@ class SkoptParamOptim(OptimBase):
         for pt in next_pts:
             params = OrderedDict()
             for n, p in zip(self.param_names, pt):
-                params[n] = p
+                params[n] = self.convert_param(p)
             next_params.append(params)
         return next_params
 

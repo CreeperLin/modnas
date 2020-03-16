@@ -10,14 +10,16 @@ from ..arch_space.constructor import Slot
 from .param_space import ArchParamSpace
 
 class NASController(nn.Module):
-    def __init__(self, net, criterion, device_ids=None):
+    def __init__(self, net, device_ids=None):
         super().__init__()
-        self.criterion = criterion
         if device_ids is None:
             device_ids = list(range(torch.cuda.device_count()))
         self.device_ids = device_ids
         self.net = net
         self.to_genotype_args = {}
+
+    def call(self, func, *args, **kwargs):
+        return getattr(self.net, func)(*args, **kwargs)
 
     def forward(self, x):
         if len(self.device_ids) <= 1:
@@ -34,28 +36,8 @@ class NASController(nn.Module):
                                              devices=self.device_ids)
         return nn.parallel.gather(outputs, self.device_ids[0])
 
-    def loss_logits(self, X, y, aux_weight=0):
-        ret = self.forward(X)
-        if isinstance(ret, tuple):
-            logits, aux_logits = ret
-            aux_loss = aux_weight * self.criterion(aux_logits, y)
-        else:
-            logits = ret
-            aux_loss = 0
-        loss = self.criterion(logits, y) + aux_loss
-        return loss, logits
-
-    def loss(self, X, y, aux_weight=0):
-        loss, _ = self.loss_logits(X, y, aux_weight)
-        return loss
-
-    def logits(self, X, aux_weight=0):
-        ret = self.forward(X)
-        if isinstance(ret, tuple):
-            logits, aux_logits = ret
-            logits += aux_weight * aux_logits
-        else:
-            logits = ret
+    def logits(self, X):
+        logits = self.forward(X)
         return logits
 
     def print_arch_params(self, logger, max_num=3):

@@ -51,19 +51,21 @@ class Slot(nn.Module):
         return chn_out[0] if isinstance(chn_out, (list, tuple)) and len(chn_out) == 1 else chn_out
 
     @staticmethod
-    def slots_all():
+    def gen_slots_all():
         for m in Slot._slots:
             yield m
 
     @staticmethod
-    def slots_model(model):
-        for m in model.modules():
-            if isinstance(m, Slot):
-                yield m
+    def gen_slots_model(model):
+        def gen():
+            for m in model.modules():
+                if isinstance(m, Slot):
+                    yield m
+        return gen
 
     @staticmethod
     def call_all(funcname, gen=None, fn_kwargs={}):
-        if gen is None: gen = Slot.slots_all
+        if gen is None: gen = Slot.gen_slots_all
         ret = []
         for m in gen():
             if hasattr(m, funcname):
@@ -72,7 +74,7 @@ class Slot(nn.Module):
 
     @staticmethod
     def apply_all(func, gen=None, fn_kwargs={}):
-        if gen is None: gen = Slot.slots_all
+        if gen is None: gen = Slot.gen_slots_all
         ret = []
         for m in gen():
             ret.append(func(m, **fn_kwargs))
@@ -80,7 +82,7 @@ class Slot(nn.Module):
 
     @staticmethod
     def to_genotype_all(gen=None, fn_kwargs={}):
-        if gen is None: gen = Slot.slots_all
+        if gen is None: gen = Slot.gen_slots_all
         gene = []
         for m in gen():
             if m.visited: continue
@@ -153,7 +155,7 @@ def convert_from_predefined_net(model, convert_fn=None, gen=None, fn_kwargs={}):
     """Convert Slots to actual modules using predefined converter function only.
 
     """
-    if gen is None: gen = Slot.slots_all
+    if gen is None: gen = Slot.gen_slots_all
     convert_fn = default_predefined_converter if convert_fn is None else convert_fn
     logging.info('convert from predefined net')
     logging.debug('converter: {}'.format(convert_fn.__qualname__))
@@ -168,7 +170,7 @@ def convert_from_genotype(model, genotype, convert_fn=None, gen=None, fn_kwargs=
     """Convert Slots to actual modules from genotype.
 
     """
-    if gen is None: gen = Slot.slots_all
+    if gen is None: gen = Slot.gen_slots_all
     convert_fn = default_genotype_converter if convert_fn is None else convert_fn
     logging.info('convert from genotype: {}'.format(genotype))
     logging.debug('converter: {}'.format(convert_fn.__qualname__))
@@ -203,7 +205,7 @@ def convert_from_layers(model, layers_conf, convert_fn=None, gen=None, fn_kwargs
 
     """
     del model
-    if gen is None: gen = Slot.slots_all
+    if gen is None: gen = Slot.gen_slots_all
     logging.info('building net layers')
     for i, layer_conf in enumerate(layers_conf):
         layer_convert_fn = default_layer_converter if i >= len(convert_fn) else convert_fn[i]

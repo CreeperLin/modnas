@@ -91,20 +91,21 @@ class DARTSLikeNet(nn.Module):
         self.fc = nn.Linear(chn_p, n_classes)
 
     def forward(self, x):
-        aux_logits = None
+        s0 = s1 = self.conv_first(x)
+        for cell in self.cells:
+            s0, s1 = s1, cell([s0, s1])
+        y = self.conv_last(s1)
+        y = y.view(y.size(0), -1) # flatten
+        return self.fc(y)
+
+    def forward_aux(self, x):
+        if not self.training or self.aux_pos == -1:
+            return None
         s0 = s1 = self.conv_first(x)
         for i, cell in enumerate(self.cells):
             s0, s1 = s1, cell([s0, s1])
-            if i == self.aux_pos and self.training:
-                aux_logits = self.aux_head(s1)
-
-        y = self.conv_last(s1)
-        y = y.view(y.size(0), -1) # flatten
-        y = self.fc(y)
-        if aux_logits is None:
-            return y
-        else:
-            return y, aux_logits
+            if i == self.aux_pos:
+                return self.aux_head(s1)
 
     def build_from_genotype(self, gene, *args, **kwargs):
         assert len(self.cell_group) == len(gene.dag)
@@ -136,6 +137,13 @@ class DARTSLikeNet(nn.Module):
                 convert_fn.param_map[slot.name] = ent.arch_param_map
             return ent
         return convert_fn
+
+    def get_predefined_augment_converter(self):
+        return lambda slot: nn.Sequential(
+            nn.ReLU(inplace=False),
+            nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1, bias=False),
+            nn.BatchNorm2d(slot.chn_out),
+        )
 
 
 def build_from_config(darts_cls=DARTSLikeNet, **kwargs):

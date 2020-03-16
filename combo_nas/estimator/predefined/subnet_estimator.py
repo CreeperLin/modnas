@@ -13,7 +13,7 @@ class SubNetEstimator(EstimatorBase):
         tot_epochs = config.subnet_epochs
         subnet = self.construct_subnet()
         self.print_model_info(model=subnet)
-        w_optim = utils.get_optim(subnet.weights(), config.w_optim)
+        w_optim = utils.get_optimizer(subnet.weights(), config.w_optim)
         lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, tot_epochs)
         # train subnet
         self.apply_drop_path(model=subnet)
@@ -29,7 +29,7 @@ class SubNetEstimator(EstimatorBase):
             val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
             if val_top1 is None: val_top1 = trn_top1
             best_val_top1 = max(best_val_top1, val_top1)
-        metrics_result = self.compute_metrics(subnet)
+        metrics_result = self.compute_metrics(model=subnet)
         ret = {
             'best_top1': best_val_top1
         }

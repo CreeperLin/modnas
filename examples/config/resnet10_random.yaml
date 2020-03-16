@@ -51,7 +51,6 @@ augment:
         type: 'cosine'
         args:
           eta_min: 0.0
-      aux_weight: 0.0
       w_grad_clip: 0.0
       print_freq: 200
       save_freq: 0
@@ -71,9 +70,6 @@ mixed_op:
 ops:
   ops_order: 'weight_bn'
   affine: False
-criterion:
-  type: 'LS'
-  eta: 0.1
 model:
   type: 'CIFAR-ResNet-10'
   args:

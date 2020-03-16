@@ -10,24 +10,7 @@ search:
       trn_batch_size: 64
       val_batch_size: 64
   estimator:
-    warmup:
-      type: 'Default'
-      w_optim:
-        type: 'sgd'
-        args:
-          lr: 0.1
-          momentum: 0.9
-          nesterov: True
-          weight_decay: 0.0001
-      lr_scheduler:
-        type: 'cosine'
-        args:
-          eta_min: 0.001
-      w_grad_clip: 0.0
-      epochs: 50
-      print_freq: 200
-      save_freq: 0
-      aux_weight: 0.0
+
     supernet:
       type: 'SuperNet'
       w_optim:
@@ -41,18 +24,22 @@ search:
         type: 'cosine'
         args:
           eta_min: 0.0
+      criterion:
+        - type: 'CE'
+        - type: 'AddMetrics'
+          mode: 'valid'
+          args:
+            target_val: 40000000
+            lamd: 0.05
+            metrics: 'flops'
       metrics:
-        type: 'AddAggMetrics'
-        # type: 'MultAggMetrics'
-        args:
-          target_val: 40000000
-          lamd: 0.05
-          # alpha: 1.0
-          # beta: 0.05
-          metrics: 'RASPTraversalMetrics'
+        flops:
+          type: 'RASPTraversalMetrics'
           args:
             input_shape: [1, 3, 32, 32]
-            metrics: 'RASPFLOPSMetrics'
+            metrics: 'RASPStatsMetrics'
+            args:
+              item: 'flops'
       epochs: 200
 augment:
   data:
@@ -106,8 +93,6 @@ mixed_op:
 ops:
   ops_order: 'weight_bn'
   affine: False
-criterion:
-  type: 'CE'
 model:
   type: 'CIFAR-ResNet-10'
   args:

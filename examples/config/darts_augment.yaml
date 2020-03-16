@@ -25,16 +25,18 @@ augment:
         type: 'cosine'
         args:
           eta_min: 0.0
-      aux_weight: 0.4
+      criterion:
+        - type: 'CE'
+        - type: 'Auxilliary'
+          mode: 'train'
+          args:
+            aux_ratio: 0.4
       drop_path_prob: 0.2
       w_grad_clip: 5.
       epochs: 600
 ops:
   ops_order: 'act_weight_bn'
   affine: True
-criterion:
-  type: 'LS'
-  eta: 0.1
 model:
   type: 'DARTS'
   args:

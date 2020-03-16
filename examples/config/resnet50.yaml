@@ -27,7 +27,6 @@ search:
       epochs: 30
       print_freq: 200
       save_freq: 0
-      aux_weight: 0.0
     search:
       type: 'SuperNet'
       w_optim:
@@ -41,7 +40,6 @@ search:
         type: 'cosine'
         args:
           eta_min: 0.001
-      aux_weight: 0.0
       w_grad_clip: 0.0
       epochs: 200
       print_freq: 200
@@ -72,7 +70,6 @@ augment:
         type: 'cosine'
         args:
           eta_min: 0.0
-      aux_weight: 0.0
       w_grad_clip: 0.0
       print_freq: 200
       save_freq: 0
@@ -101,9 +98,6 @@ mixed_op:
 ops:
   ops_order: 'weight_bn'
   affine: False
-criterion:
-  type: 'LS'
-  eta: 0.1
 model:
   type: 'CIFAR-ResNet-50'
   args:

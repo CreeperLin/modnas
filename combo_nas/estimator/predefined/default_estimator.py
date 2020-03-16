@@ -3,11 +3,12 @@ from ..base import EstimatorBase
 from ... import utils
 
 class DefaultEstimator(EstimatorBase):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, save_best=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.w_optim = utils.get_optim(self.model.weights(), self.config.w_optim)
+        self.w_optim = utils.get_optimizer(self.model.weights(), self.config.w_optim)
         self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
                                                    self.config.epochs)
+        self.save_best = save_best
         self.print_model_info()
 
     def predict(self, ):
@@ -34,6 +35,8 @@ class DefaultEstimator(EstimatorBase):
             # save
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
+            if self.save_best and val_top1 >= best_val_top1:
+                self.save_checkpoint(epoch, save_name='best')
         return {
             'best_top1': best_val_top1
         }

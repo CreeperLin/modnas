@@ -4,17 +4,13 @@ import time
 import logging
 import numpy as np
 import torch
-import torch.nn as nn
-from .BoT import *
 from .config import Config
+from .lr_scheduler import build as build_lr_scheduler
+from .optimizer import build as build_optimizer
 try:
     from tensorboardX import SummaryWriter
 except ImportError:
     SummaryWriter = None
-try:
-    import adabound
-except ImportError:
-    adabound = None
 
 def get_current_device():
     if not torch.cuda.is_available(): return 'cpu'
@@ -84,11 +80,11 @@ def check_config(config, top_keys=[]):
         'estimator.*.print_freq': 200,
         'estimator.*.drop_path_prob': 0.,
         'estimator.*.w_grad_clip': 0.,
-        'estimator.*.aux_weight': 0.,
         'estimator.*.arch_update_epoch_start': 0,
         'estimator.*.arch_update_epoch_intv': 1,
         'estimator.*.arch_update_intv': -1,
         'estimator.*.arch_update_batch': 1,
+        'estimator.*.criterion': 'CE',
     }
 
     for key, val in defaults.items():
@@ -155,44 +151,20 @@ def get_writer(log_dir, enabled):
         writer = DummyWriter()
     return writer
 
-def get_net_crit(config):
-    net_crit_args = config.get('args', {})
-    crit_type = config.type
-    if crit_type == 'LS':
-        crit = CrossEntropyLossLS
-    elif crit_type == 'CE':
-        crit = nn.CrossEntropyLoss
-    else:
-        raise ValueError('Unsupported loss function: {}'.format(crit_type))
-    return crit(**net_crit_args)
 
-def get_optim(params, config):
+def get_optimizer(params, config):
+    optim_type = config.type
     optim_args = config.get('args', {})
-    if config.type == 'adam':
-        optimizer = torch.optim.Adam
-    elif config.type == 'adabound':
-        if adabound is None:
-            raise ValueError('module adabound not found')
-        optimizer = adabound.AdaBound
-    elif config.type == 'sgd':
-        optimizer = torch.optim.SGD
-    else:
-        raise ValueError("Optimizer not supported: %s" % config.optimizer)
-    return optimizer(params, **optim_args)
+    return build_optimizer(optim_type, params, **optim_args)
 
-def get_lr_scheduler(optim, config, epochs):
+
+def get_lr_scheduler(optimizer, config, epochs):
     lr_type = config.type
     lr_args = config.get('args', {})
     if lr_type == 'cosine':
         if not 'T_max' in lr_args: lr_args['T_max'] = epochs
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR
-    elif lr_type == 'step':
-        lr_scheduler = torch.optim.lr_scheduler.StepLR
-    elif lr_type == 'multistep':
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR
-    else:
-        raise ValueError('unsupported lr scheduler: {}'.format(lr_type))
-    return lr_scheduler(optim, **lr_args)
+    return build_lr_scheduler(lr_type, optimizer, **lr_args)
+
 
 def get_same_padding(kernel_size):
     if isinstance(kernel_size, tuple):

@@ -40,9 +40,6 @@ mixed_op:
 ops:
   ops_order: 'act_weight_bn'
   affine: False
-criterion:
-  type: 'LS'
-  eta: 0.1
 model:
   type: 'DARTS'
   args:

@@ -6,22 +6,15 @@ try:
 except ImportError:
     rasp = None
 
-@register_as('RASPLatencyMetrics')
-class RASPLatencyMetrics(MetricsBase):
-    def __init__(self, logger):
+@register_as('RASPStatsMetrics')
+class RASPStatsMetrics(MetricsBase):
+    def __init__(self, logger, item):
         super().__init__(logger)
+        self.item = item
 
     def compute(self, node):
-        return 0 if node['lat'] is None else node['lat']
-
-
-@register_as('RASPFLOPSMetrics')
-class RASPFLOPSMetrics(MetricsBase):
-    def __init__(self, logger):
-        super().__init__(logger)
-
-    def compute(self, node):
-        return 0 if node['flops'] is None else node['flops']
+        ret = node[self.item]
+        return 0 if ret is None else ret
 
 
 @register_as('RASPStatsDelegateMetrics')

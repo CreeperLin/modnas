@@ -26,12 +26,17 @@ search:
         type: 'cosine'
         args:
           eta_min: 0.0
+      criterion:
+        - type: 'CE'
+        - type: 'AddMetrics'
+          mode: 'valid'
+          args:
+            target_val: 4.2
+            lamd: 0.05
+            metrics: 'lat'
       metrics:
-        type: 'AddAggMetrics'
-        args:
-          target_val: 4.2
-          lamd: 0.05
-          metrics: 'RASPTraversalMetrics'
+        lat:
+          type: 'RASPTraversalMetrics'
           args:
             input_shape: [1, 3, 224, 224]
             metrics: 'LocalProfilerMetrics'
@@ -64,8 +69,6 @@ mixed_op:
 ops:
   ops_order: 'weight_bn'
   affine: False
-criterion:
-  type: 'CE'
 model:
   type: 'CIFAR-ResNet-10'
   args:

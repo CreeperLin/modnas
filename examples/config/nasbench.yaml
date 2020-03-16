@@ -13,4 +13,5 @@ search:
 optim:
   type: 'Random'
 model:
+  virtual: True
   type: 'NASBench'

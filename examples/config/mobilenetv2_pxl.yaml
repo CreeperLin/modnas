@@ -31,7 +31,6 @@ search:
       epochs: 40
       print_freq: 200
       save_freq: 0
-      aux_weight: 0.0
     search:
       type: 'SuperNet'
       w_optim:
@@ -51,6 +50,10 @@ search:
       arch_update_epoch_intv: 1
       arch_update_intv: 5
       arch_update_batch: 1
+      criterion:
+        type: 'LabelSmoothing'
+        args:
+          eta: 0.1
 optim:
   type: 'BinGate'
   args:
@@ -80,10 +83,6 @@ convert:
 ops:
   ops_order: 'weight'
   affine: True
-criterion:
-  type: 'LS'
-  args:
-    eta: 0.1
 model:
   type: 'Imagenet_MobileNetV2'
   args:

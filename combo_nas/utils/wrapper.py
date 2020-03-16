@@ -26,21 +26,13 @@ def import_modules(modules):
             print(exc)
 
 
-def _elevate_config(config, key):
-    '''
-        legacy config support
-    '''
-    if key in config:
-        dct = config.pop(key)
-        config.update(dct)
-
-
-def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
+def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
     model_builder = model = None
     ArchParamSpace.reset()
     # config
     config = Config.load(config)
-    _elevate_config(config, 'search')
+    Config.apply(config, config_override or {})
+    Config.apply(config, config.get('search', {}))
     utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
     # dir
     expman = ExpManager(exp, name, **config.log.get('expman', {}))
@@ -90,19 +82,17 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 fn_kwargs.update(config.convert.get('search_genotype_args', {}))
                 convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
             # controller
-            if 'criterion' in config:
-                crit = utils.get_net_crit(config.criterion)
-                model = NASController(net, crit, dev_list).to(device=dev)
-                # genotype
-                if config.genotypes.disable_dag:
-                    model.to_genotype = model.to_genotype_ops
-                if config.genotypes.use_slot:
-                    model.to_genotype_ops = model.to_genotype_slots
-                model.to_genotype_args = config.genotypes.to_args
-                # init
-                model.init_model(**config.get('init',{}))
-            else:
-                model = net
+            if config.model.get('virtual', False):
+                return net
+            model = NASController(net, dev_list).to(device=dev)
+            # genotype
+            if config.genotypes.disable_dag:
+                model.to_genotype = model.to_genotype_ops
+            if config.genotypes.use_slot:
+                model.to_genotype_ops = model.to_genotype_slots
+            model.to_genotype_args = config.genotypes.to_args
+            # init
+            model.init_model(**config.get('init',{}))
             return model
         model = default_model_builder()
         model_builder = default_model_builder
@@ -128,9 +118,10 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     }
 
 
-def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None):
+def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
     config = Config.load(config)
-    _elevate_config(config, 'augment')
+    Config.apply(config, config_override or {})
+    Config.apply(config, config.get('augment', {}))
     utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
     # dir
     expman = ExpManager(exp, name, **config.log.get('expman', {}))
@@ -164,6 +155,8 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         if genotype is None:
             if op_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
                 op_convert_fn = net.get_predefined_augment_converter()
+            if op_convert_fn is None:
+                raise ValueError('convert function required for augment run')
             fn_kwargs.update(config.convert.get('predefined_args', {}))
             convert_from_predefined_net(net, op_convert_fn, fn_kwargs=fn_kwargs)
         else:
@@ -173,13 +166,11 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
             fn_kwargs.update(config.convert.get('augment_args', {}))
             convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
         # controller
-        if 'criterion' in config:
-            crit = utils.get_net_crit(config.criterion)
-            model = NASController(net, crit, dev_list).to(device=dev)
-            # init
-            model.init_model(**config.get('init',{}))
-        else:
-            model = net
+        if config.model.get('virtual', False):
+            return net
+        model = NASController(net, dev_list).to(device=dev)
+        # init
+        model.init_model(**config.get('init',{}))
         return model
     model = model_builder()
     # chkpt
@@ -200,10 +191,11 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     }
 
 
-def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_fn=None):
+def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_fn=None, config_override=None):
     HParamSpace.reset()
     config = Config.load(config)
-    _elevate_config(config, 'hptune')
+    Config.apply(config, config_override or {})
+    Config.apply(config, config.get('hptune', {}))
     utils.check_config(config, top_keys=['log', 'device'])
     # dir
     expman = ExpManager(exp, name, **config.log.get('expman', {}))
@@ -267,8 +259,10 @@ def run_hptune(*args, **kwargs):
     return hptune(**init_all_hptune(*args, **kwargs))
 
 
-def run_pipeline(config, name, exp='exp'):
+def run_pipeline(config, name, exp='exp', config_override=None):
     config = Config.load(config)
+    Config.apply(config, config_override or {})
+    Config.apply(config, config.get('pipeline', {}))
     utils.check_config(config, top_keys=['log'])
     # dir
     expman = ExpManager(exp, name, **config.log.get('expman', {}))
@@ -278,7 +272,7 @@ def run_pipeline(config, name, exp='exp'):
     # imports
     import_modules(config.get('imports', []))
     # pipeline
-    pipeconf = config.get('pipeline', {})
+    pipeconf = config.pipeline
     pending = queue.Queue()
     for pn in pipeconf.keys():
         pending.put(pn)

@@ -18,7 +18,7 @@ class SuperNetEstimator(EstimatorBase):
         self.cur_trn_batch = None
         self.cur_val_batch = None
         self.no_valid_warn = True
-        self.w_optim = utils.get_optim(self.model.weights(), self.config.w_optim)
+        self.w_optim = utils.get_optimizer(self.model.weights(), self.config.w_optim)
         self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
                                                    self.config.epochs)
         self.print_model_info()
@@ -145,7 +145,7 @@ class SuperNetEstimator(EstimatorBase):
             # supernet step
             tprof.timer_start('train')
             w_optim.zero_grad()
-            loss, logits = model.loss_logits(trn_X, trn_y, config.aux_weight)
+            loss, logits = self.loss_logits(trn_X, trn_y)
             loss.backward()
             # gradient clipping
             if config.w_grad_clip > 0:

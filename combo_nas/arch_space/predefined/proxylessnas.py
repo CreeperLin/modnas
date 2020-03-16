@@ -1366,6 +1366,14 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
 
         return ProxylessNASNet(blocks, classifier, ops_order, tree_node_config, groups_3x3)
 
+    def get_predefined_augment_converter(self):
+        return lambda slot: nn.Sequential(
+            nn.BatchNorm2d(slot.chn_in),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1, bias=False),
+        )
+
+
 def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks,
                       conv_groups, alpha, bottleneck_ratio, path_drop_rate, ops_order,
                       use_avg, bn_before_add, dropout_rate, **kwargs):

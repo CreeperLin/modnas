@@ -82,9 +82,6 @@ hptune:
         ops:
           ops_order: 'weight_bn'
           affine: False
-        criterion:
-          type: 'LS'
-          eta: 0.1
         model:
           type: 'CIFAR-ResNet-10'
           args:

@@ -1,6 +1,6 @@
 """ optim base """
 import random
-from ..utils import get_optim
+from ..utils import get_optimizer
 
 class OptimBase():
     def __init__(self, space, logger=None):
@@ -37,7 +37,7 @@ class OptimBase():
 class GradientBasedOptim(OptimBase):
     def __init__(self, space, a_optim, logger=None):
         super().__init__(space, logger)
-        self.a_optim = get_optim(self.space.tensor_values(), a_optim)
+        self.a_optim = get_optimizer(self.space.tensor_values(), a_optim)
 
     def state_dict(self):
         return {
