@@ -38,7 +38,7 @@ class ParamStatsEstimator(SuperNetEstimator):
             alpha_dim = prob.shape[1]
             for a in range(alpha_dim):
                 plt.plot(epochs, prob[:, a])
-            legends = mixed_ops[aidx].ops
+            legends = mixed_ops[aidx].primitive_names()
             plt.legend(legends)
             plt.savefig(self.expman.join('plot', 'prob_{}.png'.format(aidx)))
             save_probs.append(prob)

@@ -1,40 +1,51 @@
 import torch.nn as nn
+import torch.nn.functional as F
 from functools import partial
 from combo_nas.arch_space.ops import register
+
+def _make_divisible(v, divisor, min_value=None):
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
+
 
 class HardSigmoid(nn.Module):
     def __init__(self, inplace=True):
         super(HardSigmoid, self).__init__()
-        self.relu = nn.ReLU6(inplace=inplace)
+        self.inplace = inplace
 
     def forward(self, x):
-        return self.relu(x + 3) / 6
+        return F.relu6(x + 3., inplace=self.inplace) / 6.
 
 
 class HardSwish(nn.Module):
     def __init__(self, inplace=True):
         super(HardSwish, self).__init__()
-        self.sigmoid = HardSigmoid(inplace=inplace)
+        self.inplace = inplace
 
     def forward(self, x):
-        return x * self.sigmoid(x)
+        return x * F.relu6(x + 3., inplace=self.inplace) / 6.
 
 
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=4):
         super(SELayer, self).__init__()
+        chn = _make_divisible(channel // reduction, divisor=8)
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(channel, channel // reduction),
+            nn.Conv2d(channel, chn, 1, 1, 0),
             nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel),
+            nn.Conv2d(chn, channel, 1, 1, 0),
             HardSigmoid()
         )
 
     def forward(self, x):
-        b, c, _, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
+        y = self.avg_pool(x)
+        y = self.fc(y)
         return x * y
 
 

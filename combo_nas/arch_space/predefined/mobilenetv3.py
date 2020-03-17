@@ -8,6 +8,7 @@ arXiv preprint arXiv:1905.02244.
 
 import math
 import torch.nn as nn
+import torch.nn.functional as F
 from ...arch_space.constructor import Slot, default_predefined_converter, default_genotype_converter
 
 def _make_divisible(v, divisor, min_value=None):
@@ -33,36 +34,36 @@ def _make_divisible(v, divisor, min_value=None):
 class HardSigmoid(nn.Module):
     def __init__(self, inplace=True):
         super(HardSigmoid, self).__init__()
-        self.relu = nn.ReLU6(inplace=inplace)
+        self.inplace = inplace
 
     def forward(self, x):
-        return self.relu(x + 3) / 6
+        return F.relu6(x + 3., inplace=self.inplace) / 6.
 
 
 class HardSwish(nn.Module):
     def __init__(self, inplace=True):
         super(HardSwish, self).__init__()
-        self.sigmoid = HardSigmoid(inplace=inplace)
+        self.inplace = inplace
 
     def forward(self, x):
-        return x * self.sigmoid(x)
+        return x * F.relu6(x + 3., inplace=self.inplace) / 6.
 
 
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=4):
         super(SELayer, self).__init__()
+        chn = _make_divisible(channel // reduction, divisor=8)
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(channel, channel // reduction),
+            nn.Conv2d(channel, chn, 1, 1, 0),
             nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel),
+            nn.Conv2d(chn, channel, 1, 1, 0),
             HardSigmoid()
         )
 
     def forward(self, x):
-        b, c, _, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
+        y = self.avg_pool(x)
+        y = self.fc(y)
         return x * y
 
 
@@ -149,10 +150,10 @@ class MobileNetV3(nn.Module):
         chn_out = 1024 if mode == 'small' else 1280
         chn_out = _make_divisible(chn_out * width_mult, 8)
         self.classifier = nn.Sequential(
-            nn.Conv2d(last_chn, chn_out, kernel_size=1, stride=1),
+            nn.Conv2d(last_chn, chn_out, kernel_size=1, stride=1, bias=False),
             HardSwish(),
             nn.Dropout(dropout_rate),
-            nn.Conv2d(chn_out, n_classes, kernel_size=1, stride=1),
+            nn.Conv2d(chn_out, n_classes, kernel_size=1, stride=1, bias=True),
         )
 
     def forward(self, x):
@@ -234,8 +235,8 @@ def mobilenetv3_large(chn_in, cfgs=None, **kwargs):
         [3, 184,  80, 0, 1, 1],
         [3, 480, 112, 1, 1, 1],
         [3, 672, 112, 1, 1, 1],
-        [5, 672, 160, 1, 1, 1],
         [5, 672, 160, 1, 1, 2],
+        [5, 960, 160, 1, 1, 1],
         [5, 960, 160, 1, 1, 1]
     ] if cfgs is None else cfgs
     return MobileNetV3(chn_in, cfgs, mode='large', **kwargs)

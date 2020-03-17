@@ -4,3 +4,4 @@ registry, register, get_builder, build, register_as = get_registry_utils('optimi
 
 register(torch.optim.Adam, 'Adam')
 register(torch.optim.SGD, 'SGD')
+register(torch.optim.RMSprop, 'RMSprop')
