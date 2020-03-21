@@ -20,10 +20,7 @@ from .routine import search, augment, hptune
 
 def import_modules(modules):
     for m in modules:
-        try:
-            importlib.import_module(m)
-        except ImportError as exc:
-            print(exc)
+        importlib.import_module(m)
 
 
 def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):

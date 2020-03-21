@@ -55,12 +55,13 @@ class Auxilliary():
 
 @register_as('KnowledgeDistill')
 class KnowledgeDistill():
-    def __init__(self, kd_model_path, kd_model_type, kd_model_args={}, kd_model=None, kd_ratio=0.5, loss_type='ce'):
+    def __init__(self, kd_model_path, kd_model_type, kd_model_args={}, kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
         if kd_model is None:
             kd_model = self.load_model(kd_model_path, kd_model_type, kd_model_args)
         self.kd_model = kd_model
         self.kd_ratio = kd_ratio
+        self.loss_scale = loss_scale
         if loss_type == 'ce':
             self.loss_func = lambda y_pred, target: cross_entropy_soft_target(y_pred, F.softmax(target, dim=-1))
         elif loss_type == 'mse':
@@ -84,7 +85,7 @@ class KnowledgeDistill():
             self.kd_model.to(device=X.device)
             soft_logits = self.kd_model(X)
         kd_loss = self.loss_func(y_pred, soft_logits).to(device=loss.device)
-        loss = 2. * ((1 - self.kd_ratio) * loss + self.kd_ratio * kd_loss)
+        loss = self.loss_scale * ((1 - self.kd_ratio) * loss + self.kd_ratio * kd_loss)
         return loss
 
 

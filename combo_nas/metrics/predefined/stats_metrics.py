@@ -14,12 +14,7 @@ class StatsLUTMetrics(MetricsBase):
         self.head = head
 
     def compute(self, stats):
-        keys = []
-        for h in self.head:
-            head = stats.get(h, None)
-            if head is not None:
-                keys.append(str(head))
-        key = '#'.join(keys)
+        key = '#'.join([str(stats[k]) for k in self.head if k in stats])
         val = self.lut.get(key, None)
         if val is None:
             self.logger.warning('StatsLUTMetrics: missing key in LUT: {}'.format(key))

@@ -34,7 +34,8 @@ class RASPStatsDelegateMetrics(MetricsBase):
 
 @register_as('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
-    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
+    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False,
+                device=None, mixed_only=False):
         super().__init__(logger)
         if rasp is None: raise ValueError('package RASP is not found')
         self.metrics = build(metrics, logger, **args)
@@ -42,6 +43,7 @@ class RASPTraversalMetrics(MetricsBase):
         self.eval_timing = timing
         self.input_shape = input_shape
         self.device = device
+        self.mixed_only = mixed_only
 
     def compute(self, model):
         net = model.net
@@ -57,10 +59,11 @@ class RASPTraversalMetrics(MetricsBase):
             F.unhook_compute(net)
             F.unhook_timing(net)
         mt = 0
-        for node in root.tape.items_all:
-            if '_ops' in node.name:
-                continue
-            mt = mt + self.metrics.compute(node)
+        if not self.mixed_only:
+            for node in root.tape.items_all:
+                if '_ops' in node.name:
+                    continue
+                mt = mt + self.metrics.compute(node)
         for m in model.mixed_ops():
             mixop_node = F.get_stats_node(m)
             assert mixop_node['in_shape'] is not None
