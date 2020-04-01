@@ -49,6 +49,7 @@ class GradientBasedOptim(OptimBase):
 
     def optim_step(self):
         self.a_optim.step()
+        self.space.on_update_tensor_params()
 
     def optim_reset(self):
         self.a_optim.zero_grad()

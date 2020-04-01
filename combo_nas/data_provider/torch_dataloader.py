@@ -61,7 +61,7 @@ def get_torch_dataloader(data_config, validation,
     n_valid_data = 0 if val_data is None else len(val_data)
     if train_size <= 0:
         train_size = int(n_train_data * min(train_ratio, 1.))
-    if train_size < n_train_data:
+    if 0 < train_size < n_train_data:
         random.seed(train_seed)
         trn_idx = random.sample(range(n_train_data), train_size)
     else:
@@ -69,7 +69,7 @@ def get_torch_dataloader(data_config, validation,
     if validation:
         if valid_size <= 0 and valid_ratio > 0:
             valid_size = int(n_valid_data * min(valid_ratio, 1.))
-        if valid_size < n_valid_data:
+        if 0 < valid_size < n_valid_data:
             random.seed(valid_seed)
             val_idx = random.sample(range(n_valid_data), valid_size)
         else:

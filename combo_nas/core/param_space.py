@@ -28,8 +28,15 @@ class ParamSpace():
         return self._param_id
 
     def new_param_name(self, param):
-        init = 'c' if isinstance(param, ParamTensor) else 'd'
-        return '{}_{}'.format(init, self._param_id)
+        if isinstance(param, ParamTensor):
+            prefix = 't'
+        elif isinstance(param, ParamCategorical):
+            prefix = 'c'
+        elif isinstance(param, ParamNumeric):
+            prefix = 'n'
+        else:
+            prefix = 'm'
+        return '{}_{}'.format(prefix, self._param_id)
 
     def params(self, ):
         for p in self._params_map.values():
@@ -107,15 +114,31 @@ class ParamSpace():
             ap.set_value(idx % ap_dim)
             idx //= ap_dim
 
-    def update_params(self, pmap):
+    def update_params(self, pmap, trigger=True):
         for k, v in pmap.items():
-            self.get_param(k).set_value(v)
+            p = self.get_param(k)
+            if p is None:
+                logging.error('parameter \'{}\' not found'.format(k))
+            p.set_value(v)
+            if trigger:
+                p.on_update()
+
+    def on_update_tensor_params(self):
+        for ap in self.tensor_params():
+            ap.on_update()
 
 
 class Param():
-    def __init__(self, space, name):
+    def __init__(self, space, name, on_update):
         space.register(self, name)
-    
+        self.on_update_handler = on_update
+
+    def on_update(self):
+        handler = self.on_update_handler
+        if not handler is None:
+            return handler(self)
+        return None
+
     def __deepcopy__(self, memo):
         # disable deepcopy
         return self
@@ -139,8 +162,8 @@ def default_real_sampler(bound):
 
 
 class ParamNumeric(Param):
-    def __init__(self, space, low, high, ntype=None, sampler=None, name=None):
-        super().__init__(space, name)
+    def __init__(self, space, low, high, ntype=None, sampler=None, name=None, on_update=None):
+        super().__init__(space, name, on_update)
         self.bound = (low, high)
         self.ntype = 'i' if (all(isinstance(b, int) for b in self.bound) and ntype != 'r') else 'r'
         default_sampler = default_int_sampler if self.ntype == 'i' else default_real_sampler
@@ -163,8 +186,8 @@ class ParamNumeric(Param):
 
 
 class ParamCategorical(Param):
-    def __init__(self, space, choices, sampler=None, name=None):
-        super().__init__(space, name)
+    def __init__(self, space, choices, sampler=None, name=None, on_update=None):
+        super().__init__(space, name, on_update)
         self.sample = default_categorical_sampler if sampler is None else sampler
         self.choices = choices
         self._length = None
@@ -198,8 +221,8 @@ class ParamCategorical(Param):
 
 
 class ParamTensor(Param):
-    def __init__(self, space, shape, sampler=None, name=None):
-        super().__init__(space, name)
+    def __init__(self, space, shape, sampler=None, name=None, on_update=None):
+        super().__init__(space, name, on_update)
         self.sample = default_tensor_sampler if sampler is None else sampler
         self.shape = shape
         self.val = self.sample(self.shape)
@@ -269,14 +292,14 @@ class ArchParam():
 
 
 class ArchParamTensor(ParamTensor, ArchParam):
-    def __init__(self, shape, sampler=None, name=None):
-        ParamTensor.__init__(self, ArchParamSpace, shape, sampler, name)
+    def __init__(self, shape, sampler=None, name=None, on_update=None):
+        ParamTensor.__init__(self, ArchParamSpace, shape, sampler, name, on_update)
         ArchParam.__init__(self)
         logging.debug('tensor arch param {} defined: {}'.format(self.pid, self.shape))
 
 
 class ArchParamCategorical(ParamCategorical, ArchParam):
-    def __init__(self, choices, sampler=None, name=None):
-        ParamCategorical.__init__(self, ArchParamSpace, choices, sampler, name)
+    def __init__(self, choices, sampler=None, name=None, on_update=None):
+        ParamCategorical.__init__(self, ArchParamSpace, choices, sampler, name, on_update)
         ArchParam.__init__(self)
         logging.debug('discrete arch param {} defined: {}'.format(self.pid, self.choices))

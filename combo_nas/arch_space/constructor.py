@@ -158,7 +158,6 @@ def convert_from_predefined_net(model, convert_fn=None, gen=None, fn_kwargs={}):
     if gen is None: gen = Slot.gen_slots_all
     convert_fn = default_predefined_converter if convert_fn is None else convert_fn
     logging.info('convert from predefined net')
-    logging.debug('converter: {}'.format(convert_fn.__qualname__))
     for m in gen():
         if m.fixed: continue
         ent = convert_fn(m, **fn_kwargs)

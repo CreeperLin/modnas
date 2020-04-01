@@ -244,6 +244,12 @@ class EstimatorBase():
             slot.set_entity(ent)
         Slot.apply_all(apply, gen=(lambda: Slot.slots_model(model)))
 
+    def load_state_dict(self, state_dict):
+        pass
+
+    def state_dict(self):
+        return {}
+
     def save(self, epoch):
         self.save_genotype(epoch)
         self.save_checkpoint(epoch)
@@ -265,6 +271,7 @@ class EstimatorBase():
                 'w_optim': w_optim.state_dict(),
                 'lr_scheduler': lr_scheduler.state_dict(),
                 'epoch': epoch,
+                'estim': self.state_dict(),
             }, save_path)
             logger.info("Saved checkpoint to: %s" % save_path)
         except Exception as exc:
@@ -291,8 +298,13 @@ class EstimatorBase():
             self.logger.info("Estimator: Starting new run")
             return
         self.logger.info("Estimator: Resuming from checkpoint: {}".format(chkpt_path))
-        checkpoint = torch.load(chkpt_path)
-        self.model.net.load_state_dict(checkpoint['model'])
-        self.w_optim.load_state_dict(checkpoint['w_optim'])
-        self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-        self.init_epoch = checkpoint['epoch']
+        chkpt = torch.load(chkpt_path)
+        if 'model' in chkpt and not self.model is None:
+            self.model.net.load_state_dict(chkpt['model'])
+        if 'w_optim' in chkpt and not self.w_optim is None:
+            self.w_optim.load_state_dict(chkpt['w_optim'])
+        if 'lr_scheduler' in chkpt and not self.lr_scheduler is None:
+            self.lr_scheduler.load_state_dict(chkpt['lr_scheduler'])
+        if 'estim' in chkpt:
+            self.load_state_dict(chkpt['estim'])
+        self.init_epoch = chkpt['epoch']
