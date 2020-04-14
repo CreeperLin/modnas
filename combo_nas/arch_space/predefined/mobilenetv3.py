@@ -53,8 +53,8 @@ class SELayer(nn.Module):
     def __init__(self, channel, reduction=4):
         super(SELayer, self).__init__()
         chn = _make_divisible(channel // reduction, divisor=8)
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
+        self.net = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(channel, chn, 1, 1, 0),
             nn.ReLU(inplace=True),
             nn.Conv2d(chn, channel, 1, 1, 0),
@@ -62,9 +62,7 @@ class SELayer(nn.Module):
         )
 
     def forward(self, x):
-        y = self.avg_pool(x)
-        y = self.fc(y)
-        return x * y
+        return x * self.net(x)
 
 
 def conv_3x3_bn(chn_in, chn_out, stride, kernel_size, use_se, use_hs):
@@ -119,7 +117,7 @@ class MobileInvertedResidualBlock(nn.Module):
 
 
 class MobileNetV3(nn.Module):
-    def __init__(self, chn_in, cfgs, mode, n_classes, width_mult=1., dropout_rate=0.):
+    def __init__(self, cfgs, mode, chn_in=3, n_classes=1000, width_mult=1., dropout_rate=0.2):
         super(MobileNetV3, self).__init__()
         # setting of inverted residual blocks
         self.cfgs = cfgs
@@ -150,7 +148,7 @@ class MobileNetV3(nn.Module):
         chn_out = 1024 if mode == 'small' else 1280
         chn_out = _make_divisible(chn_out * width_mult, 8)
         self.classifier = nn.Sequential(
-            nn.Conv2d(last_chn, chn_out, kernel_size=1, stride=1, bias=False),
+            nn.Conv2d(last_chn, chn_out, kernel_size=1, stride=1, bias=True),
             HardSwish(),
             nn.Dropout(dropout_rate),
             nn.Conv2d(chn_out, n_classes, kernel_size=1, stride=1, bias=True),
@@ -216,7 +214,7 @@ class MobileNetV3(nn.Module):
                 m.bias.data.zero_()
 
 
-def mobilenetv3_large(chn_in, cfgs=None, **kwargs):
+def mobilenetv3_large(cfgs=None, **kwargs):
     """
     Constructs a MobileNetV3-Large model
     """
@@ -239,10 +237,10 @@ def mobilenetv3_large(chn_in, cfgs=None, **kwargs):
         [5, 960, 160, 1, 1, 1],
         [5, 960, 160, 1, 1, 1]
     ] if cfgs is None else cfgs
-    return MobileNetV3(chn_in, cfgs, mode='large', **kwargs)
+    return MobileNetV3(cfgs, mode='large', **kwargs)
 
 
-def mobilenetv3_small(chn_in, cfgs=None, **kwargs):
+def mobilenetv3_small(cfgs=None, **kwargs):
     """
     Constructs a MobileNetV3-Small model
     """
@@ -262,4 +260,4 @@ def mobilenetv3_small(chn_in, cfgs=None, **kwargs):
         [5, 576,  96, 1, 1, 1],
     ] if cfgs is None else cfgs
 
-    return MobileNetV3(chn_in, cfgs, mode='small', **kwargs)
+    return MobileNetV3(cfgs, mode='small', **kwargs)

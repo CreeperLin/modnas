@@ -2,6 +2,7 @@ import itertools
 import time
 import random
 import torch
+import torch.nn as nn
 from combo_nas.estimator.base import EstimatorBase
 from combo_nas.estimator import register_as
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
@@ -11,6 +12,7 @@ from combo_nas import utils
 @register_as('ProgressiveShrinking')
 class ProgressiveShrinkingEstimator(EstimatorBase):
     def __init__(self, *args, stages, subnet_batch_size=1, use_ratio=False,
+                 stage_rerank_spatial=True,
                  save_stage=False, reset_stage_training=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.stages = stages
@@ -22,6 +24,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         self.sequential_candidates = None
         self.subnet_results = dict()
         self.cur_stage = -1
+        self.stage_rerank_spatial = stage_rerank_spatial
         self.print_model_info()
 
     def reset_training(self):
@@ -138,7 +141,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
-            self.train_epoch(epoch, tot_epochs)
+            # self.train_epoch(epoch, tot_epochs)
             # validate subnets
             results = self.validate_subnet(epoch, tot_epochs)
             for name, res in results.items():
@@ -159,7 +162,9 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         }
 
     def load_state_dict(self, state_dict):
-        self.cur_stage = state_dict['cur_stage']
+        pass
+        # if 'cur_stage' in state_dict:
+        #     self.cur_stage = state_dict['cur_stage']
 
     def train(self):
         self.reset_training()
@@ -169,7 +174,9 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             self.logger.info('running stage {}'.format(self.cur_stage))
             stage = self.stages[self.cur_stage]
             self.set_candidates(stage)
-            self.rerank_spatial()
+            if self.stage_rerank_spatial:
+                pass
+                self.rerank_spatial()
             self.train_stage()
             if self.save_stage:
                 self.save_checkpoint(-1, 'stage_{}'.format(self.cur_stage))
@@ -210,6 +217,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         for name, conf in configs.items():
             self.logger.info('valid subnet: {}'.format(conf))
             self.apply_subnet_config(conf)
+            self.recompute_bn_running_statistics(clear=False)
             val_top1 = self.validate_epoch(*args, **kwargs)
             results[name] = val_top1
         return results

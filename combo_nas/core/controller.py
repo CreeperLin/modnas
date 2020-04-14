@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ..arch_space import genotypes as gt
 from ..arch_space.mixed_ops import MixedOp
-from ..arch_space.ops import DropPath_
 from ..arch_space.constructor import Slot
 from .param_space import ArchParamSpace
 
@@ -105,12 +104,6 @@ class NASController(nn.Module):
             if isinstance(m, MixedOp):
                 yield m
 
-    def drop_path_prob(self, p):
-        """ Set drop path probability """
-        for module in self.modules():
-            if isinstance(module, DropPath_):
-                module.p = p
-
     def init_model(self, conv_init_type='he_normal_fout', conv_div_groups=True,
                    bn_momentum=None, bn_eps=1e-3,
                    neg_slope=0., nonlinear='leaky_relu'):
@@ -144,6 +137,7 @@ class NASController(nn.Module):
                 if not m.bias is None: nn.init.zeros_(m.bias)
                 if not bn_momentum is None: m.momentum = bn_momentum
                 if not bn_eps is None: m.eps = bn_eps
+                m.reset_running_stats()
             elif isinstance(m, nn.Linear):
                 stdv = 1. / math.sqrt(m.weight.size(1))
                 nn.init.uniform_(m.weight, -stdv, stdv)

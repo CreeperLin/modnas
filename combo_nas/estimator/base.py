@@ -226,8 +226,9 @@ class EstimatorBase():
     def update_drop_path_prob(self, epoch, tot_epochs, model=None):
         model = self.model if model is None else model
         drop_prob = self.config.drop_path_prob * epoch / tot_epochs
-        model.drop_path_prob(drop_prob)
-        self.logger.debug('drop path prob: {:.5f}'.format(drop_prob))
+        for module in model.modules():
+            if isinstance(module, DropPath_):
+                module.p = drop_prob
 
     def apply_drop_path(self, model=None):
         if self.config.drop_path_prob <= 0.0: return
@@ -243,6 +244,27 @@ class EstimatorBase():
                 )
             slot.set_entity(ent)
         Slot.apply_all(apply, gen=(lambda: Slot.slots_model(model)))
+
+    def clear_bn_running_statistics(self, model=None):
+        model = self.model if model is None else model
+        for m in model.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.reset_running_stats()
+
+    def recompute_bn_running_statistics(self, num_batch=100, clear=True, model=None, data_loader=None):
+        data_loader = self.train_loader if data_loader is None else data_loader
+        model = self.model if model is None else model
+        if clear:
+            self.clear_bn_running_statistics(model)
+        is_training = model.training
+        model.train()
+        with torch.no_grad():
+            for i, (images, _) in enumerate(data_loader):
+                if not num_batch is None and i >= num_batch:
+                    break
+                model(images.to(device=model.device_ids[0]))
+        if not is_training:
+            model.eval()
 
     def load_state_dict(self, state_dict):
         pass

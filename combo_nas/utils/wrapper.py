@@ -36,6 +36,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
+    logger.info(utils.env_info())
     # imports
     import_modules(config.get('imports', []))
     # device
@@ -125,6 +126,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
+    logger.info(utils.env_info())
     # imports
     import_modules(config.get('imports', []))
     # device
@@ -199,6 +201,7 @@ def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_f
     logger = utils.get_logger(expman.logs_path, name, config.log)
     writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
+    logger.info(utils.env_info())
     # imports
     import_modules(config.get('imports', []))
     # device
@@ -266,6 +269,7 @@ def run_pipeline(config, name, exp='exp', config_override=None):
     logger = utils.get_logger(expman.logs_path, name, config.log)
     # writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
+    logger.info(utils.env_info())
     # imports
     import_modules(config.get('imports', []))
     # pipeline

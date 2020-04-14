@@ -29,13 +29,14 @@ class LocalProfilerMetrics(MetricsBase):
         device = last_device if self.device is None else self.device
         x = torch.randn(in_shape).to(device=device)
         op = op.to(device=device)
-        with torch.no_grad():
-            for _ in range(self.warmup):
-                op(x)
         tic = time.perf_counter()
         with torch.no_grad():
-            for _ in range(self.rep):
+            for rep in range(self.warmup + self.rep):
+                if rep == self.warmup:
+                    tic = time.perf_counter()
+                torch.cuda.synchronize(device=device)
                 op(x)
+                torch.cuda.synchronize(device=device)
         toc = time.perf_counter()
         lat = 1000. * (toc - tic) / self.rep
         self.results[key] = lat

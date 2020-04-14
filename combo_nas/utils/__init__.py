@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import time
 import logging
 import numpy as np
 import torch
+from ..version import __version__
 from .config import Config
 from .lr_scheduler import build as build_lr_scheduler
 from .optimizer import build as build_optimizer
@@ -11,6 +13,14 @@ try:
     from tensorboardX import SummaryWriter
 except ImportError:
     SummaryWriter = None
+
+def env_info():
+    return 'environment info:\ncombo_nas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
+        __version__,
+        sys.version.split()[0],
+        torch.__version__,
+        torch.backends.cudnn.version(),
+    )
 
 def get_current_device():
     if not torch.cuda.is_available(): return 'cpu'

@@ -92,7 +92,7 @@ class BinGateMixedOp(MixedOp):
         p = self.arch_param_value('p')
         s_op = self.s_op
         self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
-        samples = self.w_path_f.multinomial(self.n_samples)
+        samples = self.w_path_f.multinomial(1 if self.a_grad_enabled else self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
 
     def sample_ops(self, n_samples):

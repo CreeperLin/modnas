@@ -66,7 +66,10 @@ class MobileNetV2ElasticSequentialConverter():
     def make_sequential_groups(self):
         bottlenecks = self.model.bottlenecks
         for btn in bottlenecks:
-            g = ElasticSequentialGroup(*list(btn))
+            blocks = list(btn)
+            if len(blocks) <= 1:
+                continue
+            g = ElasticSequentialGroup(*blocks)
             if self.is_search:
                 def on_update_handler(group, param):
                     group.set_depth(param.value())
@@ -132,5 +135,10 @@ def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
 
 
 @register_as('MobileNetV2-E-Spatial')
-def mobilenetv2(chn_in, n_classes, cfgs, **kwargs):
+def mobilenetv2_spatial(chn_in, n_classes, cfgs, **kwargs):
     return MobileNetV2ElasticSpatial(chn_in, n_classes, cfgs, **kwargs)
+
+
+@register_as('MobileNetV2-E-Sequential')
+def mobilenetv2_sequential(chn_in, n_classes, cfgs, **kwargs):
+    return MobileNetV2ElasticSequential(chn_in, n_classes, cfgs, **kwargs)

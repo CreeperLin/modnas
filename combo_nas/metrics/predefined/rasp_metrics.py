@@ -1,5 +1,6 @@
 from ..base import MetricsBase
 from .. import register_as, build
+from ...arch_space.constructor import Slot
 try:
     import rasp
     import rasp.frontend as F
@@ -13,8 +14,7 @@ class RASPStatsMetrics(MetricsBase):
         self.item = item
 
     def compute(self, node):
-        ret = node[self.item]
-        return 0 if ret is None else ret
+        return node[self.item]
 
 
 @register_as('RASPStatsDelegateMetrics')
@@ -29,7 +29,7 @@ class RASPStatsDelegateMetrics(MetricsBase):
         mt = self.metrics.compute(stats)
         if not self.ignore_none and mt is None:
             raise ValueError('Metrics return None for input: {}'.format(stats))
-        return 0 if mt is None else mt
+        return mt
 
 
 @register_as('RASPTraversalMetrics')
@@ -44,6 +44,28 @@ class RASPTraversalMetrics(MetricsBase):
         self.input_shape = input_shape
         self.device = device
         self.mixed_only = mixed_only
+        self.excluded = set()
+
+    def compute_tape_recursive(self, node):
+        if node in self.excluded:
+            return 0
+        ret = self.metrics.compute(node)
+        if not ret is None:
+            return ret
+        ret = 0
+        for n in node.tape.items:
+            module = n.module
+            if isinstance(module, Slot):
+                ent_node = F.get_stats_node(module.ent)
+                prim_type = module.gene
+                if isinstance(prim_type, (tuple, list)):
+                    prim_type = prim_type[0]
+                ent_node['prim_type'] = prim_type
+            n_ret = self.compute_tape_recursive(n)
+            if n_ret is None:
+                n_ret = 0
+            ret += n_ret
+        return ret
 
     def compute(self, model):
         net = model.net
@@ -59,13 +81,9 @@ class RASPTraversalMetrics(MetricsBase):
             F.unhook_compute(net)
             F.unhook_timing(net)
         mt = 0
-        if not self.mixed_only:
-            for node in root.tape.items_all:
-                if '_ops' in node.name:
-                    continue
-                mt = mt + self.metrics.compute(node)
         for m in model.mixed_ops():
             mixop_node = F.get_stats_node(m)
+            self.excluded.add(mixop_node)
             assert mixop_node['in_shape'] is not None
             mixop_mt = 0
             m_in, m_out = mixop_node['in_shape'], mixop_node['out_shape']
@@ -78,6 +96,8 @@ class RASPTraversalMetrics(MetricsBase):
                 smt = self.metrics.compute(subn)
                 mixop_mt = mixop_mt + smt * p
             mt += mixop_mt
+        if not self.mixed_only:
+            mt = mt + self.compute_tape_recursive(root)
         return mt
 
 
