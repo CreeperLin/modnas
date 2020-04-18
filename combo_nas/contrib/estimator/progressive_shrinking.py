@@ -2,7 +2,6 @@ import itertools
 import time
 import random
 import torch
-import torch.nn as nn
 from combo_nas.estimator.base import EstimatorBase
 from combo_nas.estimator import register_as
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
@@ -141,7 +140,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
-            # self.train_epoch(epoch, tot_epochs)
+            self.train_epoch(epoch, tot_epochs)
             # validate subnets
             results = self.validate_subnet(epoch, tot_epochs)
             for name, res in results.items():
@@ -162,9 +161,8 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         }
 
     def load_state_dict(self, state_dict):
-        pass
-        # if 'cur_stage' in state_dict:
-        #     self.cur_stage = state_dict['cur_stage']
+        if 'cur_stage' in state_dict:
+            self.cur_stage = state_dict['cur_stage']
 
     def train(self):
         self.reset_training()
@@ -175,7 +173,6 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             stage = self.stages[self.cur_stage]
             self.set_candidates(stage)
             if self.stage_rerank_spatial:
-                pass
                 self.rerank_spatial()
             self.train_stage()
             if self.save_stage:

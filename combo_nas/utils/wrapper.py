@@ -3,9 +3,9 @@ import queue
 import importlib
 from ..utils.exp_manager import ExpManager
 from ..data_provider import load_data
-from ..arch_space.constructor import convert_from_predefined_net
-from ..arch_space.constructor import convert_from_genotype
-from ..arch_space.constructor import convert_from_layers
+from ..arch_space.constructor import convert_from_predefined_net,\
+    convert_from_genotype, convert_from_layers, default_mixed_op_converter,\
+    default_genotype_converter
 from ..arch_space.ops import configure_ops
 from ..arch_space import build as build_arch_space
 from ..arch_space.constructor import Slot
@@ -61,24 +61,28 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 convert_from_layers(net, layers_conf, layer_convert_fn)
             fn_kwargs = {}
             # mixed_op
+            use_mixed_op = False
             if 'mixed_op' in config:
                 # primitives
                 if 'primitives' in config.mixed_op:
                     fn_kwargs['primitives'] = config.mixed_op.primitives
                 fn_kwargs['mixed_op_type'] = config.mixed_op.type
                 fn_kwargs['mixed_op_args'] = config.mixed_op.get('args', {})
-            op_convert_fn = convert_fn[-1]
+                use_mixed_op = True
+            final_convert_fn = convert_fn[-1]
             if genotype is None:
-                if op_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
-                    op_convert_fn = net.get_predefined_search_converter()
-                fn_kwargs.update(config.convert.get('search_args', {}))
-                convert_from_predefined_net(net, op_convert_fn, fn_kwargs=fn_kwargs)
+                if final_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
+                    final_convert_fn = net.get_predefined_search_converter(**config.convert.get('predefined_search_args', {}))
+                if final_convert_fn is None and use_mixed_op:
+                    final_convert_fn = default_mixed_op_converter
+                convert_from_predefined_net(net, final_convert_fn, fn_kwargs=fn_kwargs)
             else:
-                if op_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
-                    op_convert_fn = net.get_genotype_search_converter()
+                if final_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
+                    final_convert_fn = net.get_genotype_search_converter(**config.convert.get('genotype_search_args', {}))
+                if final_convert_fn is None:
+                    final_convert_fn = default_genotype_converter
                 genotype = gt.get_genotype(config.genotypes, genotype)
-                fn_kwargs.update(config.convert.get('search_genotype_args', {}))
-                convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
+                convert_from_genotype(net, genotype, final_convert_fn, fn_kwargs=fn_kwargs)
             # controller
             if config.model.get('virtual', False):
                 return net
@@ -88,6 +92,8 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
                 model.to_genotype = model.to_genotype_ops
             if config.genotypes.use_slot:
                 model.to_genotype_ops = model.to_genotype_slots
+            if config.genotypes.use_fallback:
+                model.to_genotype_ops = model.to_genotype_fallback
             model.to_genotype_args = config.genotypes.to_args
             # init
             model.init_model(**config.get('init',{}))
@@ -148,22 +154,21 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         layers_conf = config.get('layers', None)
         if not layers_conf is None:
             convert_from_layers(net, layers_conf, layer_convert_fn)
-        fn_kwargs = {}
-        # op
-        op_convert_fn = convert_fn[-1]
+        # final
+        final_convert_fn = convert_fn[-1]
         if genotype is None:
-            if op_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
-                op_convert_fn = net.get_predefined_augment_converter()
-            if op_convert_fn is None:
+            if final_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
+                final_convert_fn = net.get_predefined_augment_converter(**config.convert.get('predefined_augment_args', {}))
+            if final_convert_fn is None:
                 raise ValueError('convert function required for augment run')
-            fn_kwargs.update(config.convert.get('predefined_args', {}))
-            convert_from_predefined_net(net, op_convert_fn, fn_kwargs=fn_kwargs)
+            convert_from_predefined_net(net, final_convert_fn)
         else:
-            if op_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
-                op_convert_fn = net.get_genotype_augment_converter()
+            if final_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
+                final_convert_fn = net.get_genotype_augment_converter(**config.convert.get('genotype_augment_args', {}))
+            if final_convert_fn is None:
+                final_convert_fn = default_genotype_converter
             genotype = gt.get_genotype(config.genotypes, genotype)
-            fn_kwargs.update(config.convert.get('augment_args', {}))
-            convert_from_genotype(net, genotype, op_convert_fn, fn_kwargs=fn_kwargs)
+            convert_from_genotype(net, genotype, final_convert_fn)
         # controller
         if config.model.get('virtual', False):
             return net

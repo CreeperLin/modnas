@@ -75,10 +75,10 @@ mixed_op:
     - 'MB7E3'
     - 'MB7E6'
 convert:
-  search_args:
+  predefined_search_args:
     fix_first: True
     add_zero_op: True
-  augment_args:
+  genotype_augment_args:
     fix_first: True
 ops:
   ops_order: 'weight'

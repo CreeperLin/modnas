@@ -34,9 +34,9 @@ class LocalProfilerMetrics(MetricsBase):
             for rep in range(self.warmup + self.rep):
                 if rep == self.warmup:
                     tic = time.perf_counter()
-                torch.cuda.synchronize(device=device)
+                torch.cuda.synchronize()
                 op(x)
-                torch.cuda.synchronize(device=device)
+                torch.cuda.synchronize()
         toc = time.perf_counter()
         lat = 1000. * (toc - tic) / self.rep
         self.results[key] = lat

@@ -2,7 +2,7 @@
 import torch.nn as nn
 from ..layers import build as build_layer
 from ..ops import FactorizedReduce, StdConv
-from ..constructor import Slot, default_predefined_converter
+from ..constructor import Slot, default_mixed_op_converter
 
 class PreprocLayer(StdConv):
     def __init__(self, C_in, C_out):
@@ -124,7 +124,7 @@ class DARTSLikeNet(nn.Module):
             yield cell
 
     def get_predefined_search_converter(self):
-        if not self.shared_a: return default_predefined_converter
+        if not self.shared_a: return default_mixed_op_converter
         def convert_fn(slot, *args, **kwargs):
             if not hasattr(convert_fn, 'param_map'):
                 convert_fn.param_map = {}
@@ -132,7 +132,7 @@ class DARTSLikeNet(nn.Module):
                 if 'mixed_op_args' not in kwargs:
                     kwargs['mixed_op_args'] = {}
                 kwargs['mixed_op_args']['arch_param_map'] = convert_fn.param_map[slot.name]
-            ent = default_predefined_converter(slot, *args, **kwargs)
+            ent = default_mixed_op_converter(slot, *args, **kwargs)
             if not slot.name in convert_fn.param_map:
                 convert_fn.param_map[slot.name] = ent.arch_param_map
             return ent

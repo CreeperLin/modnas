@@ -17,7 +17,7 @@ class SKLearnCostModel(CostModel):
 
     def fit(self, inputs, results):
         x_train = self.to_feature(inputs)
-        y_train = np.array(results)
+        y_train = self.to_target(results)
         index = np.random.permutation(len(x_train))
         trn_x, trn_y = x_train[index], y_train[index]
         self.model.fit(trn_x, trn_y)

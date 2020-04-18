@@ -19,7 +19,6 @@ class Slot(nn.Module):
         self.gene = None
         self.kwargs = kwargs
         self.fixed = False
-        self.visited = False
         self.built = False
         logging.debug('slot {} {}: declared {} {} {}'.format(
             self.sid, self.name, self.chn_in, self.chn_out, self.stride))
@@ -84,12 +83,13 @@ class Slot(nn.Module):
     def to_genotype_all(gen=None, fn_kwargs={}):
         if gen is None: gen = Slot.gen_slots_all
         gene = []
+        visited = set()
         for m in gen():
-            if m.visited: continue
+            if m in visited:
+                continue
             g = m.to_genotype(**fn_kwargs)
             gene.append(g)
-        for m in gen():
-            m.visited = False
+            visited.add(m)
         return gene
 
     @staticmethod
@@ -108,7 +108,6 @@ class Slot(nn.Module):
         return self.ent(*args, **kwargs)
 
     def to_genotype(self, *args, **kwargs):
-        self.visited = True
         if hasattr(self.ent, 'to_genotype'):
             return self.ent.to_genotype(*args, **kwargs)
         else:
@@ -141,9 +140,6 @@ def default_mixed_op_converter(slot, primitives, mixed_op_type, mixed_op_args={}
     return ent
 
 
-default_predefined_converter = default_mixed_op_converter
-
-
 def default_genotype_converter(slot, gene, op_args={}):
     if isinstance(gene, list): gene = gene[0]
     op_name = gene
@@ -151,12 +147,11 @@ def default_genotype_converter(slot, gene, op_args={}):
     return ent
 
 
-def convert_from_predefined_net(model, convert_fn=None, gen=None, fn_kwargs={}):
+def convert_from_predefined_net(model, convert_fn, gen=None, fn_kwargs={}):
     """Convert Slots to actual modules using predefined converter function only.
 
     """
     if gen is None: gen = Slot.gen_slots_all
-    convert_fn = default_predefined_converter if convert_fn is None else convert_fn
     logging.info('convert from predefined net')
     for m in gen():
         if m.fixed: continue

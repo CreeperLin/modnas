@@ -6,18 +6,19 @@ from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequentialGro
 from combo_nas.core.param_space import ArchParamCategorical
 
 class MobileNetV2ElasticSpatialConverter():
-    def __init__(self, model, expansion_range=[1, 2, 4, 6], search=False):
+    def __init__(self, model, fix_first=True, expansion_range=[1, 3, 6], search=False):
         self.model = model
+        self.fix_first = fix_first
         self.first = False
         self.last_conv = None
         self.last_bn = None
         self.is_search = search
         self.expansion_range = expansion_range
 
-    def __call__(self, slot, *args, fix_first=True, **kwargs):
+    def __call__(self, slot, *args, **kwargs):
         if not self.first:
             self.first = True
-            if fix_first:
+            if self.fix_first:
                 ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
                 self.last_conv = ent[3]
                 self.last_bn = ent[4]
@@ -46,10 +47,10 @@ class MobileNetV2ElasticSpatialConverter():
                                 max_width=slot.kwargs['C'],
                                 rank_fn=lambda m=pw_conv: conv2d_rank_weight_l1norm_fan_in(m))
         if self.is_search:
-            def on_update_handler(param):
-                g.set_width(param.value())
-            param_choice = [slot.chn_in * e for e in self.expansion_range]
-            p = ArchParamCategorical(param_choice, on_update=on_update_handler)
+            def on_update_handler(chn_in, param):
+                g.set_width(chn_in * param.value())
+            param_choice = [e for e in self.expansion_range]
+            p = ArchParamCategorical(param_choice, on_update=partial(on_update_handler, slot.chn_in))
         self.last_conv = pw_conv
         self.last_bn = pw_bn
         return ent
@@ -83,19 +84,19 @@ class MobileNetV2ElasticSequentialConverter():
 
 
 class MobileNetV2ElasticSpatial(MobileNetV2):
-    def get_predefined_augment_converter(self):
-        return MobileNetV2ElasticSpatialConverter(self, search=False)
+    def get_predefined_augment_converter(self, *args, **kwargs):
+        return MobileNetV2ElasticSpatialConverter(self, search=False, *args, **kwargs)
 
-    def get_predefined_search_converter(self):
-        return MobileNetV2ElasticSpatialConverter(self, search=True)
+    def get_predefined_search_converter(self, *args, **kwargs):
+        return MobileNetV2ElasticSpatialConverter(self, search=True, *args, **kwargs)
 
 
 class MobileNetV2ElasticSequential(MobileNetV2):
-    def get_predefined_augment_converter(self):
-        return MobileNetV2ElasticSequentialConverter(self, search=False)
+    def get_predefined_augment_converter(self, *args, **kwargs):
+        return MobileNetV2ElasticSequentialConverter(self, search=False, *args, **kwargs)
 
-    def get_predefined_search_converter(self):
-        return MobileNetV2ElasticSequentialConverter(self, search=True)
+    def get_predefined_search_converter(self, *args, **kwargs):
+        return MobileNetV2ElasticSequentialConverter(self, search=True, *args, **kwargs)
 
 
 @register_as('ImageNet-MobileNetV2-E-Spatial')

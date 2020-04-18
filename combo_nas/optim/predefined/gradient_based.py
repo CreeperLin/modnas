@@ -214,7 +214,7 @@ class REINFORCEOptim(GradientBasedOptim):
             # loss term
             obj_term = 0
             for m in estim.model.mixed_ops():
-                p = m.arch_param_value('p')
+                p = m.alpha()
                 if p.grad is not None:
                     p.grad.data.zero_()
                 path_prob = m.w_path_f
@@ -227,7 +227,7 @@ class REINFORCEOptim(GradientBasedOptim):
             # take out gradient dict
             grad_list = []
             for m in estim.model.mixed_ops():
-                p = m.arch_param_value('p')
+                p = m.alpha()
                 grad_list.append(p.grad.data.clone())
             grad_batch.append(grad_list)
             reward_batch.append(reward)
@@ -240,7 +240,7 @@ class REINFORCEOptim(GradientBasedOptim):
             self.baseline += self.baseline_decay_weight * (avg_reward - self.baseline)
         # assign gradients
         for idx, m in enumerate(estim.model.mixed_ops()):
-            p = m.arch_param_value('p')
+            p = m.alpha()
             p.grad.data.zero_()
             for j in range(self.batch_size):
                 p.grad.data += (reward_batch[j] - self.baseline) * grad_batch[j][idx]

@@ -1,6 +1,6 @@
 import math
 import torch.nn as nn
-from ...arch_space.constructor import Slot, default_predefined_converter, default_genotype_converter
+from ...arch_space.constructor import Slot, default_mixed_op_converter, default_genotype_converter
 from collections import OrderedDict
 
 def round_filters(filters, width_coeff, divisor, min_depth=None):
@@ -127,27 +127,30 @@ class MobileNetV2(nn.Module):
     def get_predefined_augment_converter(self):
         return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
-    def get_predefined_search_converter(self):
-        def convert_fn(slot, primitives, *args, fix_first=True, add_zero_op=True, **kwargs):
-            if fix_first and not hasattr(convert_fn, 'first'):
+    def get_predefined_search_converter(self, fix_first=True, add_zero_op=True):
+        def convert_fn(slot, primitives, *args, **kwargs):
+            if convert_fn.fix_first and not hasattr(convert_fn, 'first'):
                 ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
                 convert_fn.first = True
             else:
                 primitives = primitives[:]
-                if add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
+                if convert_fn.add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
                     primitives.append('NIL')
-                ent = default_predefined_converter(slot, primitives=primitives, *args, **kwargs)
+                ent = default_mixed_op_converter(slot, primitives=primitives, *args, **kwargs)
             return ent
+        convert_fn.fix_first = fix_first
+        convert_fn.add_zero_op = add_zero_op
         return convert_fn
 
-    def get_genotype_augment_converter(self):
-        def convert_fn(slot, *args, fix_first=True, **kwargs):
-            if fix_first and not hasattr(convert_fn, 'first'):
+    def get_genotype_augment_converter(self, fix_first=True):
+        def convert_fn(slot, *args, **kwargs):
+            if convert_fn.fix_first and not hasattr(convert_fn, 'first'):
                 ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
                 convert_fn.first = True
             else:
                 ent = default_genotype_converter(slot, *args, **kwargs)
             return ent
+        convert_fn.fix_first = fix_first
         return convert_fn
 
 

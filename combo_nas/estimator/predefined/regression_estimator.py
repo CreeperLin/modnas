@@ -17,16 +17,23 @@ class RegressionEstimator(EstimatorBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.predictor = None
+        self.best_score = 0.
+        self.best_genotype = None
 
     def step(self, params):
         ArchParamSpace.update_params(params)
         predictor = self.predictor
         model = self.model
         if model is None:
-            return list(params.values()), predictor.predict(params)
-        genotype = model.to_genotype()
-        best_val_top1 = predictor.predict(genotype)
-        return genotype, best_val_top1
+            genotype = list(params.values())
+            score = predictor.predict(params)
+        else:
+            genotype = model.to_genotype()
+            score = predictor.predict(genotype)
+        if score > self.best_score:
+            self.best_score = score
+            self.best_genotype = genotype
+        return genotype, score
 
     def predict(self, ):
         pass
@@ -42,12 +49,9 @@ class RegressionEstimator(EstimatorBase):
         config = self.config
         tot_epochs = config.epochs
         logger = self.logger
-
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
-        arch_batch_size = config.get('arch_update_batch', 1)
-        best_top1 = 0.
-        best_genotype = None
+        arch_batch_size = config.arch_update_batch
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # arch step
@@ -55,24 +59,21 @@ class RegressionEstimator(EstimatorBase):
                 optim.step(self)
             self.inputs = optim.next(batch_size=arch_batch_size)
             self.results = []
-            best_top1_batch = 0.
+            best_score_batch = 0.
             best_gt_batch = None
             for params in self.inputs:
                 # estim step
-                genotype, val_top1 = self.step(params)
-                if val_top1 > best_top1:
-                    best_top1 = val_top1
-                    best_genotype = genotype
-                if val_top1 > best_top1_batch:
-                    best_top1_batch = val_top1
+                genotype, score = self.step(params)
+                if score > best_score_batch:
+                    best_score_batch = score
                     best_gt_batch = genotype
-                self.results.append(val_top1)
+                self.results.append(score)
             # save
             if config.save_gt:
                 self.save_genotype(epoch, genotype=best_gt_batch)
             logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(
-                epoch, tot_epochs, best_top1_batch, best_top1))
+                epoch, tot_epochs, best_score_batch, self.best_score))
         return {
-            'best_top1': best_top1,
-            'best_gt': best_genotype,
+            'best_score': self.best_score,
+            'best_gt': self.best_genotype,
         }

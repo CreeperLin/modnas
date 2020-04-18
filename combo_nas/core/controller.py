@@ -70,6 +70,9 @@ class NASController(nn.Module):
         else:
             return self.to_genotype_ops(*args, **kwargs)
 
+    def to_genotype_fallback(self, *args, **kwargs):
+        return {k: v.value() for k, v in ArchParamSpace.named_params()}
+
     def to_genotype_ops(self, *args, **kwargs):
         gene_ops = [m.to_genotype(*args, **kwargs, **self.to_genotype_args) for m in self.mixed_ops()]
         return gt.Genotype(dag=None, ops=gene_ops)

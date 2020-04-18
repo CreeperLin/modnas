@@ -23,8 +23,9 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
         nidx = idx = p.get_index(params[pname])
         while nidx == idx:
             nidx = random.randint(0, len(p) - 1)
-        params[pname] = p.get_value(nidx)
-        return params
+        new_params = params.copy()
+        new_params[pname] = p.get_value(nidx)
+        return new_params
 
     def get_maximums(self, model, size, excludes):
         topq = []

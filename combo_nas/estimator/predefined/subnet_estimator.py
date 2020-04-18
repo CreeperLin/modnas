@@ -4,50 +4,70 @@ from ... import utils
 from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, rebuild_subnet=False, reset_subnet_params=True,
+                 num_bn_batch=100, clear_subnet_bn=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.rebuild_subnet = rebuild_subnet
+        self.reset_subnet_params = reset_subnet_params
+        self.num_bn_batch = num_bn_batch
+        self.clear_subnet_bn = clear_subnet_bn
+        self.best_top1 = 0.
+        self.best_genotype = None
 
     def step(self, params):
         ArchParamSpace.update_params(params)
+        genotype = self.model.to_genotype()
+        self.logger.info('Evaluating SubNet -> {}'.format(genotype))
         config = self.config
+        subnet = self.construct_subnet(genotype)
         tot_epochs = config.subnet_epochs
-        subnet = self.construct_subnet()
-        self.print_model_info(model=subnet)
-        w_optim = utils.get_optimizer(subnet.weights(), config.w_optim)
-        lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, tot_epochs)
-        # train subnet
-        self.apply_drop_path(model=subnet)
-        best_val_top1 = 0.
-        for epoch in itertools.count(self.init_epoch+1):
-            if epoch == tot_epochs: break
-            # droppath
-            self.update_drop_path_prob(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
-            # train
-            trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet,
-                                        w_optim=w_optim, lr_scheduler=lr_scheduler)
-            # validate
-            val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
-            if val_top1 is None: val_top1 = trn_top1
-            best_val_top1 = max(best_val_top1, val_top1)
+        if tot_epochs > 0:
+            w_optim = utils.get_optimizer(subnet.weights(), config.w_optim)
+            lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, tot_epochs)
+            self.apply_drop_path(model=subnet)
+            best_val_top1 = 0.
+            for epoch in itertools.count(0):
+                if epoch == tot_epochs: break
+                # droppath
+                self.update_drop_path_prob(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
+                # train
+                trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet,
+                                            w_optim=w_optim, lr_scheduler=lr_scheduler)
+                # validate
+                val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
+                if val_top1 is None: val_top1 = trn_top1
+                best_val_top1 = max(best_val_top1, val_top1)
+        else:
+            best_val_top1 = self.validate_epoch(epoch=0, tot_epochs=1, model=subnet)
         metrics_result = self.compute_metrics(model=subnet)
         ret = {
-            'best_top1': best_val_top1
+            'acc_top1': best_val_top1
         }
         if not metrics_result is None:
             ret.update(metrics_result)
+        if best_val_top1 > self.best_top1:
+            self.best_top1 = best_val_top1
+            self.best_genotype = genotype
         return ret
 
     def predict(self, ):
         pass
 
-    def construct_subnet(self):
+    def construct_subnet(self, genotype):
         config = self.config
-        # supernet based
-        self.model.init_model(**config.get('init', {}))
-        return self.model
+        if self.rebuild_subnet:
+            subnet = self.model_builder(genotype=genotype)
+        else:
+            subnet = self.model
+        if self.reset_subnet_params:
+            subnet.init_model(**config.get('init', {}))
+        else:
+            self.recompute_bn_running_statistics(num_batch=self.num_bn_batch,
+                                                 model=subnet, clear=self.clear_subnet_bn)
+        return subnet
 
     def validate(self):
-        subnet = self.construct_subnet()
+        subnet = self.construct_subnet(self.model.to_genotype())
         top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0, model=subnet)
         return top1_avg
 
@@ -55,12 +75,9 @@ class SubNetEstimator(EstimatorBase):
         logger = self.logger
         config = self.config
         tot_epochs = config.epochs
-
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
-        arch_batch_size = config.get('arch_update_batch', 1)
-        best_top1 = 0.
-        best_genotype = None
+        arch_batch_size = config.arch_update_batch
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # arch step
@@ -71,14 +88,9 @@ class SubNetEstimator(EstimatorBase):
             batch_top1 = 0.
             for params in self.inputs:
                 # estim step
-                genotype = self.model.to_genotype()
-                logger.info('Evaluating SubNet genotype = {}'.format(genotype))
                 result = self.step(params)
                 self.results.append(result)
-                val_top1 = result['best_top1']
-                if val_top1 > best_top1:
-                    best_top1 = val_top1
-                    best_genotype = genotype
+                val_top1 = result['acc_top1']
                 if val_top1 > batch_top1:
                     batch_top1 = val_top1
             # save
@@ -86,8 +98,8 @@ class SubNetEstimator(EstimatorBase):
                 self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, batch_top1, best_top1))
+            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, batch_top1, self.best_top1))
         return {
-            'best_top1': best_top1,
-            'best_gt': best_genotype,
+            'best_top1': self.best_top1,
+            'best_gt': self.best_genotype,
         }
