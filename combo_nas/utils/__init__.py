@@ -242,20 +242,29 @@ def format_time(sec):
     return "%d h %d m %d s" % (h,m,s)
 
 class ETAMeter():
-    def __init__(self, tot_epochs, epoch, tot_step):
-        self.tot_epochs = tot_epochs
-        self.epoch = epoch
-        self.tot_step = tot_step
-        self.last_step = None
-        self.last_time = None
+    def __init__(self, total_steps, cur_steps=-1):
+        self.total_steps = total_steps
+        self.last_step = cur_steps
+        self.last_time = time.time()
+        self.speed = None
 
     def start(self):
-        self.last_step = -1
         self.last_time = time.time()
 
-    def step(self, step):
-        elps = time.time() - self.last_time
-        eta = ((self.tot_epochs-self.epoch) * self.tot_step - step) * elps / (step-self.last_step)
-        self.last_time = time.time()
+    def set_step(self, step):
+        self.speed = (step - self.last_step) / (time.time() - self.last_time)
         self.last_step = step
-        return eta
+        self.last_time = time.time()
+
+    def step(self, n=1):
+        self.speed = n / (time.time() - self.last_time)
+        self.last_step += n
+        self.last_time = time.time()
+
+    def eta(self):
+        if self.speed is None:
+            return 0
+        return (self.total_steps - self.last_step) / self.speed
+
+    def eta_fmt(self):
+        return format_time(self.eta())

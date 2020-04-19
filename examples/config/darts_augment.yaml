@@ -27,7 +27,7 @@ augment:
           eta_min: 0.0
       criterion:
         - type: 'CE'
-        - type: 'Auxilliary'
+        - type: 'Auxiliary'
           mode: 'train'
           args:
             aux_ratio: 0.4

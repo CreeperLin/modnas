@@ -35,7 +35,7 @@ class RASPStatsDelegateMetrics(MetricsBase):
 @register_as('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
     def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False,
-                device=None, mixed_only=False):
+                device=None, mixed_only=False, keep_stats=True, traversal_type='tape_nodes'):
         super().__init__(logger)
         if rasp is None: raise ValueError('package RASP is not found')
         self.metrics = build(metrics, logger, **args)
@@ -44,24 +44,42 @@ class RASPTraversalMetrics(MetricsBase):
         self.input_shape = input_shape
         self.device = device
         self.mixed_only = mixed_only
+        self.keep_stats = keep_stats
+        if traversal_type == 'tape_leaves':
+            self.traverse = self.traverse_tape_leaves
+        elif traversal_type == 'tape_nodes':
+            self.traverse = self.traverse_tape_nodes
+        else:
+            raise ValueError('invalid traversal type')
         self.excluded = set()
 
-    def compute_tape_recursive(self, node):
+    def traverse_tape_nodes(self, node):
         if node in self.excluded:
             return 0
         ret = self.metrics.compute(node)
         if not ret is None:
             return ret
         ret = 0
-        for n in node.tape.items:
-            module = n.module
+        for cur_node in node.tape.items:
+            module = cur_node.module
             if isinstance(module, Slot):
                 ent_node = F.get_stats_node(module.ent)
                 prim_type = module.gene
                 if isinstance(prim_type, (tuple, list)):
                     prim_type = prim_type[0]
                 ent_node['prim_type'] = prim_type
-            n_ret = self.compute_tape_recursive(n)
+            n_ret = self.traverse_tape_nodes(cur_node)
+            if n_ret is None:
+                n_ret = 0
+            ret += n_ret
+        return ret
+
+    def traverse_tape_leaves(self, node):
+        ret = 0
+        for cur_node in node.tape.items_all:
+            if cur_node in self.excluded:
+                continue
+            n_ret = self.metrics.compute(cur_node)
             if n_ret is None:
                 n_ret = 0
             ret += n_ret
@@ -70,14 +88,13 @@ class RASPTraversalMetrics(MetricsBase):
     def compute(self, model):
         net = model.net
         root = F.get_stats_node(net)
-        if root is None:
+        if not self.keep_stats or root is None:
             root = F.reg_stats_node(net)
             if self.eval_compute:
                 F.hook_compute(net)
             if self.eval_timing:
                 F.hook_timing(net)
-            inputs = F.get_random_data(self.input_shape)
-            F.run(net, inputs, self.device)
+            F.run(net, F.get_random_data(self.input_shape), self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
         mt = 0
@@ -97,7 +114,7 @@ class RASPTraversalMetrics(MetricsBase):
                 mixop_mt = mixop_mt + smt * p
             mt += mixop_mt
         if not self.mixed_only:
-            mt = mt + self.compute_tape_recursive(root)
+            mt = mt + self.traverse(root)
         return mt
 
 

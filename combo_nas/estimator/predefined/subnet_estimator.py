@@ -17,7 +17,6 @@ class SubNetEstimator(EstimatorBase):
     def step(self, params):
         ArchParamSpace.update_params(params)
         genotype = self.model.to_genotype()
-        self.logger.info('Evaluating SubNet -> {}'.format(genotype))
         config = self.config
         subnet = self.construct_subnet(genotype)
         tot_epochs = config.subnet_epochs
@@ -48,6 +47,7 @@ class SubNetEstimator(EstimatorBase):
         if best_val_top1 > self.best_top1:
             self.best_top1 = best_val_top1
             self.best_genotype = genotype
+        self.logger.info('SubNet metrics: {} -> {}'.format(genotype, ret))
         return ret
 
     def predict(self, ):
@@ -78,8 +78,10 @@ class SubNetEstimator(EstimatorBase):
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
         arch_batch_size = config.arch_update_batch
+        eta_m = utils.ETAMeter(tot_epochs, self.init_epoch)
+        eta_m.start()
         for epoch in itertools.count(self.init_epoch+1):
-            if epoch == tot_epochs: break
+            if epoch >= tot_epochs: break
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
@@ -98,7 +100,9 @@ class SubNetEstimator(EstimatorBase):
                 self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(epoch, tot_epochs, batch_top1, self.best_top1))
+            eta_m.step()
+            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%} | ETA: {}'.format(
+                epoch, tot_epochs, batch_top1, self.best_top1, eta_m.eta_fmt()))
         return {
             'best_top1': self.best_top1,
             'best_gt': self.best_genotype,

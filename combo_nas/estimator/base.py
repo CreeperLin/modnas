@@ -145,7 +145,7 @@ class EstimatorBase():
         lr = lr_scheduler.get_lr()[0]
         writer.add_scalar('train/lr', lr, cur_step)
         model.train()
-        eta_m = utils.ETAMeter(tot_epochs, epoch, n_trn_batch)
+        eta_m = utils.ETAMeter(tot_epochs * n_trn_batch, cur_step)
         eta_m.start()
         tprof.timer_start('data')
         for step, (trn_X, trn_y) in enumerate(train_loader):
@@ -166,12 +166,12 @@ class EstimatorBase():
             top1.update(prec1.item(), N)
             top5.update(prec5.item(), N)
             if step !=0 and step % config.print_freq == 0 or step == n_trn_batch-1:
-                eta = eta_m.step(step)
+                eta_m.set_step(cur_step)
                 logger.info(
                     "Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f} "
                     "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%}) | ETA: {eta}".format(
                         epoch+1, tot_epochs, step, n_trn_batch-1, lr, losses=losses,
-                        top1=top1, top5=top5, eta=utils.format_time(eta)))
+                        top1=top1, top5=top5, eta=eta_m.eta_fmt()))
             writer.add_scalar('train/loss', loss.item(), cur_step)
             writer.add_scalar('train/top1', prec1.item(), cur_step)
             writer.add_scalar('train/top5', prec5.item(), cur_step)

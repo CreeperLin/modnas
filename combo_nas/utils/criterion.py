@@ -34,8 +34,8 @@ class CrossEntropyLabelSmoothing(nn.Module):
         return cross_entropy_soft_target(y_pred, soft_y_true)
 
 
-@register_as('Auxilliary')
-class Auxilliary():
+@register_as('Auxiliary')
+class Auxiliary():
     def __init__(self, aux_ratio=0.4, loss_type='ce', forward_func='forward_aux'):
         super().__init__()
         self.aux_ratio = aux_ratio
@@ -55,7 +55,8 @@ class Auxilliary():
 
 @register_as('KnowledgeDistill')
 class KnowledgeDistill():
-    def __init__(self, kd_model_path, kd_model_type, kd_model_args={}, kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
+    def __init__(self, kd_model_path, kd_model_type, kd_model_args={},
+                 kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
         if kd_model is None:
             kd_model = self.load_model(kd_model_path, kd_model_type, kd_model_args)
@@ -70,14 +71,15 @@ class KnowledgeDistill():
             raise ValueError('unsupported loss_type: {}'.format(loss_type))
 
     def load_model(self, model_path, model_type, model_args):
-        state_dict = torch.load(model_path)
-        if 'model' in state_dict:
-            state_dict = state_dict['model']
         model = build_arch_space(model_type, **model_args)
         convert_fn = model.get_predefined_augment_converter()
         model = convert_from_predefined_net(model, convert_fn, gen=Slot.gen_slots_model(model))
-        model.load_state_dict(state_dict)
         model.train()
+        if not model_path is None:
+            state_dict = torch.load(model_path)
+            if 'model' in state_dict:
+                state_dict = state_dict['model']
+            model.load_state_dict(state_dict)
         return model
 
     def __call__(self, loss, estim, X, y_pred, y_true):
