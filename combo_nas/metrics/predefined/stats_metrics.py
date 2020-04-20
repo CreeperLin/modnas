@@ -1,5 +1,6 @@
 import yaml
 import pickle
+import numpy as np
 from ..base import MetricsBase
 from .. import register_as
 
@@ -12,12 +13,19 @@ class StatsLUTMetrics(MetricsBase):
         if self.lut is None:
             raise ValueError('StatsLUTMetrics: Error loading LUT: {}'.format(lut_path))
         self.head = head
+        self.warned = set()
 
     def compute(self, stats):
-        key = '#'.join([str(stats[k]) for k in self.head if k in stats])
+        key = '#'.join([str(stats[k]) for k in self.head if not stats.get(k, None) is None])
         val = self.lut.get(key, None)
         if val is None:
-            self.logger.warning('StatsLUTMetrics: missing key in LUT: {}'.format(key))
+            if not key in self.warned:
+                self.logger.warning('StatsLUTMetrics: missing key in LUT: {}'.format(key))
+                self.warned.add(key)
+        elif isinstance(val, dict):
+            val = float(np.random.normal(val['mean'], val['std']))
+        else:
+            val = float(val)
         return val
 
 

@@ -25,9 +25,6 @@ for k in kernel_sizes:
     register(lambda C_in, C_out, stride, ks=k, pd=p2: DilConv(C_in, C_out, ks, stride, pd, 2), 'DC'+kabbr)
     register(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'DD'+kabbr)
     register(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'FC'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 1), 'MB{}E1'.format(k))
-    register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 3), 'MB{}E3'.format(k))
-    register(lambda C_in, C_out, stride, ks=k, pd=p: MBConv(C_in, C_out, ks, stride, pd, 6), 'MB{}E6'.format(k))
 
 
 OPS_ORDER = ['bn','act','weight']
@@ -76,28 +73,6 @@ class DropPath_(nn.Module):
     def forward(self, x):
         drop_path_(x, self.prob, self.training)
         return x
-
-
-class MBConv(nn.Module):
-    def __init__(self, C_in, C_out, kernel_size, stride, padding, expansion):
-        super().__init__()
-        C_t = C_in * expansion
-        nets = [] if expansion == 1 else [
-            nn.Conv2d(C_in, C_t, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(C_t, affine=True),
-            nn.ReLU6(inplace=True),
-        ]
-        nets.extend([
-            nn.Conv2d(C_t, C_t, kernel_size, stride, padding, groups=C_t, bias=False),
-            nn.BatchNorm2d(C_t, affine=True),
-            nn.ReLU6(inplace=True),
-            nn.Conv2d(C_t, C_out, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(C_out, AFFINE)
-        ])
-        self.net=nn.Sequential(*nets)
-
-    def forward(self, x):
-        return self.net(x)
 
 
 class PoolBN(nn.Module):

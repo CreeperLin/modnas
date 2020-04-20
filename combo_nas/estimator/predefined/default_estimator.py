@@ -9,7 +9,6 @@ class DefaultEstimator(EstimatorBase):
         self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
                                                    self.config.epochs)
         self.save_best = save_best
-        self.print_model_info()
 
     def predict(self, ):
         pass
@@ -18,6 +17,10 @@ class DefaultEstimator(EstimatorBase):
         return self.train()
 
     def train(self):
+        metrics = self.compute_metrics()
+        self.print_model_info()
+        if len(metrics) > 0:
+            self.logger.info('Model metrics: {}'.format(metrics))
         config = self.config
         tot_epochs = config.epochs
         self.apply_drop_path()
@@ -37,9 +40,11 @@ class DefaultEstimator(EstimatorBase):
                 self.save_checkpoint(epoch)
             if self.save_best and val_top1 >= best_val_top1:
                 self.save_checkpoint(epoch, save_name='best')
-        return {
+        ret = {
             'best_top1': best_val_top1
         }
+        ret.update(metrics)
+        return ret
 
     def validate(self):
         top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0)

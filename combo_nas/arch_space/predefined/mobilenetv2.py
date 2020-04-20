@@ -1,7 +1,18 @@
 import math
+from collections import OrderedDict
 import torch.nn as nn
 from ...arch_space.constructor import Slot, default_mixed_op_converter, default_genotype_converter
-from collections import OrderedDict
+from ..ops import get_same_padding
+from ..ops import register as register_ops
+
+kernel_sizes = [3, 5, 7, 9]
+expand_ratios = [1, 3, 6, 9]
+for k in kernel_sizes:
+    for e in expand_ratios:
+        p = get_same_padding(k)
+        builder = lambda C_in, C_out, stride, ks=k, exp=e, pd=p: MobileInvertedConv(C_in, C_out, C_in*exp, stride, ks, pd)
+        register_ops(builder, 'MB{}E{}'.format(k, e))
+
 
 def round_filters(filters, width_coeff, divisor, min_depth=None):
     multiplier = width_coeff
@@ -22,20 +33,21 @@ def round_repeats(repeats, depth_coeff):
     return int(math.ceil(multiplier * repeats))
 
 
-def MobileInvertedConv(chn_in, chn_out, C, stride, activation):
-    nets = [] if chn_in == C else [
-        nn.Conv2d(chn_in, C, kernel_size=1, bias=False),
-        nn.BatchNorm2d(C),
-        activation(inplace=True),
-    ]
-    nets.extend([
-        nn.Conv2d(C, C, kernel_size=3, stride=stride, padding=1, bias=False, groups=C),
-        nn.BatchNorm2d(C),
-        activation(inplace=True),
-        nn.Conv2d(C, chn_out, kernel_size=1, bias=False),
-        nn.BatchNorm2d(chn_out)
-    ])
-    return nn.Sequential(*nets)
+class MobileInvertedConv(nn.Sequential):
+    def __init__(self, chn_in, chn_out, C, stride, kernel_size=3, padding=1, activation=nn.ReLU6):
+        nets = [] if chn_in == C else [
+            nn.Conv2d(chn_in, C, kernel_size=1, bias=False),
+            nn.BatchNorm2d(C),
+            activation(inplace=True),
+        ]
+        nets.extend([
+            nn.Conv2d(C, C, kernel_size=kernel_size, stride=stride, padding=padding, bias=False, groups=C),
+            nn.BatchNorm2d(C),
+            activation(inplace=True),
+            nn.Conv2d(C, chn_out, kernel_size=1, bias=False),
+            nn.BatchNorm2d(chn_out)
+        ])
+        super().__init__(*nets)
 
 
 class MobileInvertedResidualBlock(nn.Module):

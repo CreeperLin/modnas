@@ -31,7 +31,7 @@ def train_valid_split(trn_idx, train_labels, valid_size, n_classes):
 
 
 @register_as('pytorch')
-def get_torch_dataloader(data_config, validation,
+def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
                          trn_batch_size=64, val_batch_size=64,
                          workers=2, prefetch=False, collate_fn=None,
                          train_size=0, train_ratio=1., train_seed=1,
@@ -56,7 +56,8 @@ def get_torch_dataloader(data_config, validation,
     if not collate_fn is None:
         # backward compatibility for pytorch < 1.2.0
         extra_kwargs['collate_fn'] = collate_fn
-
+    trn_batch_size *= parallel_multiplier
+    val_batch_size *= parallel_multiplier
     n_train_data = len(trn_data)
     n_valid_data = 0 if val_data is None else len(val_data)
     if train_size <= 0:

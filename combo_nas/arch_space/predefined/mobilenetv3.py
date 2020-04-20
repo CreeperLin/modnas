@@ -5,11 +5,20 @@ Andrew Howard, Mark Sandler, Grace Chu, Liang-Chieh Chen, Bo Chen, Mingxing Tan,
 Searching for MobileNetV3
 arXiv preprint arXiv:1905.02244.
 """
-
 import math
 import torch.nn as nn
 import torch.nn.functional as F
 from ...arch_space.constructor import Slot, default_mixed_op_converter, default_genotype_converter
+from ..ops import register as register_ops
+
+for ksize in [3, 5, 7, 9]:
+    for exp in [1, 3, 6, 9]:
+        register_ops(lambda C_in, C_out, S, use_se, use_hs, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, use_se, use_hs),
+                     'M3B{}E{}'.format(ksize, exp))
+        register_ops(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 0, 1), 'M3B{}E{}H'.format(ksize, exp))
+        register_ops(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 0), 'M3B{}E{}S'.format(ksize, exp))
+        register_ops(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 1), 'M3B{}E{}SH'.format(ksize, exp))
+
 
 def _make_divisible(v, divisor, min_value=None):
     """
@@ -74,26 +83,27 @@ def conv_3x3_bn(chn_in, chn_out, stride, kernel_size, use_se, use_hs):
     )
 
 
-def MobileInvertedConvV3(chn_in, chn_out, stride, chn, kernel_size, use_se, use_hs):
-    nets = []
-    if chn_in != chn:
+class MobileInvertedConvV3(nn.Sequential):
+    def __init__(self, chn_in, chn_out, stride, chn, kernel_size, use_se=0, use_hs=0):
+        nets = []
+        if chn_in != chn:
+            nets.extend([
+                nn.Conv2d(chn_in, chn, 1, 1, 0, bias=False),
+                nn.BatchNorm2d(chn),
+                HardSwish() if use_hs else nn.ReLU(inplace=True),
+            ])
         nets.extend([
-            nn.Conv2d(chn_in, chn, 1, 1, 0, bias=False),
+            nn.Conv2d(chn, chn, kernel_size, stride, (kernel_size - 1) // 2, groups=chn, bias=False),
             nn.BatchNorm2d(chn),
             HardSwish() if use_hs else nn.ReLU(inplace=True),
         ])
-    nets.extend([
-        nn.Conv2d(chn, chn, kernel_size, stride, (kernel_size - 1) // 2, groups=chn, bias=False),
-        nn.BatchNorm2d(chn),
-        HardSwish() if use_hs else nn.ReLU(inplace=True),
-    ])
-    if use_se:
-        nets.append(SELayer(chn))
-    nets.extend([
-        nn.Conv2d(chn, chn_out, 1, 1, 0, bias=False),
-        nn.BatchNorm2d(chn_out),
-    ])
-    return nn.Sequential(*nets)
+        if use_se:
+            nets.append(SELayer(chn))
+        nets.extend([
+            nn.Conv2d(chn, chn_out, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(chn_out),
+        ])
+        super().__init__(*nets)
 
 
 class MobileInvertedResidualBlock(nn.Module):
