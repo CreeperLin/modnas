@@ -2,6 +2,8 @@
 # modified from https://github.com/HarryVolek/PyTorch_Speaker_Verification
 import yaml
 import copy
+import logging
+logger = logging.getLogger('config')
 
 def load_config(filename):
     stream = open(filename, 'r')
@@ -12,14 +14,24 @@ def load_config(filename):
             config_dict[k] = v
     return config_dict
 
-def merge_dict(user, default):
-    if isinstance(user, dict) and isinstance(default, dict):
-        for k, v in default.items():
-            if k not in user:
-                user[k] = v
+
+def merge_dict(src, dest):
+    if isinstance(src, dict) and isinstance(dest, dict):
+        for k, v in dest.items():
+            if k not in src:
+                src[k] = v
+                logger.warning('merge_config: add key {}'.format(k))
             else:
-                user[k] = merge_dict(user[k], v)
-    return user
+                src[k] = merge_dict(src[k], v)
+    elif isinstance(src, list) and isinstance(dest, list):
+        logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
+        src.extend(dest)
+    else:
+        # logger.warning('merging: ignore: {} {}'.format(src, dest))
+        src = dest
+        logger.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
+    return src
+
 
 class Config(dict):
     """

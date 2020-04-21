@@ -18,7 +18,12 @@ class SubNetEstimator(EstimatorBase):
         ArchParamSpace.update_params(params)
         genotype = self.model.to_genotype()
         config = self.config
-        subnet = self.construct_subnet(genotype)
+        self.logger.info('Evaluating SubNet -> {}'.format(genotype))
+        try:
+            subnet = self.construct_subnet(genotype)
+        except:
+            ret = {'acc_top1': 0.}
+            return ret
         tot_epochs = config.subnet_epochs
         if tot_epochs > 0:
             w_optim = utils.get_optimizer(subnet.weights(), config.w_optim)
@@ -47,7 +52,7 @@ class SubNetEstimator(EstimatorBase):
         if best_val_top1 > self.best_top1:
             self.best_top1 = best_val_top1
             self.best_genotype = genotype
-        self.logger.info('SubNet metrics: {} -> {}'.format(genotype, ret))
+        self.logger.info('SubNet metrics: {}'.format(ret))
         return ret
 
     def predict(self, ):

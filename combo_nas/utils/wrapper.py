@@ -13,7 +13,7 @@ from ..core.param_space import ArchParamSpace
 from ..core.controller import NASController
 from ..optim import build as build_optim
 from .. import utils
-from ..utils.config import Config
+from ..utils.config import Config, merge_dict
 from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 from .routine import search, augment, hptune
@@ -23,11 +23,21 @@ def import_modules(modules):
         importlib.import_module(m)
 
 
+def load_config(conf):
+    if not isinstance(conf, list):
+        conf = [conf]
+    config = None
+    for cfg in conf:
+        loaded_cfg = Config.load(cfg)
+        config = loaded_cfg if config is None else merge_dict(config, loaded_cfg)
+    return config
+
+
 def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
     model_builder = model = None
     ArchParamSpace.reset()
     # config
-    config = Config.load(config)
+    config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.get('search', {}))
     utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
@@ -123,7 +133,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
 
 
 def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
-    config = Config.load(config)
+    config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.get('augment', {}))
     utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
@@ -197,7 +207,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
 
 def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_fn=None, config_override=None):
     HParamSpace.reset()
-    config = Config.load(config)
+    config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.get('hptune', {}))
     utils.check_config(config, top_keys=['log', 'device'])
@@ -265,7 +275,7 @@ def run_hptune(*args, **kwargs):
 
 
 def run_pipeline(config, name, exp='exp', config_override=None):
-    config = Config.load(config)
+    config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.get('pipeline', {}))
     utils.check_config(config, top_keys=['log'])
