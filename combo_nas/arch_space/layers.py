@@ -95,7 +95,7 @@ class DAGLayer(nn.Module):
             topo = self.topology[nidx] if self.fixed else None
             for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if not topo is None and not eidx in topo: continue
-                g_edge_child = edges[eidx].ent.to_genotype(k=edge_k+1)
+                g_edge_child = edges[eidx].to_genotype(k=edge_k+1)
                 if not isinstance(g_edge_child, (list, tuple)):
                     g_edge_child = [g_edge_child]
                 g_edge_child = [g for g in g_edge_child if g != 'NIL'][:edge_k]

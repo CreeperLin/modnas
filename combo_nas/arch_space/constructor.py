@@ -110,14 +110,10 @@ class Slot(nn.Module):
     def set_convert_fn(func):
         Slot._convert_fn = func
 
-    def get_entity(self):
-        return self.__dict__.get('ent', None)
-
     def set_entity(self, ent):
         if self.fixed:
             return
         self.ent = ent
-        self.__dict__['ent'] = ent
         logging.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
 
     def del_entity(self):
@@ -126,7 +122,6 @@ class Slot(nn.Module):
         if self.ent is None:
             return
         del self.ent
-        del self.__dict__['ent']
 
     def forward(self, *args, **kwargs):
         if self.ent is None:
