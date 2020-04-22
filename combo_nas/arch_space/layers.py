@@ -99,7 +99,10 @@ class DAGLayer(nn.Module):
                 if not isinstance(g_edge_child, (list, tuple)):
                     g_edge_child = [g_edge_child]
                 g_edge_child = [g for g in g_edge_child if g != 'NIL'][:edge_k]
-                w_edge = torch.max(edges[eidx].ent.prob().detach()[:-1])
+                try:
+                    w_edge = torch.max(edges[eidx].ent.prob().detach()[:-1])
+                except:
+                    w_edge = -1
                 if w_edge < 0: continue
                 g_edge = (g_edge_child, sidx, n_states)
                 if len(topk_genes) < k_states[nidx]:
