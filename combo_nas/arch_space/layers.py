@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import logging
+import torch
 import torch.nn as nn
-from .defs import get_merger, get_allocator, get_enumerator
+from .layer_defs import get_merger, get_allocator, get_enumerator
 from ..utils.registration import get_registry_utils
+
 registry, register, get_builder, build, register_as = get_registry_utils('layers')
+
+
 class DAGLayer(nn.Module):
     def __init__(self, chn_in, chn_out, stride, n_nodes,
                  allocator, merger_state, merger_out, enumerator, preproc,
@@ -79,9 +83,9 @@ class DAGLayer(nn.Module):
         out = self.merger_out.merge(states)
         return out
 
-    def to_genotype(self, k=2, prop_k=False):
+    def to_genotype(self, k=2):
         gene = []
-        edge_k = k if prop_k else 1
+        edge_k = 1
         k_states = k
         if isinstance(k_states, int):
             k_states = [k_states] * len(self.dag)
@@ -91,8 +95,11 @@ class DAGLayer(nn.Module):
             topo = self.topology[nidx] if self.fixed else None
             for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if not topo is None and not eidx in topo: continue
-                g_edge_child = edges[eidx].to_genotype(edge_k)
-                w_edge = getattr(edges[eidx], 'w_max', 0)
+                g_edge_child = edges[eidx].ent.to_genotype(k=edge_k+1)
+                if not isinstance(g_edge_child, (list, tuple)):
+                    g_edge_child = [g_edge_child]
+                g_edge_child = [g for g in g_edge_child if g != 'NIL'][:edge_k]
+                w_edge = torch.max(edges[eidx].ent.prob().detach()[:-1])
                 if w_edge < 0: continue
                 g_edge = (g_edge_child, sidx, n_states)
                 if len(topk_genes) < k_states[nidx]:

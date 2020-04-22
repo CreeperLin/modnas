@@ -25,7 +25,6 @@ class MixedOp(nn.Module):
         self.arch_param_map = arch_param_map
         for ap in arch_param_map.values():
             ap.add_module(self)
-        self.w_max = 0
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
 
     def primitives(self):
@@ -67,22 +66,9 @@ class WeightedSumMixedOp(MixedOp):
     def to_genotype(self, k=1):
         pname = self.primitive_names()
         w = F.softmax(self.alpha().detach(), dim=-1)
-        w_max, prim_idx = torch.topk(w, k)
+        _, prim_idx = torch.topk(w, k)
         gene = [pname[i] for i in prim_idx]
         if gene == []: return [None]
-        self.w_max = w_max
-        return gene
-
-
-class DARTSMixedOp(WeightedSumMixedOp):
-    def to_genotype(self, k=1):
-        pname = self.primitive_names()
-        assert pname[-1] == 'NIL'
-        w = F.softmax(self.alpha().detach(), dim=-1)
-        w_max, prim_idx = torch.topk(w[:-1], k)
-        gene = [pname[i] for i in prim_idx]
-        if gene == []: return [None]
-        self.w_max = w_max
         return gene
 
 
@@ -157,10 +143,9 @@ class BinGateMixedOp(MixedOp):
     def to_genotype(self, k=1):
         pname = self.primitive_names()
         w = F.softmax(self.alpha().detach(), dim=-1)
-        w_max, prim_idx = torch.topk(w, k)
+        _, prim_idx = torch.topk(w, k)
         gene = [pname[i] for i in prim_idx]
         if gene == []: return [None]
-        self.w_max = w_max
         return gene
 
 
@@ -245,10 +230,9 @@ class GumbelSumMixedOp(MixedOp):
     def to_genotype(self, k=1):
         pname = self.primitive_names()
         w = F.softmax(self.alpha().detach(), dim=-1) # use alpha softmax
-        w_max, prim_idx = torch.topk(w, k)
+        _, prim_idx = torch.topk(w, k)
         gene = [pname[i] for i in prim_idx]
         if gene == []: return [None]
-        self.w_max = w_max
         return gene
 
 
@@ -303,7 +287,6 @@ class IndexMixedOp(MixedOp):
 
 
 register(WeightedSumMixedOp, 'WeightedSum')
-register(DARTSMixedOp, 'DARTS')
 register(BinGateMixedOp, 'BinGate')
 register(BinGateUniformMixedOp, 'BinGateUniform')
 register(GumbelSumMixedOp, 'GumbelSum')

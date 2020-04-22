@@ -1,3 +1,5 @@
+imports:
+  - 'combo_nas.contrib.estimator.paramstats'
 search:
   data:
     args:
@@ -6,12 +8,14 @@ search:
       valid_root: './data'
   data_loader:
     args:
-      valid_ratio: 0.15
-      trn_batch_size: 64
-      val_batch_size: 64
+      train_ratio: 0.001
+      valid_ratio: 0.1
+      trn_batch_size: 4
+      val_batch_size: 4
+      workers: 0
   estimator:
     search:
-      type: 'SuperNet'
+      type: 'ParamStatsSuperNet'
       w_optim:
         type: 'sgd'
         args:
@@ -24,7 +28,7 @@ search:
         args:
           eta_min: 0.001
       w_grad_clip: 5.
-      epochs: 50
+      epochs: 10
 optim:
   type: 'DARTS'
   args:
@@ -37,7 +41,7 @@ optim:
         betas: [0.5, 0.999]
         weight_decay: 0.001
 mixed_op:
-  type: 'DARTS'
+  type: 'WeightedSum'
   primitives: ['AVG', 'MAX', 'SC3', 'SC5', 'DC3', 'DC5', 'IDT', 'NIL']
 ops:
   ops_order: 'act_weight_bn'
