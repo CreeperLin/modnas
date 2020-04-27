@@ -15,22 +15,14 @@ def load_config(filename):
     return config_dict
 
 
-def merge_dict(src, dest):
-    if isinstance(src, dict) and isinstance(dest, dict):
-        for k, v in dest.items():
-            if k not in src:
-                src[k] = v
-                logger.warning('merge_config: add key {}'.format(k))
-            else:
-                src[k] = merge_dict(src[k], v)
-    elif isinstance(src, list) and isinstance(dest, list):
-        logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
-        src.extend(dest)
+def parse_data_str(dstr):
+    if dstr.isnumeric():
+        return int(dstr)
     else:
-        # logger.warning('merging: ignore: {} {}'.format(src, dest))
-        src = dest
-        logger.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
-    return src
+        try:
+            return float(dstr)
+        except ValueError:
+            return dstr
 
 
 class Config(dict):
@@ -89,8 +81,29 @@ class Config(dict):
     def apply(config, dct):
         if isinstance(dct, dict):
             dct = Config(dct=dct)
+        elif isinstance(dct, list):
+            dct = {k: parse_data_str(v) for (k, v) in [item.split('=') for item in dct]}
+        else:
+            raise ValueError('unsupported apply type: {}'.format(type(dct)))
         for k, v in dct.items():
             Config.set_value(config, k, v)
+
+    @staticmethod
+    def merge(src, dest, overwrite=True):
+        if isinstance(src, dict) and isinstance(dest, dict):
+            for k, v in dest.items():
+                if k not in src:
+                    src[k] = v
+                    logger.warning('merge_config: add key {}'.format(k))
+                else:
+                    src[k] = merge_dict(src[k], v)
+        elif isinstance(src, list) and isinstance(dest, list):
+            logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
+            src.extend(dest)
+        elif overwrite:
+            src = dest
+            logger.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
+        return src
 
     @staticmethod
     def load(conf):

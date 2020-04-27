@@ -110,6 +110,9 @@ class Slot(nn.Module):
     def set_convert_fn(func):
         Slot._convert_fn = func
 
+    def get_entity(self):
+        return self._modules.get('ent', None)
+
     def set_entity(self, ent):
         if self.fixed:
             return
@@ -193,7 +196,6 @@ def convert_from_genotype(model, genotype, convert_fn=None, gen=None, fn_kwargs=
     if gen is None: gen = Slot.gen_slots_all
     convert_fn = default_genotype_converter if convert_fn is None else convert_fn
     logging.info('convert from genotype: {}'.format(genotype))
-    logging.debug('converter: {}'.format(convert_fn.__qualname__))
     Slot.set_convert_fn(convert_fn)
     if hasattr(model, 'build_from_genotype'):
         model.build_from_genotype(genotype, **({} if fn_kwargs is None else copy.deepcopy(fn_kwargs)))

@@ -18,9 +18,7 @@ class SuperNetEstimator(EstimatorBase):
         self.cur_trn_batch = None
         self.cur_val_batch = None
         self.no_valid_warn = True
-        self.w_optim = utils.get_optimizer(self.model.weights(), self.config.w_optim)
-        self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
-                                                   self.config.epochs)
+        self.reset_training_states()
         self.print_model_info()
 
     def predict(self, ):
@@ -47,7 +45,7 @@ class SuperNetEstimator(EstimatorBase):
                 best_genotype = genotype
             # save
             if config.save_gt:
-                self.save_genotype(epoch)
+                self.save_genotype(epoch, genotype=genotype)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
         return {

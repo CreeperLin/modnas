@@ -3,10 +3,22 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .registration import get_registry_utils
-registry, register, get_builder, build, register_as = get_registry_utils('criterion')
+import importlib
 from ..arch_space import build as build_arch_space
 from ..arch_space.constructor import Slot, convert_from_predefined_net
+from .registration import get_registry_utils
+
+registry, register, get_builder, build, register_as = get_registry_utils('criterion')
+
+def get_criterion(config, device_ids=None):
+    crit_type = config['type']
+    crit_args = config.get('args', {})
+    n_parallel = 1 if device_ids is None else len(device_ids)
+    criterion = build(crit_type, **crit_args)
+    if n_parallel > 1 and isinstance(criterion, torch.nn.Module):
+        criterion = torch.nn.DataParallel(criterion, device_ids=device_ids).module
+    return criterion
+
 
 def label_smoothing(y_pred, y_true, eta):
     n_classes = y_pred.size(1)

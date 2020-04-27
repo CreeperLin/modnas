@@ -15,6 +15,8 @@ def main():
                         help="path of checkpoint pt file")
     parser.add_argument('-d', '--device', type=str, default="all",
                         help="override device ids")
+    parser.add_argument('-o', '--config_override', action='append', type=str, default=None,
+                        help="override config")
     args = parser.parse_args()
 
     run_hptune(**vars(args))

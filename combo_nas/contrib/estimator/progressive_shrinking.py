@@ -26,12 +26,6 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         self.stage_rerank_spatial = stage_rerank_spatial
         self.print_model_info()
 
-    def reset_training(self):
-        self.init_epoch = -1
-        self.w_optim = utils.get_optimizer(self.model.weights(), self.config.w_optim)
-        self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
-                                                   self.config.epochs)
-
     def set_candidates(self, candidates):
         sp_cands = candidates.get('spatial', None)
         sq_cands = candidates.get('sequential', None)
@@ -136,7 +130,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         config = self.config
         tot_epochs = config.epochs
         if self.reset_stage_training:
-            self.reset_training()
+            self.reset_training_states()
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
@@ -165,7 +159,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             self.cur_stage = state_dict['cur_stage']
 
     def train(self):
-        self.reset_training()
+        self.reset_training_states()
         for self.cur_stage in itertools.count(self.cur_stage+1):
             if self.cur_stage >= len(self.stages):
                 break

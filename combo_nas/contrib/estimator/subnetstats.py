@@ -15,7 +15,7 @@ class SubNetStatsEstimator(SubNetEstimator):
 
     def step(self, params):
         ret = super().step(params)
-        self.subnet_results.append(ret)
+        self.subnet_results.append((params, ret))
         return ret
 
     def search(self, optim):
@@ -23,14 +23,14 @@ class SubNetStatsEstimator(SubNetEstimator):
         subnet_results = self.subnet_results
         axis_list = self.axis_list
         if axis_list is None:
-            metrics = list(subnet_results[0].keys())
+            metrics = list(subnet_results[0][1].keys())
             axis_list = list(itertools.combinations(metrics, r=2))
         self.logger.info('subnet stats: {} axis: {}'.format(len(subnet_results), axis_list))
         for i, axis in enumerate(axis_list):
             plt.figure(i)
             axis_str = '-'.join(axis)
             plt.title('subnet metrics: {}'.format(axis_str))
-            values = [[res[ax] for res in subnet_results] for ax in axis]
+            values = [[res[1][ax] for res in subnet_results] for ax in axis]
             plt.scatter(values[0], values[1])
             plt.xlabel(axis[0])
             plt.ylabel(axis[1])

@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 from .. import utils
 from ..metrics import build as build_metrics
-from ..utils.criterion import build as build_criterion
+from ..utils.criterion import get_criterion
+from ..utils.optimizer import get_optimizer
+from ..utils.lr_scheduler import get_lr_scheduler
 from ..utils.profiling import tprof
 from ..arch_space.ops import Identity, DropPath_
 from ..arch_space.constructor import Slot
@@ -46,11 +48,13 @@ class EstimatorBase():
                 crit_configs = [crit_configs]
             for crit_conf in crit_configs:
                 if isinstance(crit_conf, str):
-                    crit = build_criterion(crit_conf)
-                    crit_mode = 'all'
-                else:
-                    crit = build_criterion(crit_conf.type, **crit_conf.get('args', {}))
-                    crit_mode = crit_conf.get('mode', 'all')
+                    crit_conf = {'type': crit_conf}
+                try:
+                    device_ids = model.device_ids
+                except AttributeError:
+                    device_ids = None
+                crit = get_criterion(crit_conf, device_ids=device_ids)
+                crit_mode = crit_conf.get('mode', 'all')
                 if not isinstance(crit_mode, list):
                     crit_mode = [crit_mode]
                 if 'all' in crit_mode:
@@ -265,6 +269,14 @@ class EstimatorBase():
                 model(images.to(device=model.device_ids[0]))
         if not is_training:
             model.eval()
+
+    def reset_training_states(self, tot_epochs=None, config=None, model=None):
+        model = self.model if model is None else model
+        config = self.config if config is None else config
+        tot_epochs = config.epochs if tot_epochs is None else tot_epochs
+        self.w_optim = get_optimizer(model.weights(), config.w_optim, model.device_ids)
+        self.lr_scheduler = get_lr_scheduler(self.w_optim, config.lr_scheduler, tot_epochs)
+        self.init_epoch = -1
 
     def load_state_dict(self, state_dict):
         pass

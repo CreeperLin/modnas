@@ -7,8 +7,6 @@ import numpy as np
 import torch
 from ..version import __version__
 from .config import Config
-from .lr_scheduler import build as build_lr_scheduler
-from .optimizer import build as build_optimizer
 try:
     from tensorboardX import SummaryWriter
 except ImportError:
@@ -161,20 +159,6 @@ def get_writer(log_dir, enabled):
     return writer
 
 
-def get_optimizer(params, config):
-    optim_type = config.type
-    optim_args = config.get('args', {})
-    return build_optimizer(optim_type, params, **optim_args)
-
-
-def get_lr_scheduler(optimizer, config, epochs):
-    lr_type = config.type
-    lr_args = config.get('args', {})
-    if lr_type == 'cosine':
-        if not 'T_max' in lr_args: lr_args['T_max'] = epochs
-    return build_lr_scheduler(lr_type, optimizer, **lr_args)
-
-
 def get_same_padding(kernel_size):
     if isinstance(kernel_size, tuple):
         assert len(kernel_size) == 2, 'invalid kernel size: %s' % kernel_size
@@ -264,7 +248,7 @@ class ETAMeter():
     def eta(self):
         if self.speed is None:
             return 0
-        return (self.total_steps - self.last_step) / self.speed
+        return (self.total_steps - self.last_step) / (self.speed + 1e-7)
 
     def eta_fmt(self):
         return format_time(self.eta())

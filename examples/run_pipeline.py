@@ -11,6 +11,8 @@ def main():
                         help="yaml config file")
     parser.add_argument('-e', '--exp', type=str, default='exp',
                         help="experiment root dir")
+    parser.add_argument('-o', '--config_override', action='append', type=str, default=None,
+                        help="override config")
     args = parser.parse_args()
 
     run_pipeline(**vars(args))

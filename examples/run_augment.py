@@ -17,6 +17,8 @@ def main():
                         help="override device ids")
     parser.add_argument('-g', '--genotype', type=str, default=None,
                         help="override genotype file")
+    parser.add_argument('-o', '--config_override', action='append', type=str, default=None,
+                        help="override config")
     args = parser.parse_args()
 
     run_augment(**vars(args))

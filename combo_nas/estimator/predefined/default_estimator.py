@@ -5,9 +5,7 @@ from ... import utils
 class DefaultEstimator(EstimatorBase):
     def __init__(self, *args, save_best=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.w_optim = utils.get_optimizer(self.model.weights(), self.config.w_optim)
-        self.lr_scheduler = utils.get_lr_scheduler(self.w_optim, self.config.lr_scheduler,
-                                                   self.config.epochs)
+        self.reset_training_states()
         self.save_best = save_best
 
     def predict(self, ):

@@ -14,26 +14,24 @@ class NASController(nn.Module):
         if device_ids is None:
             device_ids = list(range(torch.cuda.device_count()))
         self.device_ids = device_ids
-        self.net = net
+        if len(device_ids) > 0:
+            net = net.to(device=device_ids[0])
+        self._net = net
+        if len(device_ids) > 1:
+            self._net = nn.parallel.DataParallel(self._net, device_ids=device_ids)
         self.to_genotype_args = {}
+
+    @property
+    def net(self):
+        if isinstance(self._net, nn.parallel.DataParallel):
+            return self._net.module
+        return self._net
 
     def call(self, func, *args, **kwargs):
         return getattr(self.net, func)(*args, **kwargs)
 
     def forward(self, x):
-        if len(self.device_ids) <= 1:
-            return self.net(x)
-
-        # scatter x
-        xs = nn.parallel.scatter(x, self.device_ids)
-
-        # replicate modules
-        self.net.to(device=self.device_ids[0])
-        replicas = nn.parallel.replicate(self.net, self.device_ids)
-        outputs = nn.parallel.parallel_apply(replicas,
-                                             list(xs),
-                                             devices=self.device_ids)
-        return nn.parallel.gather(outputs, self.device_ids[0])
+        return self._net(x)
 
     def logits(self, X):
         logits = self.forward(X)

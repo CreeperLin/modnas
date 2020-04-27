@@ -13,7 +13,7 @@ from ..core.param_space import ArchParamSpace
 from ..core.controller import NASController
 from ..optim import build as build_optim
 from .. import utils
-from ..utils.config import Config, merge_dict
+from ..utils.config import Config
 from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 from .routine import search, augment, hptune
@@ -29,7 +29,7 @@ def load_config(conf):
     config = None
     for cfg in conf:
         loaded_cfg = Config.load(cfg)
-        config = loaded_cfg if config is None else merge_dict(config, loaded_cfg)
+        config = loaded_cfg if config is None else Config.merge(config, loaded_cfg)
     return config
 
 
@@ -113,8 +113,6 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     # optim
     optim_kwargs = config.optim.get('args', {})
     optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
-    # chkpt
-    chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
         'config': config.estimator,
         'chkpt_path': chkpt,
@@ -187,8 +185,6 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         model.init_model(**config.get('init',{}))
         return model
     model = model_builder()
-    # chkpt
-    chkpt = None if not chkpt is None and not os.path.isfile(chkpt) else chkpt
     return {
         'config': config.estimator,
         'chkpt_path': chkpt,

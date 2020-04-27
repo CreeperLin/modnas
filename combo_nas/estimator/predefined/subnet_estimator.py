@@ -21,13 +21,12 @@ class SubNetEstimator(EstimatorBase):
         self.logger.info('Evaluating SubNet -> {}'.format(genotype))
         try:
             subnet = self.construct_subnet(genotype)
-        except:
+        except RuntimeError:
             ret = {'acc_top1': 0.}
             return ret
         tot_epochs = config.subnet_epochs
         if tot_epochs > 0:
-            w_optim = utils.get_optimizer(subnet.weights(), config.w_optim)
-            lr_scheduler = utils.get_lr_scheduler(w_optim, config.lr_scheduler, tot_epochs)
+            self.reset_training_states(model=subnet, tot_epochs=tot_epochs)
             self.apply_drop_path(model=subnet)
             best_val_top1 = 0.
             for epoch in itertools.count(0):
@@ -35,8 +34,7 @@ class SubNetEstimator(EstimatorBase):
                 # droppath
                 self.update_drop_path_prob(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
                 # train
-                trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet,
-                                            w_optim=w_optim, lr_scheduler=lr_scheduler)
+                trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
                 # validate
                 val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
                 if val_top1 is None: val_top1 = trn_top1

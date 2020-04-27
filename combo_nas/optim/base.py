@@ -1,6 +1,6 @@
 """ optim base """
 import random
-from ..utils import get_optimizer
+from ..utils.optimizer import get_optimizer
 
 class OptimBase():
     def __init__(self, space, logger=None):

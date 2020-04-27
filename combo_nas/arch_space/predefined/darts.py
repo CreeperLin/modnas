@@ -92,8 +92,10 @@ class DARTSLikeNet(nn.Module):
 
     def forward(self, x):
         s0 = s1 = self.conv_first(x)
-        for cell in self.cells:
+        for i, cell in enumerate(self.cells):
             s0, s1 = s1, cell([s0, s1])
+            if i == self.aux_pos:
+                self.aux_out = self.aux_head(s1)
         y = self.conv_last(s1)
         y = y.view(y.size(0), -1) # flatten
         return self.fc(y)
@@ -101,11 +103,7 @@ class DARTSLikeNet(nn.Module):
     def forward_aux(self, x):
         if not self.training or self.aux_pos == -1:
             return None
-        s0 = s1 = self.conv_first(x)
-        for i, cell in enumerate(self.cells):
-            s0, s1 = s1, cell([s0, s1])
-            if i == self.aux_pos:
-                return self.aux_head(s1)
+        return self.aux_out
 
     def build_from_genotype(self, gene, *args, **kwargs):
         assert len(self.cell_group) == len(gene.dag)
