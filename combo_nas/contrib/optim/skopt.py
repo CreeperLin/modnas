@@ -65,7 +65,13 @@ class SkoptParamOptim(OptimBase):
         return next_params
 
     def step(self, estim):
+        def to_metrics(res):
+            if isinstance(res, dict):
+                return list(res.values())[0]
+            if isinstance(res, (tuple, list)):
+                return res[0]
+            return res
         inputs, results = estim.get_last_results()
         skinputs = [list(inp.values()) for inp in inputs]
-        skresults = [-r for r in results]
+        skresults = [-to_metrics(r) for r in results]
         self.skoptim.tell(skinputs, skresults)

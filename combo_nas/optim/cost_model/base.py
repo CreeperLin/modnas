@@ -26,4 +26,10 @@ class CostModel():
         return np.array(inputs)
 
     def to_target(self, results):
-        return np.array(results)
+        def to_metrics(res):
+            if isinstance(res, dict):
+                return list(res.values())[0]
+            if isinstance(res, (tuple, list)):
+                return res[0]
+            return res
+        return np.array([to_metrics(r) for r in results])

@@ -96,7 +96,7 @@ class Config(dict):
                     src[k] = v
                     logger.warning('merge_config: add key {}'.format(k))
                 else:
-                    src[k] = merge_dict(src[k], v)
+                    src[k] = Config.merge(src[k], v, overwrite)
         elif isinstance(src, list) and isinstance(dest, list):
             logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
             src.extend(dest)
