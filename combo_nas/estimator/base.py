@@ -311,19 +311,20 @@ class EstimatorBase():
         except Exception as exc:
             logger.error("Save checkpoint failed: "+str(exc))
 
-    def save_genotype(self, epoch, genotype=None, save_name=None):
+    def save_genotype(self, epoch=None, genotype=None, save_name=None):
         expman = self.expman
         logger = self.logger
         genotype = self.model.to_genotype() if genotype is None else genotype
-        if save_name is None:
+        if not epoch is None:
             save_name = 'gene_{:03d}.gt'.format(epoch+1)
-        else:
+        elif not save_name is None:
             save_name = 'gene_{}.gt'.format(save_name)
+        else:
+            raise ValueError('epoch or save_name is required')
         save_path = expman.join('output', save_name)
         try:
-            logger.info("genotype = {}".format(genotype))
             gt.to_file(genotype, save_path)
-            logger.info("Saved genotype to: %s" % save_path)
+            logger.debug('Saved genotype = {} to: {}'.format(genotype, save_path))
         except Exception as exc:
             logger.error("Save genotype failed: "+str(exc))
 

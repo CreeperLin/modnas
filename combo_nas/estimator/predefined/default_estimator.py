@@ -7,6 +7,7 @@ class DefaultEstimator(EstimatorBase):
         super().__init__(*args, **kwargs)
         self.reset_training_states()
         self.save_best = save_best
+        self.best_val_top1 = 0.
 
     def predict(self, ):
         pass
@@ -22,7 +23,6 @@ class DefaultEstimator(EstimatorBase):
         config = self.config
         tot_epochs = config.epochs
         self.apply_drop_path()
-        best_val_top1 = 0.
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # droppath
@@ -32,14 +32,14 @@ class DefaultEstimator(EstimatorBase):
             # validate
             val_top1 = self.validate_epoch(epoch, tot_epochs)
             if val_top1 is None: val_top1 = trn_top1
-            best_val_top1 = max(best_val_top1, val_top1)
+            self.best_val_top1 = max(self.best_val_top1, val_top1)
             # save
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            if self.save_best and val_top1 >= best_val_top1:
+            if self.save_best and val_top1 >= self.best_val_top1:
                 self.save_checkpoint(epoch, save_name='best')
         ret = {
-            'best_top1': best_val_top1
+            'best_top1': self.best_val_top1
         }
         ret.update(metrics)
         return ret

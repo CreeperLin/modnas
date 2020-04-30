@@ -103,6 +103,7 @@ class SubNetEstimator(EstimatorBase):
                 self.save_genotype(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
+            self.save_genotype(save_name='best', genotype=self.best_genotype)
             eta_m.step()
             logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%} | ETA: {}'.format(
                 epoch, tot_epochs, batch_top1, self.best_top1, eta_m.eta_fmt()))

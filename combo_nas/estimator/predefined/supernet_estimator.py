@@ -18,6 +18,8 @@ class SuperNetEstimator(EstimatorBase):
         self.cur_trn_batch = None
         self.cur_val_batch = None
         self.no_valid_warn = True
+        self.best_top1 = 0.
+        self.best_genotype = None
         self.reset_training_states()
         self.print_model_info()
 
@@ -28,9 +30,6 @@ class SuperNetEstimator(EstimatorBase):
         model = self.model
         config = self.config
         tot_epochs = config.epochs
-
-        best_top1 = 0.
-        best_genotype = None
         for epoch in itertools.count(self.init_epoch+1):
             if epoch == tot_epochs: break
             # train
@@ -40,17 +39,19 @@ class SuperNetEstimator(EstimatorBase):
             val_top1 = self.validate_epoch(epoch, tot_epochs)
             genotype = model.to_genotype()
             if val_top1 is None: val_top1 = trn_top1
-            if val_top1 > best_top1:
-                best_top1 = val_top1
-                best_genotype = genotype
+            if val_top1 > self.best_top1:
+                self.best_top1 = val_top1
+                self.best_genotype = genotype
+            self.logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} -> {}'.format(epoch, tot_epochs, val_top1, genotype))
             # save
             if config.save_gt:
                 self.save_genotype(epoch, genotype=genotype)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
+            self.save_genotype(save_name='best', genotype=self.best_genotype)
         return {
-            'best_top1': best_top1,
-            'best_gt': best_genotype,
+            'best_top1': self.best_top1,
+            'best_gt': self.best_genotype,
         }
 
     def get_lr(self):

@@ -96,7 +96,7 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
             # controller
             if config.model.get('virtual', False):
                 return net
-            model = NASController(net, dev_list).to(device=dev)
+            model = NASController(net, dev_list)
             # genotype
             if config.genotypes.disable_dag:
                 model.to_genotype = model.to_genotype_ops
@@ -180,7 +180,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         # controller
         if config.model.get('virtual', False):
             return net
-        model = NASController(net, dev_list).to(device=dev)
+        model = NASController(net, dev_list)
         # init
         model.init_model(**config.get('init',{}))
         return model

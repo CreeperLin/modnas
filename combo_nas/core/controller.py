@@ -14,11 +14,11 @@ class NASController(nn.Module):
         if device_ids is None:
             device_ids = list(range(torch.cuda.device_count()))
         self.device_ids = device_ids
-        if len(device_ids) > 0:
+        if len(device_ids) > 1:
+            net = nn.parallel.DataParallel(net, device_ids=device_ids)
+        elif len(device_ids) > 0:
             net = net.to(device=device_ids[0])
         self._net = net
-        if len(device_ids) > 1:
-            self._net = nn.parallel.DataParallel(self._net, device_ids=device_ids)
         self.to_genotype_args = {}
 
     @property
@@ -105,10 +105,10 @@ class NASController(nn.Module):
             if isinstance(m, MixedOp):
                 yield m
 
-    def init_model(self, conv_init_type='he_normal_fout', conv_div_groups=True,
+    def init_model(self, conv_init_type=None, conv_div_groups=True,
                    bn_momentum=None, bn_eps=1e-3,
-                   neg_slope=0., nonlinear='leaky_relu'):
-        if conv_init_type == 'none': return
+                   neg_slope=math.sqrt(5), nonlinear='leaky_relu'):
+        if conv_init_type is None: return
         gain = nn.init.calculate_gain(nonlinear, neg_slope)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
