@@ -3,6 +3,7 @@ import logging
 from collections import OrderedDict
 import torch.nn as nn
 from . import ops, mixed_ops, layers
+from . import build
 
 class Slot(nn.Module):
     _slots = []
@@ -245,3 +246,13 @@ def convert_from_layers(model, layers_conf, convert_fn=None, gen=None, fn_kwargs
                 m.fixed = True
         new_slots = [m for m in gen() if m.ent is None]
         logging.debug('new slots from layer: {}'.format(len(new_slots)))
+
+
+def build_predefined(*args, **kwargs):
+    net = build(*args, **kwargs)
+    try:
+        convert_fn = net.get_predefined_augment_converter()
+    except AttributeError:
+        convert_fn = None
+    net = convert_from_predefined_net(net, convert_fn=convert_fn)
+    return net

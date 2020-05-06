@@ -106,7 +106,7 @@ class SubNetEstimator(EstimatorBase):
             self.save_genotype(save_name='best', genotype=self.best_genotype)
             eta_m.step()
             logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%} | ETA: {}'.format(
-                epoch, tot_epochs, batch_top1, self.best_top1, eta_m.eta_fmt()))
+                epoch+1, tot_epochs, batch_top1, self.best_top1, eta_m.eta_fmt()))
         return {
             'best_top1': self.best_top1,
             'best_gt': self.best_genotype,

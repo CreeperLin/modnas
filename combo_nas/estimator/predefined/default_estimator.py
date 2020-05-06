@@ -1,6 +1,5 @@
 import itertools
 from ..base import EstimatorBase
-from ... import utils
 
 class DefaultEstimator(EstimatorBase):
     def __init__(self, *args, save_best=False, **kwargs):

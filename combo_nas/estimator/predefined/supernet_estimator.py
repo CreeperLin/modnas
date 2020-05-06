@@ -42,7 +42,7 @@ class SuperNetEstimator(EstimatorBase):
             if val_top1 > self.best_top1:
                 self.best_top1 = val_top1
                 self.best_genotype = genotype
-            self.logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} -> {}'.format(epoch, tot_epochs, val_top1, genotype))
+            self.logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} -> {}'.format(epoch+1, tot_epochs, val_top1, genotype))
             # save
             if config.save_gt:
                 self.save_genotype(epoch, genotype=genotype)

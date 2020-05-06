@@ -73,7 +73,7 @@ class RegressionEstimator(EstimatorBase):
                 self.save_genotype(epoch, genotype=best_gt_batch)
             self.save_genotype(save_name='best', genotype=self.best_genotype)
             logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(
-                epoch, tot_epochs, best_score_batch, self.best_score))
+                epoch+1, tot_epochs, best_score_batch, self.best_score))
         return {
             'best_score': self.best_score,
             'best_gt': self.best_genotype,
