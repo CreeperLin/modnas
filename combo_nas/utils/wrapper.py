@@ -149,7 +149,8 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     trn_loader, val_loader = load_data(config, True)
     # ops
     if 'ops' in config:
-        config.ops.affine = True
+        if not config.ops.get('affine', False):
+            logger.warning('option \'ops.affine\' set to False in augment run')
         configure_ops(config.ops)
     # net
     def model_builder(genotype=genotype, convert_fn=convert_fn):
@@ -167,8 +168,6 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         if genotype is None:
             if final_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
                 final_convert_fn = net.get_predefined_augment_converter(**config.convert.get('predefined_augment_args', {}))
-            if final_convert_fn is None:
-                raise ValueError('convert function required for augment run')
             convert_from_predefined_net(net, final_convert_fn)
         else:
             if final_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):

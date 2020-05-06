@@ -50,6 +50,18 @@ def train_valid_split(trn_idx, train_labels, class_size):
     return train_idx, valid_idx
 
 
+def map_data_label(data, mapping):
+    labels = get_dataset_label(data)
+    if hasattr(data, 'targets'):
+        data.targets = [mapping.get(get_label_class(c), c) for c in labels]
+    if hasattr(data, 'samples'):
+        data.samples = [(s, mapping.get(get_label_class(c), c)) for s, c in data.samples]
+    if hasattr(data, 'train_labels'):
+        data.train_labels = [mapping.get(get_label_class(c), c) for c in labels]
+    if hasattr(data, 'test_labels'):
+        data.test_labels = [mapping.get(get_label_class(c), c) for c in labels]
+
+
 @register_as('pytorch')
 def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
                          trn_batch_size=64, val_batch_size=64, classes=None,
@@ -121,8 +133,14 @@ def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
             trn_idx, val_idx = train_valid_split(trn_idx, trn_labels, val_class_size)
         else:
             val_idx = list()
-    logging.info('data_loader: split: trn: {} val: {} cls: {}'.format(
+    logging.info('data_loader: trn: {} val: {} cls: {}'.format(
                 len(trn_idx), len(val_idx), n_classes))
+    # map labels
+    if not classes is None:
+        mapping = {c:i for i, c in enumerate(all_classes)}
+        map_data_label(trn_data, mapping)
+        if not val_data is None:
+            map_data_label(val_data, mapping)
     # dataloader
     trn_loader = val_loader = None
     trn_batch_size *= parallel_multiplier
