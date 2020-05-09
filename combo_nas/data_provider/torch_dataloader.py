@@ -99,7 +99,7 @@ def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
                 raise ValueError('invalid class type')
     elif isinstance(classes, int):
         random.seed(train_seed)
-        all_classes = random.sample(all_classes, classes)
+        all_classes = sorted(random.sample(all_classes, classes))
         logging.info('data_loader: random classes: {}'.format(all_classes))
     n_classes = len(all_classes)
     # index

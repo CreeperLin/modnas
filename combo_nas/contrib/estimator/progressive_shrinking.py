@@ -6,12 +6,11 @@ from combo_nas.estimator.base import EstimatorBase
 from combo_nas.estimator import register_as
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
-from combo_nas import utils
 
 @register_as('ProgressiveShrinking')
 class ProgressiveShrinkingEstimator(EstimatorBase):
     def __init__(self, *args, stages, subnet_batch_size=1, use_ratio=False,
-                 stage_rerank_spatial=True,
+                 stage_rerank_spatial=True, num_bn_batch=100, clear_subnet_bn=True,
                  save_stage=False, reset_stage_training=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.stages = stages
@@ -24,6 +23,8 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         self.subnet_results = dict()
         self.cur_stage = -1
         self.stage_rerank_spatial = stage_rerank_spatial
+        self.num_bn_batch = num_bn_batch
+        self.clear_subnet_bn = clear_subnet_bn
         self.print_model_info()
 
     def set_candidates(self, candidates):
@@ -138,7 +139,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             # validate subnets
             results = self.validate_subnet(epoch, tot_epochs)
             for name, res in results.items():
-                self.logger.info('Subnet {}: {}'.format(name, res))
+                self.logger.info('Subnet {}: {:.4%}'.format(name, res))
             self.update_results(results)
             # save
             if config.save_freq != 0 and epoch % config.save_freq == 0:
@@ -208,7 +209,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         for name, conf in configs.items():
             self.logger.info('valid subnet: {}'.format(conf))
             self.apply_subnet_config(conf)
-            self.recompute_bn_running_statistics(clear=False)
+            self.recompute_bn_running_statistics(num_batch=self.num_bn_batch, clear=self.clear_subnet_bn)
             val_top1 = self.validate_epoch(*args, **kwargs)
             results[name] = val_top1
         return results

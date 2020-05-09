@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from .modifier import modify_param, modify_buffer, modify_attr, restore_module_states
+from .modifier import modify_param, modify_buffer, modify_attr,\
+    restore_module_states, get_ori_buffer
 
 def conv2d_fan_out_trnsf(m, idx):
     modify_param(m, 'weight', m.weight[idx, :, :, :])
@@ -35,6 +36,13 @@ def batchnorm2d_fan_in_out_trnsf(m, idx):
     modify_buffer(m, 'running_var', m.running_var[idx])
 
 
+def batchnorm2d_fan_in_out_post_trnsf(m, idx):
+    if isinstance(idx, slice):
+        return
+    get_ori_buffer(m, 'running_mean')[idx] = m.running_mean
+    get_ori_buffer(m, 'running_var')[idx] = m.running_var
+
+
 _fan_out_transform = {
     nn.Conv2d: conv2d_fan_out_trnsf,
     nn.BatchNorm2d: batchnorm2d_fan_in_out_trnsf,
@@ -45,34 +53,74 @@ _fan_in_transform = {
     nn.BatchNorm2d: batchnorm2d_fan_in_out_trnsf,
 }
 
+_fan_out_post_transform = {
+    nn.BatchNorm2d: batchnorm2d_fan_in_out_post_trnsf,
+}
 
-def get_fan_out_transform(m):
-    return _fan_out_transform.get(type(m), None)
+_fan_in_post_transform = {
+    nn.BatchNorm2d: batchnorm2d_fan_in_out_post_trnsf,
+}
 
 
-def get_fan_in_transform(m):
-    return _fan_in_transform.get(type(m), None)
+def get_fan_out_transform(mtype):
+    return _fan_out_transform.get(mtype, None)
+
+
+def get_fan_in_transform(mtype):
+    return _fan_in_transform.get(mtype, None)
+
+
+def get_fan_out_post_transform(mtype):
+    return _fan_out_post_transform.get(mtype, None)
+
+
+def get_fan_in_post_transform(mtype):
+    return _fan_in_post_transform.get(mtype, None)
+
+
+def set_fan_out_transform(mtype, transf):
+    _fan_out_transform[mtype] = transf
+
+
+def set_fan_in_transform(mtype, transf):
+    _fan_in_transform[mtype] = transf
+
+
+def set_fan_out_post_transform(mtype, transf):
+    _fan_out_post_transform[mtype] = transf
+
+
+def set_fan_in_post_transform(mtype, transf):
+    _fan_in_post_transform[mtype] = transf
 
 
 def hook_module_in(module, inputs):
     # print('hin', module.__class__.__name__, inputs[0].shape)
     fan_in_idx, fan_out_idx = ElasticSpatial.get_spatial_idx(module)
-    trnsf = get_fan_in_transform(module)
+    mtype = type(module)
+    trnsf = get_fan_in_transform(mtype)
     if not trnsf is None and not fan_in_idx is None:
         trnsf(module, fan_in_idx)
-    trnsf = get_fan_out_transform(module)
+    trnsf = get_fan_out_transform(mtype)
     if not trnsf is None and not fan_out_idx is None:
         trnsf(module, fan_out_idx)
 
 
 def hook_module_out(module, inputs, outputs):
     # print('hout', module.__class__.__name__, outputs[0].shape)
+    fan_in_idx, fan_out_idx = ElasticSpatial.get_spatial_idx(module)
+    mtype = type(module)
+    trnsf = get_fan_in_post_transform(mtype)
+    if not trnsf is None and not fan_in_idx is None:
+        trnsf(module, fan_in_idx)
+    trnsf = get_fan_out_post_transform(mtype)
+    if not trnsf is None and not fan_out_idx is None:
+        trnsf(module, fan_out_idx)
     restore_module_states(module)
 
 
 class ElasticSpatial():
     _module_hooks = dict()
-    _spatial_idx = dict()
     _groups = list()
 
     @staticmethod
@@ -108,6 +156,7 @@ class ElasticSpatial():
             m_hooks = ElasticSpatial._module_hooks.pop(module)
             for h in m_hooks:
                 h.remove()
+            del module._spatial_idx
 
     @staticmethod
     def set_spatial_fan_in_idx(module, idx):
@@ -127,17 +176,17 @@ class ElasticSpatial():
 
     @staticmethod
     def reset_spatial_idx(module):
-        ElasticSpatial._spatial_idx[module] = [None, None]
+        module._spatial_idx = [None, None]
 
     @staticmethod
     def get_spatial_idx(module):
-        if not module in ElasticSpatial._spatial_idx:
-            ElasticSpatial._spatial_idx[module] = [None, None]
-        return ElasticSpatial._spatial_idx[module]
+        if not hasattr(module, '_spatial_idx'):
+            module._spatial_idx = [None, None]
+        return module._spatial_idx
 
     @staticmethod
     def set_spatial_idx(module, fan_in, fan_out):
-        ElasticSpatial._spatial_idx[module] = [fan_in, fan_out]
+        module._spatial_idx = [fan_in, fan_out]
 
 
 class ElasticSpatialGroup():
@@ -196,6 +245,8 @@ class ElasticSpatialGroup():
         if width is None:
             self.reset_spatial_idx()
             return
+        if self.cur_rank is None:
+            self.set_spatial_rank()
         rank = self.cur_rank
         if rank is None:
             idx = slice(0, width)
@@ -209,10 +260,6 @@ class ElasticSpatialGroup():
     def set_spatial_rank(self, rank=None):
         if rank is None and not self.rank_fn is None:
             rank = self.rank_fn()
-        if rank is None:
-            if self.max_width is None:
-                raise ValueError('max_width not specified')
-            rank = list(range(self.max_width))
         self.cur_rank = rank
 
     def set_spatial_idx(self, idx):

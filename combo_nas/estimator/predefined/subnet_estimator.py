@@ -5,7 +5,7 @@ from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
     def __init__(self, rebuild_subnet=False, reset_subnet_params=True,
-                 num_bn_batch=100, clear_subnet_bn=False, *args, **kwargs):
+                 num_bn_batch=100, clear_subnet_bn=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rebuild_subnet = rebuild_subnet
         self.reset_subnet_params = reset_subnet_params

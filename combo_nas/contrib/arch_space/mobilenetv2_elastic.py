@@ -1,12 +1,13 @@
 from functools import partial
 from combo_nas.arch_space.predefined.mobilenetv2 import MobileInvertedConv, MobileNetV2
 from combo_nas.arch_space import register_as
-from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup, conv2d_rank_weight_l1norm_fan_in
+from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
+    conv2d_rank_weight_l1norm_fan_in, conv2d_rank_weight_l1norm_fan_out, batchnorm2d_rank_weight_l1norm
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
 from combo_nas.core.param_space import ArchParamCategorical
 
 class MobileNetV2ElasticSpatialConverter():
-    def __init__(self, model, fix_first=True, expansion_range=[1, 3, 6], search=False):
+    def __init__(self, model, fix_first=True, expansion_range=[1, 3, 6], rank_fn='l1_fan_in', search=False):
         self.model = model
         self.fix_first = fix_first
         self.first = False
@@ -14,6 +15,17 @@ class MobileNetV2ElasticSpatialConverter():
         self.last_bn = None
         self.is_search = search
         self.expansion_range = expansion_range
+        if rank_fn is None or rank_fn == 'none':
+            rank_fn = None
+        elif rank_fn == 'l1_fan_in':
+            rank_fn = conv2d_rank_weight_l1norm_fan_in
+        elif rank_fn == 'l1_fan_out':
+            rank_fn = conv2d_rank_weight_l1norm_fan_out
+        elif rank_fn == 'bn_l1':
+            rank_fn = batchnorm2d_rank_weight_l1norm
+        else:
+            raise ValueError('unsupported rank function')
+        self.rank_fn = rank_fn
 
     def __call__(self, slot, *args, **kwargs):
         if not self.first:
@@ -43,9 +55,13 @@ class MobileNetV2ElasticSpatialConverter():
             dw_bn = ent[4]
             pw_conv = ent[6]
             pw_bn = ent[7]
+        if not self.rank_fn is None:
+            rank_fn = lambda m=pw_conv: self.rank_fn(m)
+        else:
+            rank_fn = None
         g = ElasticSpatialGroup([last_conv, last_bn, dw_conv, dw_bn], [pw_conv],
                                 max_width=slot.kwargs['C'],
-                                rank_fn=lambda m=pw_conv: conv2d_rank_weight_l1norm_fan_in(m))
+                                rank_fn=rank_fn)
         if self.is_search:
             def on_update_handler(chn_in, param):
                 g.set_width(chn_in * param.value())
@@ -59,7 +75,6 @@ class MobileNetV2ElasticSpatialConverter():
 class MobileNetV2ElasticSequentialConverter():
     def __init__(self, model, repeat_range=[1, 2, 3, 4], search=False):
         self.model = model
-        self.first = False
         self.is_search = search
         self.repeat_range = repeat_range
         self.make_sequential_groups()
@@ -77,10 +92,17 @@ class MobileNetV2ElasticSequentialConverter():
                 p = ArchParamCategorical(self.repeat_range, on_update=partial(on_update_handler, g))
 
     def __call__(self, slot, *args, **kwargs):
-        if not self.first:
-            self.first = True
         ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
         return ent
+
+
+class MobileNetV2ElasticConverter(MobileNetV2ElasticSpatialConverter, MobileNetV2ElasticSequentialConverter):
+    def __init__(self, model, search=False, spatial_kwargs=None, sequential_kwargs=None):
+        MobileNetV2ElasticSpatialConverter.__init__(self, model, search=search, **(spatial_kwargs or {}))
+        MobileNetV2ElasticSequentialConverter.__init__(self, model, search=search, **(sequential_kwargs or {}))
+
+    def __call__(self, slot, *args, **kwargs):
+        return MobileNetV2ElasticSpatialConverter.__call__(self, slot, *args, **kwargs)
 
 
 class MobileNetV2ElasticSpatial(MobileNetV2):
@@ -99,40 +121,12 @@ class MobileNetV2ElasticSequential(MobileNetV2):
         return MobileNetV2ElasticSequentialConverter(self, search=True, *args, **kwargs)
 
 
-@register_as('ImageNet-MobileNetV2-E-Spatial')
-def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
-    default_cfgs = [
-        # t, c, n, s,
-        [0, 32, 1, 2],
-        [1, 16, 1, 1],
-        [6, 24, 2, 2],
-        [6, 32, 3, 2],
-        [6, 64, 4, 2],
-        [6, 96, 3, 1],
-        [6, 160, 3, 2],
-        [6, 320, 1, 1]
-    ]
-    if cfgs is None:
-        cfgs = default_cfgs
-    return MobileNetV2ElasticSpatial(chn_in, n_classes, cfgs, **kwargs)
+class MobileNetV2Elastic(MobileNetV2):
+    def get_predefined_augment_converter(self, *args, **kwargs):
+        return MobileNetV2ElasticConverter(self, search=False, *args, **kwargs)
 
-
-@register_as('CIFAR-MobileNetV2-E-Spatial')
-def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
-    default_cfgs = [
-        # t, c, n, s,
-        [0, 32, 1, 1], # stride = 1
-        [1, 16, 1, 1],
-        [6, 24, 2, 2],
-        [6, 32, 3, 2],
-        [6, 64, 4, 2],
-        [6, 96, 3, 1],
-        [6, 160, 3, 1], # stride = 1
-        [6, 320, 1, 1]
-    ]
-    if cfgs is None:
-        cfgs = default_cfgs
-    return MobileNetV2ElasticSpatial(chn_in, n_classes, cfgs, **kwargs)
+    def get_predefined_search_converter(self, *args, **kwargs):
+        return MobileNetV2ElasticConverter(self, search=True, *args, **kwargs)
 
 
 @register_as('MobileNetV2-E-Spatial')
@@ -143,3 +137,8 @@ def mobilenetv2_spatial(chn_in, n_classes, cfgs, **kwargs):
 @register_as('MobileNetV2-E-Sequential')
 def mobilenetv2_sequential(chn_in, n_classes, cfgs, **kwargs):
     return MobileNetV2ElasticSequential(chn_in, n_classes, cfgs, **kwargs)
+
+
+@register_as('MobileNetV2-E')
+def mobilenetv2_elastic(chn_in, n_classes, cfgs, **kwargs):
+    return MobileNetV2Elastic(chn_in, n_classes, cfgs, **kwargs)

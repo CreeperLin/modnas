@@ -263,10 +263,15 @@ class EstimatorBase():
         is_training = model.training
         model.train()
         with torch.no_grad():
-            for i, (images, _) in enumerate(data_loader):
-                if not num_batch is None and i >= num_batch:
-                    break
-                model(images.to(device=model.device_ids[0]))
+            trn_iter = iter(data_loader)
+            for _ in range(num_batch):
+                try:
+                    trn_X, _ = next(trn_iter)
+                except StopIteration:
+                    trn_iter = iter(data_loader)
+                    trn_X, _ = next(trn_iter)
+                model(trn_X.to(device=model.device_ids[0]))
+                del trn_X
         if not is_training:
             model.eval()
 

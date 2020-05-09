@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from .modifier import modify_attr, restore_module_attrs
 
@@ -13,7 +12,6 @@ def hook_module_out(module, inputs, result):
 
 class ElasticSequential():
     _module_hooks = dict()
-    _sequential_state = dict()
     _groups = list()
 
     @staticmethod
@@ -49,20 +47,21 @@ class ElasticSequential():
             m_hooks = ElasticSequential._module_hooks.pop(module)
             for h in m_hooks:
                 h.remove()
+            del module._sequential_state
 
     @staticmethod
     def set_sequential_state(module, state):
-        ElasticSequential._sequential_state[module] = state
+        module._sequential_state = state
 
     @staticmethod
     def reset_sequential_state(module):
-        ElasticSequential._sequential_state[module] = None
+        module._sequential_state = None
 
     @staticmethod
     def get_sequential_state(module):
-        if not module in ElasticSequential._sequential_state:
-            ElasticSequential._sequential_state[module] = None
-        return ElasticSequential._sequential_state[module]
+        if not hasattr(module, '_sequential_state'):
+            module._sequential_state = None
+        return module._sequential_state
 
 
 class ElasticSequentialGroup():

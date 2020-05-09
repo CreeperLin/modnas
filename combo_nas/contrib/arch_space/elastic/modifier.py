@@ -1,4 +1,16 @@
 
+def get_ori_param(module, name):
+    return module._params_ori[name]
+
+
+def get_ori_buffer(module, name):
+    return module._buffers_ori[name]
+
+
+def get_ori_attr(module, name):
+    return module._attrs_ori[name]
+
+
 def backup_param(module, name):
     if not hasattr(module, '_params_ori'):
         module._params_ori = dict()
@@ -23,6 +35,30 @@ def backup_attr(module, name):
     if name in module._attrs_ori:
         return
     val = getattr(module, name)
+    module._attrs_ori[name] = val
+
+
+def update_param(module, name, val):
+    if not hasattr(module, '_params_ori'):
+        return
+    if not name in module._params_ori:
+        return
+    module._params_ori[name] = val
+
+
+def update_buffer(module, name, val):
+    if not hasattr(module, '_buffers_ori'):
+        return
+    if not name in module._buffers_ori:
+        return
+    module._buffers_ori[name] = val
+
+
+def update_attr(module, name, val):
+    if not hasattr(module, '_attrs_ori'):
+        return
+    if not name in module._attrs_ori:
+        return
     module._attrs_ori[name] = val
 
 
