@@ -1,4 +1,5 @@
 import itertools
+import traceback
 from ..base import EstimatorBase
 from ... import utils
 from ...core.param_space import ArchParamSpace
@@ -22,6 +23,7 @@ class SubNetEstimator(EstimatorBase):
         try:
             subnet = self.construct_subnet(genotype)
         except RuntimeError:
+            self.logger.info('subnet construct failed:\n{}'.format(traceback.format_exc()))
             ret = {'acc_top1': 0.}
             return ret
         tot_epochs = config.subnet_epochs

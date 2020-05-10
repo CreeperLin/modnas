@@ -97,7 +97,7 @@ class ElasticSequentialGroup():
         self.set_depth(depth)
 
     def set_depth(self, depth):
-        if depth > len(self.module_groups):
+        if depth > self.max_depth:
             raise ValueError('depth out of range')
         self.set_sequential_idx(list(range(depth)), reverse=True)
 

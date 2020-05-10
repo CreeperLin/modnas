@@ -35,7 +35,7 @@ class RASPStatsDelegateMetrics(MetricsBase):
 @register_as('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
     def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False,
-                device=None, mixed_only=False, keep_stats=True, traversal_type='tape_nodes'):
+                device='cuda', mixed_only=False, keep_stats=True, traversal_type='tape_nodes'):
         super().__init__(logger)
         if rasp is None: raise ValueError('package RASP is not found')
         self.metrics = build(metrics, logger, **args)
@@ -88,7 +88,7 @@ class RASPTraversalMetrics(MetricsBase):
     def compute(self, model):
         net = model.net
         root = F.get_stats_node(net)
-        if not self.keep_stats or root is None:
+        if root is None:
             root = F.reg_stats_node(net)
             if self.eval_compute:
                 F.hook_compute(net)
@@ -97,6 +97,8 @@ class RASPTraversalMetrics(MetricsBase):
             F.run(net, F.get_random_data(self.input_shape), self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
+        if not self.keep_stats:
+            F.unreg_stats_node(net)
         mt = 0
         for m in model.mixed_ops():
             mixop_node = F.get_stats_node(m)

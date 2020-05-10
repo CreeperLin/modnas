@@ -17,9 +17,15 @@ class ParamSpace():
     def register(self, param, name):
         param.pid = self.new_param_id()
         if name is None:
-            name = self.new_param_name(param)
-        param.name = name
-        self._params_map[name] = param
+            reg_name = self.new_param_name(param)
+        else:
+            reg_name = name
+            idx = 0
+            while reg_name in self._params_map:
+                idx += 1
+                reg_name = '{}_{}'.format(name, idx)
+        param.name = reg_name
+        self._params_map[reg_name] = param
         if isinstance(param, ParamCategorical):
             self._categorical_length = None
 
@@ -130,8 +136,18 @@ class ParamSpace():
 
 class Param():
     def __init__(self, space, name, on_update):
-        space.register(self, name)
+        self.name = None
         self.on_update_handler = on_update
+        space.register(self, name)
+
+    def __repr__(self):
+        return '{}(name={}, {})'.format(self.__class__.__name__, self.name, self.extra_repr())
+
+    def extra_repr(self):
+        return ''
+
+    def is_valid(self, value):
+        return True
 
     def on_update(self):
         handler = self.on_update_handler
@@ -170,7 +186,15 @@ class ParamNumeric(Param):
         self.sample = default_sampler if sampler is None else sampler
         self.val = None
 
+    def extra_repr(self):
+        return 'type={}, range={}'.format(self.ntype, self.bound)
+
+    def is_valid(self, value):
+        return self.bound[0] <= value <= self.bound[1]
+
     def set_value(self, value):
+        if not self.is_valid(value):
+            raise ValueError('invalid numeric parameter value')
         self.val = value
 
     def value(self):
@@ -192,6 +216,12 @@ class ParamCategorical(Param):
         self.choices = choices
         self._length = None
         self.val = None
+
+    def extra_repr(self):
+        return 'choices={}'.format(self.choices)
+
+    def is_valid(self, value):
+        return value in self.choices
 
     def get_value(self, index):
         return self.choices[index]
@@ -227,6 +257,12 @@ class ParamTensor(Param):
         self.shape = shape
         self.val = self.sample(self.shape)
         self._length = None
+
+    def extra_repr(self):
+        return 'shape={}'.format(self.shape)
+
+    def is_valid(self, value):
+        return isinstance(value, torch.Tensor)
 
     def value(self):
         if self.val is None:

@@ -15,16 +15,6 @@ class MobileNetV2ElasticSpatialConverter():
         self.last_bn = None
         self.is_search = search
         self.expansion_range = expansion_range
-        if rank_fn is None or rank_fn == 'none':
-            rank_fn = None
-        elif rank_fn == 'l1_fan_in':
-            rank_fn = conv2d_rank_weight_l1norm_fan_in
-        elif rank_fn == 'l1_fan_out':
-            rank_fn = conv2d_rank_weight_l1norm_fan_out
-        elif rank_fn == 'bn_l1':
-            rank_fn = batchnorm2d_rank_weight_l1norm
-        else:
-            raise ValueError('unsupported rank function')
         self.rank_fn = rank_fn
 
     def __call__(self, slot, *args, **kwargs):
@@ -55,10 +45,16 @@ class MobileNetV2ElasticSpatialConverter():
             dw_bn = ent[4]
             pw_conv = ent[6]
             pw_bn = ent[7]
-        if not self.rank_fn is None:
-            rank_fn = lambda m=pw_conv: self.rank_fn(m)
-        else:
+        if self.rank_fn is None or self.rank_fn == 'none':
             rank_fn = None
+        elif self.rank_fn == 'l1_fan_in':
+            rank_fn = lambda m=pw_conv: conv2d_rank_weight_l1norm_fan_in(m)
+        elif self.rank_fn == 'l1_fan_out':
+            rank_fn = lambda m=pw_conv: conv2d_rank_weight_l1norm_fan_out(m)
+        elif self.rank_fn == 'bn_l1':
+            rank_fn = lambda m=pw_bn: batchnorm2d_rank_weight_l1norm(m)
+        else:
+            raise ValueError('unsupported rank function')
         g = ElasticSpatialGroup([last_conv, last_bn, dw_conv, dw_bn], [pw_conv],
                                 max_width=slot.kwargs['C'],
                                 rank_fn=rank_fn)
@@ -66,7 +62,7 @@ class MobileNetV2ElasticSpatialConverter():
             def on_update_handler(chn_in, param):
                 g.set_width(chn_in * param.value())
             param_choice = [e for e in self.expansion_range]
-            p = ArchParamCategorical(param_choice, on_update=partial(on_update_handler, slot.chn_in))
+            p = ArchParamCategorical(param_choice, name='spa', on_update=partial(on_update_handler, slot.chn_in))
         self.last_conv = pw_conv
         self.last_bn = pw_bn
         return ent
@@ -89,7 +85,7 @@ class MobileNetV2ElasticSequentialConverter():
             if self.is_search:
                 def on_update_handler(group, param):
                     group.set_depth(param.value())
-                p = ArchParamCategorical(self.repeat_range, on_update=partial(on_update_handler, g))
+                p = ArchParamCategorical(self.repeat_range, name='seq', on_update=partial(on_update_handler, g))
 
     def __call__(self, slot, *args, **kwargs):
         ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)

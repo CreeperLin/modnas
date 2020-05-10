@@ -9,12 +9,12 @@ from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
 
 @register_as('ProgressiveShrinking')
 class ProgressiveShrinkingEstimator(EstimatorBase):
-    def __init__(self, *args, stages, subnet_batch_size=1, use_ratio=False,
+    def __init__(self, *args, stages, use_ratio=False, n_subnet_batch=1,
                  stage_rerank_spatial=True, num_bn_batch=100, clear_subnet_bn=True,
-                 save_stage=False, reset_stage_training=True, **kwargs):
+                 save_stage=False, reset_stage_training=True, subnet_valid_freq=25, **kwargs):
         super().__init__(*args, **kwargs)
         self.stages = stages
-        self.subnet_batch_size = subnet_batch_size
+        self.n_subnet_batch = n_subnet_batch
         self.use_ratio = use_ratio
         self.save_stage = save_stage
         self.reset_stage_training = reset_stage_training
@@ -25,13 +25,12 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         self.stage_rerank_spatial = stage_rerank_spatial
         self.num_bn_batch = num_bn_batch
         self.clear_subnet_bn = clear_subnet_bn
+        self.subnet_valid_freq = subnet_valid_freq
         self.print_model_info()
 
-    def set_candidates(self, candidates):
-        sp_cands = candidates.get('spatial', None)
-        sq_cands = candidates.get('sequential', None)
-        self.set_spatial_candidates(sp_cands)
-        self.set_sequential_candidates(sq_cands)
+    def set_stage(self, stage):
+        self.set_spatial_candidates(stage.get('spatial', None))
+        self.set_sequential_candidates(stage.get('sequential', None))
 
     def set_sequential_candidates(self, candidates):
         n_groups = ElasticSequential.num_groups()
@@ -59,19 +58,25 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
     def apply_subnet_config(self, config):
         self.logger.debug('set subnet: {}'.format(config))
         spatial_config = config.get('spatial', None)
-        if not spatial_config is None:
-            for width, sp_g in zip(spatial_config, ElasticSpatial.groups()):
-                if self.use_ratio:
-                    sp_g.set_width_ratio(width)
-                else:
-                    sp_g.set_width(width)
+        for i, sp_g in enumerate(ElasticSpatial.groups()):
+            if spatial_config is None or len(spatial_config) <= i:
+                width = None
+            else:
+                width = spatial_config[i]
+            if self.use_ratio:
+                sp_g.set_width_ratio(width)
+            else:
+                sp_g.set_width(width)
         sequential_config = config.get('sequential', None)
-        if not sequential_config is None:
-            for depth, sp_g in zip(sequential_config, ElasticSequential.groups()):
-                if self.use_ratio:
-                    sp_g.set_depth_ratio(depth)
-                else:
-                    sp_g.set_depth(depth)
+        for i, sp_g in enumerate(ElasticSequential.groups()):
+            if sequential_config is None or len(sequential_config) <= i:
+                depth = None
+            else:
+                depth = sequential_config[i]
+            if self.use_ratio:
+                sp_g.set_depth_ratio(depth)
+            else:
+                sp_g.set_depth(depth)
 
     def sample_spatial_config(self, seed=None):
         self.randomize(seed)
@@ -105,10 +110,9 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         model = self.model if model is None else model
         if mode == 'train':
             subnet_logits = []
-            num_subnets = self.subnet_batch_size
             visited = set()
             loss = None
-            for _ in range(num_subnets):
+            for _ in range(self.n_subnet_batch):
                 config = self.sample_config(seed=None)
                 key = str(config)
                 if key in visited:
@@ -120,7 +124,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                 loss = self.criterion(X, logits, y, mode=mode)
                 subnet_logits.append(logits)
                 visited.add(key)
-            if num_subnets > 1:
+            if len(visited) > 1:
                 logits = torch.mean(torch.stack(subnet_logits), dim=0)
         else:
             logits = model.logits(X)
@@ -137,10 +141,11 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             # train
             self.train_epoch(epoch, tot_epochs)
             # validate subnets
-            results = self.validate_subnet(epoch, tot_epochs)
-            for name, res in results.items():
-                self.logger.info('Subnet {}: {:.4%}'.format(name, res))
-            self.update_results(results)
+            if self.subnet_valid_freq != 0 and epoch % self.subnet_valid_freq == 0:
+                results = self.validate_subnet(epoch, tot_epochs)
+                for name, res in results.items():
+                    self.logger.info('Subnet {}: {:.4%}'.format(name, res))
+                self.update_results(results)
             # save
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
@@ -166,7 +171,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                 break
             self.logger.info('running stage {}'.format(self.cur_stage))
             stage = self.stages[self.cur_stage]
-            self.set_candidates(stage)
+            self.set_stage(stage)
             if self.stage_rerank_spatial:
                 self.rerank_spatial()
             self.train_stage()
