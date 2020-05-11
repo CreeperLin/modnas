@@ -81,8 +81,8 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
     def sample_spatial_config(self, seed=None):
         self.randomize(seed)
         spatial_config = []
-        for i in range(ElasticSpatial.num_groups()):
-            width = random.choice(self.spatial_candidates[i])
+        for sp_cand in self.spatial_candidates:
+            width = random.choice(sp_cand)
             spatial_config.append(width)
         return {
             'spatial': spatial_config,
@@ -91,8 +91,8 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
     def sample_sequential_config(self, seed=None):
         self.randomize(seed)
         sequential_config = []
-        for i in range(ElasticSequential.num_groups()):
-            depth = random.choice(self.sequential_candidates[i])
+        for sq_cand in self.sequential_candidates:
+            depth = random.choice(sq_cand)
             sequential_config.append(depth)
         return {
             'sequential': sequential_config,
@@ -141,7 +141,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             # train
             self.train_epoch(epoch, tot_epochs)
             # validate subnets
-            if self.subnet_valid_freq != 0 and epoch % self.subnet_valid_freq == 0:
+            if self.subnet_valid_freq != 0 and (epoch + 1) % self.subnet_valid_freq == 0:
                 results = self.validate_subnet(epoch, tot_epochs)
                 for name, res in results.items():
                     self.logger.info('Subnet {}: {:.4%}'.format(name, res))
@@ -212,7 +212,6 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                 configs[name] = conf
         results = dict()
         for name, conf in configs.items():
-            self.logger.info('valid subnet: {}'.format(conf))
             self.apply_subnet_config(conf)
             self.recompute_bn_running_statistics(num_batch=self.num_bn_batch, clear=self.clear_subnet_bn)
             val_top1 = self.validate_epoch(*args, **kwargs)

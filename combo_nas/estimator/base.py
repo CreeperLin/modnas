@@ -6,14 +6,14 @@ from ..metrics import build as build_metrics
 from ..utils.criterion import get_criterion
 from ..utils.optimizer import get_optimizer
 from ..utils.lr_scheduler import get_lr_scheduler
-from ..utils.profiling import tprof
+from ..utils.profiling import TimeProfiler
 from ..arch_space.ops import Identity, DropPath_
 from ..arch_space.constructor import Slot
 from ..arch_space import genotypes as gt
 
 class EstimatorBase():
     def __init__(self, config, expman, train_loader, valid_loader,
-                 model_builder, model, writer, logger, device):
+                 model_builder, model, writer, logger, device, profiling=False):
         self.config = config
         self.expman = expman
         self.train_loader = train_loader
@@ -71,6 +71,7 @@ class EstimatorBase():
         self.criterions_valid = criterions_valid
         self.results = []
         self.inputs = []
+        self.tprof = TimeProfiler(enabled=profiling)
 
     def criterion(self, X, y_pred, y_true, mode=None):
         loss = None
@@ -147,10 +148,12 @@ class EstimatorBase():
         n_trn_batch = len(train_loader)
         cur_step = epoch*n_trn_batch
         lr = lr_scheduler.get_lr()[0]
+        print_freq = config.print_freq
         writer.add_scalar('train/lr', lr, cur_step)
         model.train()
         eta_m = utils.ETAMeter(tot_epochs * n_trn_batch, cur_step)
         eta_m.start()
+        tprof = self.tprof
         tprof.timer_start('data')
         for step, (trn_X, trn_y) in enumerate(train_loader):
             trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
@@ -169,21 +172,21 @@ class EstimatorBase():
             losses.update(loss.item(), N)
             top1.update(prec1.item(), N)
             top5.update(prec5.item(), N)
-            if step !=0 and step % config.print_freq == 0 or step == n_trn_batch-1:
+            if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == n_trn_batch):
                 eta_m.set_step(cur_step)
                 logger.info(
-                    "Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f} "
+                    "Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.4f} Loss {losses.avg:.3f} "
                     "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%}) | ETA: {eta}".format(
-                        epoch+1, tot_epochs, step, n_trn_batch-1, lr, losses=losses,
+                        epoch+1, tot_epochs, step+1, n_trn_batch, lr, losses=losses,
                         top1=top1, top5=top5, eta=eta_m.eta_fmt()))
             writer.add_scalar('train/loss', loss.item(), cur_step)
             writer.add_scalar('train/top1', prec1.item(), cur_step)
             writer.add_scalar('train/top5', prec5.item(), cur_step)
             cur_step += 1
             if step < n_trn_batch-1: tprof.timer_start('data')
-        logger.info("Train: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
-        tprof.print_stat('data')
-        tprof.print_stat('train')
+        logger.info("Train: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
+        tprof.stat('data')
+        tprof.stat('train')
         # torch > 1.2.0
         lr_scheduler.step()
         return top1.avg
@@ -202,6 +205,8 @@ class EstimatorBase():
         top5 = utils.AverageMeter()
         losses = utils.AverageMeter()
         n_val_batch = len(valid_loader)
+        print_freq = config.print_freq
+        tprof = self.tprof
         model.eval()
         with torch.no_grad():
             for step, (val_X, val_y) in enumerate(valid_loader):
@@ -214,17 +219,17 @@ class EstimatorBase():
                 losses.update(loss.item(), N)
                 top1.update(prec1.item(), N)
                 top5.update(prec5.item(), N)
-                if step !=0 and step % config.print_freq == 0 or step == n_val_batch-1:
+                if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == n_val_batch):
                     logger.info(
                         "Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
                         "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(
-                            epoch+1, tot_epochs, step, n_val_batch-1, losses=losses,
+                            epoch+1, tot_epochs, step+1, n_val_batch, losses=losses,
                             top1=top1, top5=top5))
         writer.add_scalar('val/loss', losses.avg, cur_step)
         writer.add_scalar('val/top1', top1.avg, cur_step)
         writer.add_scalar('val/top5', top5.avg, cur_step)
-        logger.info("Valid: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
-        tprof.print_stat('validate')
+        logger.info("Valid: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
+        tprof.stat('validate')
         return top1.avg
 
     def update_drop_path_prob(self, epoch, tot_epochs, model=None):

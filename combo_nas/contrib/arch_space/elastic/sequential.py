@@ -93,10 +93,16 @@ class ElasticSequentialGroup():
             ElasticSequential.disable_sequential_transform(m)
 
     def set_depth_ratio(self, ratio):
+        if ratio is None:
+            self.reset_sequential_idx()
+            return
         depth = int(self.max_depth * ratio)
         self.set_depth(depth)
 
     def set_depth(self, depth):
+        if depth is None:
+            self.reset_sequential_idx()
+            return
         if depth > self.max_depth:
             raise ValueError('depth out of range')
         self.set_sequential_idx(list(range(depth)), reverse=True)

@@ -83,15 +83,17 @@ def profile_time(function):
 
 
 class TimeProfiler(object):
-    def __init__(self):
+    def __init__(self, enabled=True):
+        self.enabled = enabled
         self.table = {}
         self.acc_table = {}
-        self.offset = 0
-        self.timer_start('ofs')
-        self.timer_stop('ofs')
-        self.offset = self.table['ofs'][0]
+
+    def reset(self):
+        self.table.clear()
+        self.acc_table.clear()
 
     def timer_start(self, iid):
+        if not self.enabled: return
         tic = get_cputime()
         if not iid in self.table:
             self.table[iid] = np.array([-tic])
@@ -100,18 +102,24 @@ class TimeProfiler(object):
             self.table[iid] = np.append(arr, -tic)
 
     def timer_stop(self, iid):
+        if not self.enabled: return
         t1 = get_cputime()
-        self.table[iid][-1] += t1 - self.offset
+        self.table[iid][-1] += t1
 
-    def print_stat(self, iid):
+    def stat(self, iid, logger=None):
+        if not self.enabled: return
         if not iid in self.table: return
         arr = self.table[iid]
-        print('Time {}: {} / {:.3f} / {} ms'.format(
-            iid.center(10, ' '), len(arr), arr[-1], seqstat(arr)))
+        msg = 'Time {}: {} / {:.3f} / {} ms'.format(
+            iid.center(10, ' '), len(arr), arr[-1], seqstat(arr))
+        if logger is None:
+            print(msg)
+        else:
+            logger.info(msg)
 
-    def stat_all(self):
+    def stat_all(self, logger=None):
         for i in self.table:
-            self.print_stat(i)
+            self.stat(i, logger)
 
     def begin_acc_item(self, cid):
         if not cid in self.acc_table:
@@ -129,13 +137,15 @@ class TimeProfiler(object):
         arr = self.acc_table[cid]
         arr.clear()
 
-    def stat_acc(self, cid):
+    def stat_acc(self, cid, logger=None):
         if not cid in self.acc_table: return
         arr = self.acc_table[cid]
-        print('AccTime {}: {} / {:.3f} / {} ms'.format(
-            cid.center(10,' '), len(arr), arr[-1], seqstat(arr)))
+        msg = 'AccTime {}: {} / {:.3f} / {} ms'.format(
+            cid.center(10,' '), len(arr), arr[-1], seqstat(arr))
+        if logger is None:
+            print(msg)
+        else:
+            logger.info(msg)
 
     def avg(self, iid):
         return 0 if not id in self.table else np.mean(self.table[iid])
-
-tprof = TimeProfiler()

@@ -14,10 +14,10 @@ class NASController(nn.Module):
         if device_ids is None:
             device_ids = list(range(torch.cuda.device_count()))
         self.device_ids = device_ids
+        if len(device_ids) > 0:
+            net = net.to(device=device_ids[0])
         if len(device_ids) > 1:
             net = nn.parallel.DataParallel(net, device_ids=device_ids)
-        elif len(device_ids) > 0:
-            net = net.to(device=device_ids[0])
         self._net = net
         self.to_genotype_args = {}
 

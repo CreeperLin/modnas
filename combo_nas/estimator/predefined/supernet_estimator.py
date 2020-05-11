@@ -2,7 +2,6 @@ import torch.nn as nn
 import itertools
 from ..base import EstimatorBase
 from ... import utils
-from ...utils.profiling import tprof
 
 class SuperNetEstimator(EstimatorBase):
     def __init__(self, *args, **kwargs):
@@ -58,14 +57,14 @@ class SuperNetEstimator(EstimatorBase):
         return self.lr_scheduler.get_lr()[0]
 
     def get_next_trn_batch(self):
-        tprof.timer_start('data')
+        self.tprof.timer_start('data')
         try:
             trn_X, trn_y = next(self.trn_iter)
         except StopIteration:
             self.trn_iter = iter(self.train_loader)
             trn_X, trn_y = next(self.trn_iter)
         trn_X, trn_y = trn_X.to(self.device, non_blocking=True), trn_y.to(self.device, non_blocking=True)
-        tprof.timer_stop('data')
+        self.tprof.timer_stop('data')
         self.cur_trn_batch = trn_X, trn_y
         return trn_X, trn_y
 
@@ -78,14 +77,14 @@ class SuperNetEstimator(EstimatorBase):
                 self.logger.warning('no valid loader, returning training batch instead')
                 self.no_valid_warn = False
             return self.get_next_trn_batch()
-        tprof.timer_start('data')
+        self.tprof.timer_start('data')
         try:
             val_X, val_y = next(self.val_iter)
         except StopIteration:
             self.val_iter = iter(self.valid_loader)
             val_X, val_y = next(self.val_iter)
         val_X, val_y = val_X.to(self.device, non_blocking=True), val_y.to(self.device, non_blocking=True)
-        tprof.timer_stop('data')
+        self.tprof.timer_stop('data')
         self.cur_val_batch = val_X, val_y
         return val_X, val_y
 
@@ -127,6 +126,7 @@ class SuperNetEstimator(EstimatorBase):
                 arch_update_intv = n_trn_batch
             arch_update_batch = config.arch_update_batch
 
+        tprof = self.tprof
         model.train()
         eta_m = utils.ETAMeter(tot_epochs * n_trn_batch, cur_step)
         eta_m.start()
@@ -170,9 +170,9 @@ class SuperNetEstimator(EstimatorBase):
             cur_step += 1
             eta_m.step()
         logger.info("Train: [{:3d}/{}] Final Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
-        tprof.print_stat('data')
-        tprof.print_stat('train')
-        tprof.print_stat('arch')
+        tprof.stat('data')
+        tprof.stat('train')
+        tprof.stat('arch')
         # torch > 1.2.0
         self.lr_scheduler.step()
         return top1.avg
