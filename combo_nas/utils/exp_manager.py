@@ -10,34 +10,34 @@ class ExpManager():
         self.root_dir = os.path.realpath(root_dir)
         os.makedirs(self.root_dir, exist_ok=True)
 
-    def exp_subdir(self, name):
-        subdir = os.path.join(self.root_dir, name)
+    def subdir(self, *args):
+        subdir = os.path.join(self.root_dir, *args)
         os.makedirs(subdir, exist_ok=True)
         return subdir
 
-    def join(self, subdir, filename):
-        return os.path.join(self.exp_subdir(subdir), filename)
+    def join(self, *args):
+        return os.path.join(self.subdir(*args[:-1]), args[-1])
 
     @property
     def logs_path(self):
-        return self.exp_subdir('logs')
+        return self.subdir('logs')
 
     @property
     def writer_path(self):
-        return self.exp_subdir('writer')
+        return self.subdir('writer')
 
     @property
     def save_path(self):
-        return self.exp_subdir('chkpt')
+        return self.subdir('chkpt')
 
     @property
     def output_path(self):
-        return self.exp_subdir('output')
+        return self.subdir('output')
 
     @property
     def plot_path(self):
-        return self.exp_subdir('plot')
+        return self.subdir('plot')
 
     @property
     def config_path(self):
-        return self.join('', 'config.yaml')
+        return self.join('config.yaml')

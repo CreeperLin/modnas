@@ -16,6 +16,10 @@ def load_config(filename):
 
 
 def parse_data_str(dstr):
+    if dstr == 'True':
+        return True
+    if dstr == 'False':
+        return False
     if dstr.isnumeric():
         return int(dstr)
     else:
@@ -73,9 +77,10 @@ class Config(dict):
             return
         val = config.get(keywords[0], None)
         if val is None:
-            raise ValueError('invalid key: {}'.format(keywords[0]))
-        else:
-            Config.set_value(val, '.'.join(keywords[1:]), value)
+            # raise ValueError('invalid key: {}'.format(keywords[0]))
+            val = Config()
+            config[keywords[0]] = val
+        Config.set_value(val, '.'.join(keywords[1:]), value)
 
     @staticmethod
     def apply(config, dct):

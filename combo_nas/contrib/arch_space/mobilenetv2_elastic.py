@@ -16,6 +16,7 @@ class MobileNetV2ElasticSpatialConverter():
         self.is_search = search
         self.expansion_range = expansion_range
         self.rank_fn = rank_fn
+        self.spa_group_cnt = 0
 
     def __call__(self, slot, *args, **kwargs):
         if not self.first:
@@ -29,6 +30,16 @@ class MobileNetV2ElasticSpatialConverter():
                 self.last_conv = self.model.conv_first[0]
                 self.last_bn = self.model.conv_first[1]
         ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+        expansion_range = self.expansion_range
+        if isinstance(expansion_range[0], list):
+            expansion_range = expansion_range[self.spa_group_cnt]
+        self.add_spa_group(slot, ent, expansion_range)
+        return ent
+
+    def add_spa_group(self, slot, ent, expansion_range):
+        max_width = slot.kwargs['C']
+        if any([e * slot.chn_in > max_width for e in expansion_range]):
+            raise ValueError('invalid expansion_range: {} max: {}'.format(expansion_range, max_width))
         num_blocks = len(ent)
         if num_blocks != 8:
             # not tested
@@ -56,16 +67,16 @@ class MobileNetV2ElasticSpatialConverter():
         else:
             raise ValueError('unsupported rank function')
         g = ElasticSpatialGroup([last_conv, last_bn, dw_conv, dw_bn], [pw_conv],
-                                max_width=slot.kwargs['C'],
+                                max_width=max_width,
                                 rank_fn=rank_fn)
         if self.is_search:
             def on_update_handler(chn_in, param):
                 g.set_width(chn_in * param.value())
-            param_choice = [e for e in self.expansion_range]
+            param_choice = [e for e in expansion_range]
             p = ArchParamCategorical(param_choice, name='spa', on_update=partial(on_update_handler, slot.chn_in))
         self.last_conv = pw_conv
         self.last_bn = pw_bn
-        return ent
+        self.spa_group_cnt += 1
 
 
 class MobileNetV2ElasticSequentialConverter():
@@ -77,15 +88,24 @@ class MobileNetV2ElasticSequentialConverter():
 
     def make_sequential_groups(self):
         bottlenecks = self.model.bottlenecks
-        for btn in bottlenecks:
-            blocks = list(btn)
-            if len(blocks) <= 1:
+        for i, btn in enumerate(bottlenecks):
+            if len(list(btn)) <= 1:
                 continue
-            g = ElasticSequentialGroup(*blocks)
-            if self.is_search:
-                def on_update_handler(group, param):
-                    group.set_depth(param.value())
-                p = ArchParamCategorical(self.repeat_range, name='seq', on_update=partial(on_update_handler, g))
+            repeat_range = self.repeat_range
+            if isinstance(repeat_range[0], list):
+                repeat_range = repeat_range[i]
+            self.add_seq_group(btn, repeat_range)
+
+    def add_seq_group(self, bottleneck, repeat_range):
+        blocks = list(bottleneck)
+        max_depth = len(blocks)
+        g = ElasticSequentialGroup(*blocks)
+        if any([r > max_depth for r in repeat_range]):
+            raise ValueError('invalid repeat_range: {} max: {}'.format(repeat_range, max_depth))
+        if self.is_search:
+            def on_update_handler(group, param):
+                group.set_depth(param.value())
+            p = ArchParamCategorical(repeat_range, name='seq', on_update=partial(on_update_handler, g))
 
     def __call__(self, slot, *args, **kwargs):
         ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)

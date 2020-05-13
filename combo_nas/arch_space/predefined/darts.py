@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+from functools import partial
 import torch.nn as nn
 from ..layers import build as build_layer
 from ..ops import FactorizedReduce, StdConv
 from ..constructor import Slot, default_mixed_op_converter
+from .. import register
 
 class PreprocLayer(StdConv):
     def __init__(self, C_in, C_out):
@@ -50,16 +52,12 @@ class DARTSLikeNet(nn.Module):
         self.shared_a = shared_a
 
         chn_cur = self.chn * channel_multiplier
-        self.conv_first = nn.Sequential(
-            nn.Conv2d(self.chn_in, chn_cur, 3, 1, 1, bias=False),
-            nn.BatchNorm2d(chn_cur),
-        )
+        self.stem0, self.stem1, reduction_p = self.get_stem(chn_in, chn_cur)
 
         chn_pp, chn_p, chn_cur = chn_cur, chn_cur, self.chn
 
         self.cells = nn.ModuleList()
         self.cell_group = [[],[] if shared_a else []]
-        reduction_p = False
         for i in range(layers):
             stride = 1
             cell_kwargs['preproc'] = (PreprocLayer, PreprocLayer)
@@ -90,8 +88,16 @@ class DARTSLikeNet(nn.Module):
         )
         self.fc = nn.Linear(chn_p, n_classes)
 
+    def get_stem(self, chn_in, chn_cur):
+        stem = nn.Sequential(
+            nn.Conv2d(chn_in, chn_cur, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(chn_cur),
+        )
+        return stem, lambda x: x, False
+
     def forward(self, x):
-        s0 = s1 = self.conv_first(x)
+        s0 = self.stem0(x)
+        s1 = self.stem1(s0)
         for i, cell in enumerate(self.cells):
             s0, s1 = s1, cell([s0, s1])
             if i == self.aux_pos:
@@ -140,9 +146,26 @@ class DARTSLikeNet(nn.Module):
     def get_predefined_augment_converter(self):
         return lambda slot: nn.Sequential(
             nn.ReLU(inplace=False),
-            nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1, bias=False),
+            nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1, bias=False, groups=slot.chn_in),
             nn.BatchNorm2d(slot.chn_out),
         )
+
+
+class ImageNetDARTSLikeNet(DARTSLikeNet):
+    def get_stem(self, chn_in, chn_cur):
+        stem0 = nn.Sequential(
+            nn.Conv2d(chn_in, chn_cur // 2, 3, 2, 1, bias=False),
+            nn.BatchNorm2d(chn_cur // 2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(chn_cur // 2, chn_cur, 3, 2, 1, bias=False),
+            nn.BatchNorm2d(chn_cur),
+        )
+        stem1 = nn.Sequential(
+            nn.ReLU(inplace=True),
+            nn.Conv2d(chn_cur, chn_cur, 3, 2, 1, bias=False),
+            nn.BatchNorm2d(chn_cur),
+        )
+        return stem0, stem1, True
 
 
 def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
@@ -174,3 +197,7 @@ def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
     }
     darts_kwargs.update(kwargs)
     return darts_cls(**darts_kwargs)
+
+
+register(build_from_config, 'DARTS')
+register(partial(build_from_config, ImageNetDARTSLikeNet), 'ImageNet-DARTS')

@@ -11,8 +11,6 @@ def main():
                         help="yaml config file")
     parser.add_argument('-e', '--exp', type=str, default='exp',
                         help="experiment root dir")
-    parser.add_argument('-p', '--chkpt', type=str, default=None,
-                        help="path of checkpoint pt file")
     parser.add_argument('-d', '--device', type=str, default="all",
                         help="override device ids")
     parser.add_argument('-o', '--config_override', action='append', type=str, default=None,

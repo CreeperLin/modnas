@@ -83,9 +83,9 @@ class SubNetEstimator(EstimatorBase):
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
         arch_batch_size = config.arch_update_batch
-        eta_m = utils.ETAMeter(tot_epochs, self.init_epoch)
+        eta_m = utils.ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
-        for epoch in itertools.count(self.init_epoch+1):
+        for epoch in itertools.count(self.cur_epoch+1):
             if epoch >= tot_epochs: break
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:

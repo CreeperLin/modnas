@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import math
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import importlib
 from ..arch_space import build as build_arch_space
 from ..arch_space.constructor import Slot, convert_from_predefined_net
 from .registration import get_registry_utils
@@ -18,6 +18,13 @@ def get_criterion(config, device_ids=None):
     if n_parallel > 1 and isinstance(criterion, torch.nn.Module):
         criterion = torch.nn.DataParallel(criterion, device_ids=device_ids).module
     return criterion
+
+
+def torch_criterion_wrapper(cls):
+    def call_fn(self, loss, estim, X, y_pred, y_true):
+        return cls.__call__(self, y_pred, y_true)
+    new_cls = type('Wrapped{}'.format(cls.__name__), (cls, ), {'__call__': call_fn})
+    return new_cls
 
 
 def label_smoothing(y_pred, y_true, eta):
@@ -35,7 +42,6 @@ def cross_entropy_soft_target(y_pred, target):
     return torch.mean(torch.sum(-target * F.log_softmax(y_pred, dim=-1), 1))
 
 
-@register_as('LabelSmoothing')
 class CrossEntropyLabelSmoothing(nn.Module):
     def __init__(self, eta=0.1):
         super().__init__()
@@ -44,6 +50,30 @@ class CrossEntropyLabelSmoothing(nn.Module):
     def forward(self, y_pred, y_true):
         soft_y_true = label_smoothing(y_pred, y_true, self.eta)
         return cross_entropy_soft_target(y_pred, soft_y_true)
+
+
+@register_as('MixUp')
+class MixUp():
+    def __init__(self, crit_type, alpha=0.3, use_flip=True, crit_args=None):
+        self.alpha = alpha
+        self.use_flip = use_flip
+        self.criterion = build(crit_type, **(crit_args or {}))
+
+    def __call__(self, loss, estim, X, y_pred, y_true):
+        alpha = self.alpha
+        lam = random.betavariate(alpha, alpha) if alpha > 0 else 1
+        if self.use_flip:
+            alt_X = torch.flip(X, dims=[0])
+            alt_y_true = torch.flip(y_true, dims=[0])
+        else:
+            index = list(range(X.size(0)))
+            random.shuffle(index)
+            alt_X = X[index, :]
+            alt_y_true = y_true[index, :]
+        mixed_x = lam * X + (1 - lam) * alt_X
+        mixed_y_true = lam * y_true + (1 - lam) * alt_y_true
+        mixed_y_pred = estim.model.logits(mixed_x)
+        return self.criterion(loss, estim, X, mixed_y_pred, mixed_y_true)
 
 
 @register_as('Auxiliary')
@@ -83,6 +113,8 @@ class KnowledgeDistill():
             raise ValueError('unsupported loss_type: {}'.format(loss_type))
 
     def load_model(self, model_path, model_type, model_args):
+        if model_type is None:
+            return torch.load(model_path)
         model = build_arch_space(model_type, **model_args)
         convert_fn = model.get_predefined_augment_converter()
         model = convert_from_predefined_net(model, convert_fn, gen=Slot.gen_slots_model(model))
@@ -144,4 +176,5 @@ class MultLogMetrics():
         return self.alpha * loss * (torch.log(mt) / math.log(self.target_val)) ** self.beta
 
 
-register(nn.CrossEntropyLoss, 'CE')
+register(torch_criterion_wrapper(nn.CrossEntropyLoss), 'CE')
+register(torch_criterion_wrapper(CrossEntropyLabelSmoothing), 'LabelSmoothing')

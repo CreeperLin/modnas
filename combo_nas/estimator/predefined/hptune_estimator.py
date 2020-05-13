@@ -1,4 +1,3 @@
-import os
 import copy
 import itertools
 import traceback
@@ -19,7 +18,7 @@ class HPTuneEstimator(EstimatorBase):
         Config.apply(trial_config, hp)
         measure_args = copy.deepcopy(config.trial_args)
         measure_args.name = '{}_{}'.format(measure_args.get('name', 'trial'), self.trial_index)
-        measure_args.exp = os.path.join(self.expman.root_dir, measure_args.get('exp', ''))
+        measure_args.exp = self.expman.subdir(measure_args.get('exp', ''))
         measure_args.config = trial_config
         self.trial_index += 1
         try:
@@ -60,7 +59,7 @@ class HPTuneEstimator(EstimatorBase):
         best_iter = 0
         error_ct = 0
         logger.info('hptune: start: epochs={} early_stopping={}'.format(tot_epochs, early_stopping))
-        for epoch in itertools.count(self.init_epoch+1):
+        for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             if not optim.has_next():
                 logger.info('hptune: optim stop iter: {}'.format(epoch))

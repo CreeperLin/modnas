@@ -251,7 +251,7 @@ class REINFORCEOptim(GradientBasedOptim):
 
 class GumbelAnnealingOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, init_temp=1e4, exp_anneal_rate=0.0015,
-                 restart_period=None, logger=None):
+                 anneal_interval=1, restart_period=None, logger=None):
         super().__init__(space, a_optim, logger)
         self.init_temp = init_temp
         self.exp_anneal_rate = exp_anneal_rate
@@ -259,6 +259,7 @@ class GumbelAnnealingOptim(GradientBasedOptim):
         if restart_period is None:
             restart_period = 0
         self.restart_period = int(restart_period)
+        self.anneal_interval = anneal_interval
         self.cur_step = 0
 
     def step(self, estim):
@@ -272,7 +273,9 @@ class GumbelAnnealingOptim(GradientBasedOptim):
         self.cur_step += 1
         if self.restart_period > 0 and self.cur_step >= self.restart_period:
             self.cur_step = 0
-        self.temp = self.init_temp * math.exp(-self.exp_anneal_rate * self.cur_step)
+        intv = self.anneal_interval
+        if self.cur_step % intv == 0:
+            self.temp = self.init_temp * math.exp(-self.exp_anneal_rate * self.cur_step / intv)
 
     def apply_temp(self, model):
         for m in model.mixed_ops():

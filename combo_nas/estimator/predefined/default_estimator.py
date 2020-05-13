@@ -2,7 +2,7 @@ import itertools
 from ..base import EstimatorBase
 
 class DefaultEstimator(EstimatorBase):
-    def __init__(self, *args, save_best=False, **kwargs):
+    def __init__(self, *args, save_best=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.reset_training_states()
         self.save_best = save_best
@@ -22,7 +22,7 @@ class DefaultEstimator(EstimatorBase):
         config = self.config
         tot_epochs = config.epochs
         self.apply_drop_path()
-        for epoch in itertools.count(self.init_epoch+1):
+        for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             # droppath
             self.update_drop_path_prob(epoch, tot_epochs)

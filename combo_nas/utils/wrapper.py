@@ -108,14 +108,17 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
             # init
             model.init_model(**config.get('init',{}))
             return model
-        model = default_model_builder()
         model_builder = default_model_builder
+        model = model_builder()
+        if chkpt:
+            model.load(chkpt)
     # optim
-    optim_kwargs = config.optim.get('args', {})
-    optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
+    optim = None
+    if 'optim' in config:
+        optim_kwargs = config.optim.get('args', {})
+        optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
     return {
         'config': config.estimator,
-        'chkpt_path': chkpt,
         'optim': optim,
         'estim_kwargs': {
             'expman': expman,
@@ -184,9 +187,10 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
         model.init_model(**config.get('init',{}))
         return model
     model = model_builder()
+    if chkpt:
+        model.load(chkpt)
     return {
         'config': config.estimator,
-        'chkpt_path': chkpt,
         'estim_kwargs': {
             'expman': expman,
             'train_loader': trn_loader,
@@ -200,7 +204,7 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     }
 
 
-def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_fn=None, config_override=None):
+def init_all_hptune(config, name, exp='exp', device='all', measure_fn=None, config_override=None):
     HParamSpace.reset()
     config = load_config(config)
     Config.apply(config, config_override or {})
@@ -228,7 +232,6 @@ def init_all_hptune(config, name, exp='exp', chkpt=None, device='all', measure_f
         measure_fn = default_measure_fn
     return {
         'config': config.estimator,
-        'chkpt_path': chkpt,
         'optim': optim,
         'estim_kwargs': {
             'expman': expman,

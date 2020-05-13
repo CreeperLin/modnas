@@ -136,7 +136,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         tot_epochs = config.epochs
         if self.reset_stage_training:
             self.reset_training_states()
-        for epoch in itertools.count(self.init_epoch+1):
+        for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             # train
             self.train_epoch(epoch, tot_epochs)
@@ -178,7 +178,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             if self.save_stage:
                 self.save_checkpoint(-1, 'stage_{}'.format(self.cur_stage))
         results = {
-            'best_top1': max([acc for acc in self.subnet_results.values()]),
+            'best_top1': None if not self.subnet_results else max([acc for acc in self.subnet_results.values()]),
             'subnet_best_top1': self.subnet_results,
         }
         return results

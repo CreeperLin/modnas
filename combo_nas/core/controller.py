@@ -1,4 +1,4 @@
-import math
+import traceback
 import logging
 import torch
 import torch.nn as nn
@@ -7,6 +7,7 @@ from ..arch_space import genotypes as gt
 from ..arch_space.mixed_ops import MixedOp
 from ..arch_space.constructor import Slot
 from .param_space import ArchParamSpace
+from ..utils.init import DefaultModelInitializer
 
 class NASController(nn.Module):
     def __init__(self, net, device_ids=None):
@@ -105,42 +106,20 @@ class NASController(nn.Module):
             if isinstance(m, MixedOp):
                 yield m
 
-    def init_model(self, conv_init_type=None, conv_div_groups=True,
-                   bn_momentum=None, bn_eps=1e-3,
-                   neg_slope=math.sqrt(5), nonlinear='leaky_relu'):
-        if conv_init_type is None: return
-        gain = nn.init.calculate_gain(nonlinear, neg_slope)
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                fan_in, fan_out = nn.init._calculate_fan_in_and_fan_out(m.weight)
-                if conv_div_groups:
-                    fan_in /= m.groups
-                    fan_out /= m.groups
-                if conv_init_type == 'he_normal_fout':
-                    stdv = gain / math.sqrt(fan_out)
-                    nn.init.normal_(m.weight, 0, stdv)
-                elif conv_init_type == 'he_normal_fin':
-                    stdv = gain / math.sqrt(fan_in)
-                    nn.init.normal_(m.weight, 0, stdv)
-                elif conv_init_type == 'he_uniform_fout':
-                    b = math.sqrt(3.) * gain / math.sqrt(fan_out)
-                    nn.init.uniform_(m.weight, -b, b)
-                elif conv_init_type == 'he_uniform_fin':
-                    b = math.sqrt(3.) * gain / math.sqrt(fan_in)
-                    nn.init.uniform_(m.weight, -b, b)
-                else:
-                    raise NotImplementedError
-                if m.bias is not None:
-                    b = 1 / math.sqrt(fan_in)
-                    nn.init.uniform_(m.bias, -b, b)
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
-                if not m.weight is None: nn.init.ones_(m.weight)
-                if not m.bias is None: nn.init.zeros_(m.bias)
-                if not bn_momentum is None: m.momentum = bn_momentum
-                if not bn_eps is None: m.eps = bn_eps
-                m.reset_running_stats()
-            elif isinstance(m, nn.Linear):
-                stdv = 1. / math.sqrt(m.weight.size(1))
-                nn.init.uniform_(m.weight, -stdv, stdv)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
+    def save(self, path):
+        try:
+            torch.save(self.net.state_dict(), path)
+            logging.info('Saved model checkpoint to: {}'.format(path))
+        except:
+            logging.error('Failed saving model: {}'.format(traceback.format_exc()))
+
+    def load(self, path):
+        sd = torch.load(path)
+        self.net.load_state_dict(sd)
+        logging.info('Loaded model from: {}'.format(path))
+
+    def init_model(self, *args, net_init_fn=None, net_init_kwargs=None, **kwargs):
+        init = DefaultModelInitializer(*args, **kwargs)
+        init(self.net)
+        if net_init_fn and hasattr(self.net, net_init_fn):
+            self.net.init_model(**(net_init_kwargs or {}))

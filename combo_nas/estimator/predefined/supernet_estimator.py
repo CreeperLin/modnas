@@ -29,7 +29,7 @@ class SuperNetEstimator(EstimatorBase):
         model = self.model
         config = self.config
         tot_epochs = config.epochs
-        for epoch in itertools.count(self.init_epoch+1):
+        for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             # train
             self.model.print_arch_params(self.logger)

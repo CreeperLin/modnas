@@ -1,4 +1,4 @@
-# import logging
+import traceback
 import torch
 import torch.nn as nn
 from .. import utils
@@ -13,7 +13,8 @@ from ..arch_space import genotypes as gt
 
 class EstimatorBase():
     def __init__(self, config, expman, train_loader, valid_loader,
-                 model_builder, model, writer, logger, device, profiling=False):
+                 model_builder, model, writer, logger, device, name=None, profiling=False):
+        self.name = '' if name is None else name
         self.config = config
         self.expman = expman
         self.train_loader = train_loader
@@ -23,12 +24,12 @@ class EstimatorBase():
         if self.model is None and not model_builder is None:
             try:
                 self.model = model_builder()
-            except Exception as e:
+            except RuntimeError as e:
                 logger.info('Model build failed: {}'.format(e))
         self.writer = writer
         self.logger = logger
         self.device = device
-        self.init_epoch = -1
+        self.cur_epoch = -1
         self.w_optim = None
         self.lr_scheduler = None
         metrics = {}
@@ -74,21 +75,20 @@ class EstimatorBase():
         self.tprof = TimeProfiler(enabled=profiling)
 
     def criterion(self, X, y_pred, y_true, mode=None):
-        loss = None
-        crits = []
-        if not mode is None:
-            if mode == 'train':
-                crits = self.criterions_train
-            elif mode == 'eval':
-                crits = self.criterions_eval
-            elif mode == 'valid':
-                crits = self.criterions_valid
+        if mode is None:
+            crits = []
+        elif mode == 'train':
+            crits = self.criterions_train
+        elif mode == 'eval':
+            crits = self.criterions_eval
+        elif mode == 'valid':
+            crits = self.criterions_valid
+        else:
+            raise ValueError('invalid criterion mode: {}'.format(mode))
         crits = self.criterions_all + crits
-        for i, crit in enumerate(crits):
-            if i == 0:
-                loss = crit(y_pred, y_true) # basic criterion
-            else:
-                loss = crit(loss, self, X, y_pred, y_true)
+        loss = None
+        for crit in crits:
+            loss = crit(loss, self, X, y_pred, y_true)
         return loss
 
     def loss(self, X, y, model=None, mode=None):
@@ -280,13 +280,13 @@ class EstimatorBase():
         if not is_training:
             model.eval()
 
-    def reset_training_states(self, tot_epochs=None, config=None, model=None):
+    def reset_training_states(self, tot_epochs=None, config=None, model=None, scale_lr=True):
         model = self.model if model is None else model
         config = self.config if config is None else config
         tot_epochs = config.epochs if tot_epochs is None else tot_epochs
-        self.w_optim = get_optimizer(model.weights(), config.w_optim, model.device_ids)
+        self.w_optim = get_optimizer(model.weights(), config.w_optim, model.device_ids, scale_lr)
         self.lr_scheduler = get_lr_scheduler(self.w_optim, config.lr_scheduler, tot_epochs)
-        self.init_epoch = -1
+        self.cur_epoch = -1
 
     def load_state_dict(self, state_dict):
         pass
@@ -294,62 +294,62 @@ class EstimatorBase():
     def state_dict(self):
         return {}
 
-    def save(self, epoch):
-        self.save_genotype(epoch)
-        self.save_checkpoint(epoch)
-
-    def save_checkpoint(self, epoch, save_name=None):
+    def save_model(self, save_name=None):
         expman = self.expman
-        model = self.model
+        save_name = 'model_{}_{}.pt'.format(self.name, save_name)
+        chkpt_path = expman.join('chkpt', save_name)
+        self.model.save(chkpt_path)
+
+    def save(self, epoch=None, save_name=None):
+        expman = self.expman
         w_optim = self.w_optim
         lr_scheduler = self.lr_scheduler
         logger = self.logger
-        if save_name is None:
-            save_name = 'chkpt_{:03d}.pt'.format(epoch+1)
-        else:
-            save_name = 'chkpt_{}.pt'.format(save_name)
-        save_path = expman.join('chkpt', save_name)
+        save_name = 'estim_{}_{}.pt'.format(self.name, save_name)
+        chkpt_path = expman.join('chkpt', save_name)
+        epoch = epoch or self.cur_epoch
         try:
             torch.save({
-                'model': model.net.state_dict(),
                 'w_optim': w_optim.state_dict(),
                 'lr_scheduler': lr_scheduler.state_dict(),
                 'epoch': epoch,
-                'estim': self.state_dict(),
-            }, save_path)
-            logger.info("Saved checkpoint to: %s" % save_path)
-        except Exception as exc:
-            logger.error("Save checkpoint failed: "+str(exc))
+                'states': self.state_dict(),
+            }, chkpt_path)
+        except:
+            logger.error("Failed saving estimator: {}".format(traceback.format_exc()))
+
+    def save_checkpoint(self, epoch=None, save_name=None):
+        epoch = epoch or self.cur_epoch
+        save_name = save_name or 'ep{:03d}'.format(epoch+1)
+        self.save_model(save_name)
+        self.save(epoch, save_name)
 
     def save_genotype(self, epoch=None, genotype=None, save_name=None):
         expman = self.expman
         logger = self.logger
         genotype = self.model.to_genotype() if genotype is None else genotype
         if not epoch is None:
-            save_name = 'gene_{:03d}.gt'.format(epoch+1)
-        elif not save_name is None:
-            save_name = 'gene_{}.gt'.format(save_name)
+            save_name = 'gene_{}_ep{:03d}.gt'.format(self.name, epoch+1)
         else:
-            raise ValueError('epoch or save_name is required')
+            save_name = 'gene_{}_{}.gt'.format(self.name, save_name)
         save_path = expman.join('output', save_name)
         try:
             gt.to_file(genotype, save_path)
-            logger.debug('Saved genotype = {} to: {}'.format(genotype, save_path))
-        except Exception as exc:
-            logger.error("Save genotype failed: "+str(exc))
+        except:
+            logger.error("Failed saving genotype: {}".format(traceback.format_exc()))
 
     def load(self, chkpt_path):
         if chkpt_path is None:
-            self.logger.info("Estimator: Starting new run")
             return
-        self.logger.info("Estimator: Resuming from checkpoint: {}".format(chkpt_path))
+        self.logger.info("Resuming from checkpoint: {}".format(chkpt_path))
         chkpt = torch.load(chkpt_path)
         if 'model' in chkpt and not self.model is None:
-            self.model.net.load_state_dict(chkpt['model'])
+            self.model.load(chkpt['model']) # legacy
         if 'w_optim' in chkpt and not self.w_optim is None:
             self.w_optim.load_state_dict(chkpt['w_optim'])
         if 'lr_scheduler' in chkpt and not self.lr_scheduler is None:
             self.lr_scheduler.load_state_dict(chkpt['lr_scheduler'])
-        if 'estim' in chkpt:
-            self.load_state_dict(chkpt['estim'])
-        self.init_epoch = chkpt['epoch']
+        if 'states' in chkpt:
+            self.load_state_dict(chkpt['states'])
+        if 'epoch' in chkpt:
+            self.cur_epoch = chkpt['epoch']
