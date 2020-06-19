@@ -16,6 +16,8 @@ def load_config(filename):
 
 
 def parse_data_str(dstr):
+    if dstr == 'null':
+        return None
     if dstr == 'True':
         return True
     if dstr == 'False':

@@ -73,8 +73,9 @@ def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
     data_args = data_config.get('args', {})
     if prefetch:
         data_args['to_tensor'] = False
-        cutout = data_args['cutout']
-        data_args['cutout'] = 0
+        cutout = 0
+        if 'cutout' in data_args:
+            cutout = data_args.pop('cutout')
         metadata = get_metadata(data_args['dataset'])
         mean, stddev = metadata['mean'], metadata['stddev']
     trn_data, val_data = build(data_config.type, validation=validation, **data_args)

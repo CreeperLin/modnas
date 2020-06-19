@@ -1,19 +1,17 @@
 import traceback
-import torch
-import torch.nn as nn
+import pickle
 from .. import utils
 from ..metrics import build as build_metrics
+from ..metrics.base import MetricsBase
 from ..utils.criterion import get_criterion
-from ..utils.optimizer import get_optimizer
-from ..utils.lr_scheduler import get_lr_scheduler
 from ..utils.profiling import TimeProfiler
-from ..arch_space.ops import Identity, DropPath_
-from ..arch_space.constructor import Slot
+from ..trainer import build as build_trainer
 from ..arch_space import genotypes as gt
 
 class EstimatorBase():
-    def __init__(self, config, expman, train_loader, valid_loader,
-                 model_builder, model, writer, logger, device, name=None, profiling=False):
+    def __init__(self, config=None, expman=None, train_loader=None, valid_loader=None,
+                 model_builder=None, model=None, writer=None, logger=None,
+                 device=None, name=None, profiling=False):
         self.name = '' if name is None else name
         self.config = config
         self.expman = expman
@@ -30,21 +28,26 @@ class EstimatorBase():
         self.logger = logger
         self.device = device
         self.cur_epoch = -1
-        self.w_optim = None
-        self.lr_scheduler = None
         metrics = {}
-        if 'metrics' in config:
-            mt_configs = config.metrics
+        mt_configs = config.get('metrics', None)
+        if mt_configs:
+            MetricsBase.set_estim(self)
+            if not isinstance(mt_configs, dict):
+                mt_configs = {'default': mt_configs}
             for mt_name, mt_conf in mt_configs.items():
-                metrics_args = mt_conf.get('args', {})
-                metrics[mt_name] = build_metrics(mt_conf.type, self.logger, **metrics_args)
+                if isinstance(mt_conf, str):
+                    mt_conf = {'type': mt_conf}
+                mt_type = mt_conf['type']
+                mt_args = mt_conf.get('args', {})
+                mt = build_metrics(mt_type, self.logger, **mt_args)
+                metrics[mt_name] = mt
         self.metrics = metrics
         criterions_all = []
         criterions_train = []
         criterions_eval = []
         criterions_valid = []
-        if 'criterion' in config:
-            crit_configs = config.criterion
+        crit_configs = config.get('criterion', None)
+        if crit_configs:
             if not isinstance(crit_configs, list):
                 crit_configs = [crit_configs]
             for crit_conf in crit_configs:
@@ -70,11 +73,42 @@ class EstimatorBase():
         self.criterions_train = criterions_train
         self.criterions_eval = criterions_eval
         self.criterions_valid = criterions_valid
+        trainer = None
+        trn_conf = config.get('trainer', None)
+        if trn_conf:
+            if isinstance(trn_conf, str):
+                trn_conf = {'type': trn_conf}
+            trn_args = {
+                'w_optim': config.get('w_optim', None),
+                'lr_scheduler': config.get('lr_scheduler', None),
+            }
+            trn_args.update(trn_conf.get('args', {}))
+            trainer = build_trainer(trn_conf['type'], writer=writer, logger=logger,
+                                    device=device, **trn_args)
+        self.trainer = trainer
         self.results = []
         self.inputs = []
         self.tprof = TimeProfiler(enabled=profiling)
+        if self.train_loader is None:
+            self.trn_iter = None
+            n_trn_batch = 0
+        else:
+            self.trn_iter = iter(self.train_loader)
+            n_trn_batch = len(self.train_loader)
+        if self.valid_loader is None:
+            self.val_iter = None
+            n_val_batch = 0
+        else:
+            self.val_iter = iter(self.valid_loader)
+            n_val_batch = len(self.valid_loader)
+        self.n_trn_batch = n_trn_batch
+        self.n_val_batch = n_val_batch
+        self.cur_trn_batch = None
+        self.cur_val_batch = None
+        self.no_valid_warn = True
 
-    def criterion(self, X, y_pred, y_true, mode=None):
+    def criterion(self, X, y_pred, y_true, model=None, mode=None):
+        model = self.model if model is None else model
         if mode is None:
             crits = []
         elif mode == 'train':
@@ -88,20 +122,20 @@ class EstimatorBase():
         crits = self.criterions_all + crits
         loss = None
         for crit in crits:
-            loss = crit(loss, self, X, y_pred, y_true)
+            loss = crit(loss, self, model, X, y_pred, y_true)
         return loss
 
     def loss(self, X, y, model=None, mode=None):
         model = self.model if model is None else model
-        return self.criterion(X, model.logits(X), y, mode=mode)
+        return self.criterion(X, None, y, model, mode)
 
     def loss_logits(self, X, y, model=None, mode=None):
         model = self.model if model is None else model
         logits = model.logits(X)
-        return self.criterion(X, logits, y, mode=mode), logits
+        return self.criterion(X, logits, y, model, mode), logits
 
-    def print_model_info(self, model=None):
-        model = self.model if model is None else model
+    def print_model_info(self):
+        model = self.model
         if not model is None:
             self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
                 utils.param_count(model), utils.param_size(model)))
@@ -109,14 +143,15 @@ class EstimatorBase():
     def get_last_results(self):
         return self.inputs, self.results
 
-    def compute_metrics(self, *args, name=None, model=None, **kwargs):
+    def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
         model = self.model if model is None else model
         if not name is None:
-            return self.metrics[name].compute(model, *args, **kwargs)
+            res = self.metrics[name].compute(model, *args, **kwargs)
+            return None if res is None else (float(res) if to_scalar else res)
         ret = {}
         for mt_name, mt in self.metrics.items():
             res = mt.compute(model, *args, **kwargs)
-            ret[mt_name] = res
+            ret[mt_name] = None if res is None else (float(res) if to_scalar else res)
         return ret
 
     def predict(self, ):
@@ -125,174 +160,105 @@ class EstimatorBase():
     def train(self):
         pass
 
-    def validate(self, ):
-        pass
+    def validate(self):
+        return self.validate_epoch(epoch=0, tot_epochs=1)
 
     def search(self, optim):
         pass
 
-    def train_epoch(self, epoch, tot_epochs, train_loader=None, model=None,
-                    writer=None, logger=None, w_optim=None, lr_scheduler=None,
-                    device=None, config=None):
+    def get_score(self, res):
+        if not isinstance(res, dict): return res
+        score = res.get('default', None)
+        if score is None:
+            score = 0 if len(res) == 0 else list(res.values())[0]
+        return score
+
+    def get_lr(self):
+        return self.trainer.get_lr()
+
+    def get_w_optim(self):
+        return self.trainer.w_optim
+
+    def train_epoch(self, epoch, tot_epochs, model=None, train_loader=None):
         train_loader = self.train_loader if train_loader is None else train_loader
         model = self.model if model is None else model
-        writer = self.writer if writer is None else writer
-        logger = self.logger if logger is None else logger
-        w_optim = self.w_optim if w_optim is None else w_optim
-        lr_scheduler = self.lr_scheduler if lr_scheduler is None else lr_scheduler
-        device = self.device if device is None else device
-        config = self.config if config is None else config
-        top1 = utils.AverageMeter()
-        top5 = utils.AverageMeter()
-        losses = utils.AverageMeter()
-        n_trn_batch = len(train_loader)
-        cur_step = epoch*n_trn_batch
-        lr = lr_scheduler.get_lr()[0]
-        print_freq = config.print_freq
-        writer.add_scalar('train/lr', lr, cur_step)
-        model.train()
-        eta_m = utils.ETAMeter(tot_epochs * n_trn_batch, cur_step)
-        eta_m.start()
-        tprof = self.tprof
-        tprof.timer_start('data')
-        for step, (trn_X, trn_y) in enumerate(train_loader):
-            trn_X, trn_y = trn_X.to(device, non_blocking=True), trn_y.to(device, non_blocking=True)
-            N = trn_X.size(0)
-            tprof.timer_stop('data')
-            tprof.timer_start('train')
-            w_optim.zero_grad()
-            loss, logits = self.loss_logits(trn_X, trn_y, model=model, mode='train')
-            loss.backward()
-            # gradient clipping
-            if config.w_grad_clip > 0:
-                nn.utils.clip_grad_norm_(model.weights(), config.w_grad_clip)
-            w_optim.step()
-            tprof.timer_stop('train')
-            prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
-            losses.update(loss.item(), N)
-            top1.update(prec1.item(), N)
-            top5.update(prec5.item(), N)
-            if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == n_trn_batch):
-                eta_m.set_step(cur_step)
-                logger.info(
-                    "Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.4f} Loss {losses.avg:.3f} "
-                    "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%}) | ETA: {eta}".format(
-                        epoch+1, tot_epochs, step+1, n_trn_batch, lr, losses=losses,
-                        top1=top1, top5=top5, eta=eta_m.eta_fmt()))
-            writer.add_scalar('train/loss', loss.item(), cur_step)
-            writer.add_scalar('train/top1', prec1.item(), cur_step)
-            writer.add_scalar('train/top5', prec5.item(), cur_step)
-            cur_step += 1
-            if step < n_trn_batch-1: tprof.timer_start('data')
-        logger.info("Train: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
-        tprof.stat('data')
-        tprof.stat('train')
-        # torch > 1.2.0
-        lr_scheduler.step()
-        return top1.avg
+        return self.trainer.train_epoch(estim=self, model=model, epoch=epoch,
+                                        tot_epochs=tot_epochs, train_loader=train_loader)
 
-    def validate_epoch(self, epoch, tot_epochs, cur_step=0, valid_loader=None,
-                       model=None, writer=None, logger=None, device=None, config=None):
+    def train_step(self, epoch, tot_epochs, step, tot_steps, model=None, ):
+        model = self.model if model is None else model
+        return self.trainer.train_step(estim=self, model=model,
+                                       epoch=epoch, tot_epochs=tot_epochs,
+                                       step=step, tot_steps=tot_steps)
+
+    def validate_epoch(self, epoch=0, tot_epochs=1, model=None, valid_loader=None):
         valid_loader = self.valid_loader if valid_loader is None else valid_loader
         if valid_loader is None: return None
         model = self.model if model is None else model
-        writer = self.writer if writer is None else writer
-        logger = self.logger if logger is None else logger
-        device = self.device if device is None else device
-        config = self.config if config is None else config
-        if cur_step is None: cur_step = (epoch+1) * len(self.train_loader)
-        top1 = utils.AverageMeter()
-        top5 = utils.AverageMeter()
-        losses = utils.AverageMeter()
-        n_val_batch = len(valid_loader)
-        print_freq = config.print_freq
-        tprof = self.tprof
-        model.eval()
-        with torch.no_grad():
-            for step, (val_X, val_y) in enumerate(valid_loader):
-                val_X, val_y = val_X.to(device, non_blocking=True), val_y.to(device, non_blocking=True)
-                N = val_X.size(0)
-                tprof.timer_start('validate')
-                loss, logits = self.loss_logits(val_X, val_y, model=model, mode='eval')
-                tprof.timer_stop('validate')
-                prec1, prec5 = utils.accuracy(logits, val_y, topk=(1, 5))
-                losses.update(loss.item(), N)
-                top1.update(prec1.item(), N)
-                top5.update(prec5.item(), N)
-                if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == n_val_batch):
-                    logger.info(
-                        "Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
-                        "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(
-                            epoch+1, tot_epochs, step+1, n_val_batch, losses=losses,
-                            top1=top1, top5=top5))
-        writer.add_scalar('val/loss', losses.avg, cur_step)
-        writer.add_scalar('val/top1', top1.avg, cur_step)
-        writer.add_scalar('val/top5', top5.avg, cur_step)
-        logger.info("Valid: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
-        tprof.stat('validate')
-        return top1.avg
+        return self.trainer.validate_epoch(estim=self, model=model, epoch=epoch,
+                                           tot_epochs=tot_epochs, valid_loader=valid_loader)
 
-    def update_drop_path_prob(self, epoch, tot_epochs, model=None):
+    def validate_step(self, epoch, tot_epochs, step, tot_steps, model=None, ):
         model = self.model if model is None else model
-        drop_prob = self.config.drop_path_prob * epoch / tot_epochs
-        for module in model.modules():
-            if isinstance(module, DropPath_):
-                module.p = drop_prob
+        return self.trainer.validate_step(estim=self, model=model,
+                                          epoch=epoch, tot_epochs=tot_epochs,
+                                          step=step, tot_steps=tot_steps)
 
-    def apply_drop_path(self, model=None):
-        if self.config.drop_path_prob <= 0.0: return
-        model = self.model if model is None else model
-        def apply(slot):
-            ent = slot.ent
-            if slot.fixed: return
-            if ent is None: return
-            if not isinstance(ent, Identity):
-                ent = nn.Sequential(
-                    ent,
-                    DropPath_()
-                )
-            slot.set_entity(ent)
-        Slot.apply_all(apply, gen=Slot.gen_slots_model(model))
-
-    def clear_bn_running_statistics(self, model=None):
-        model = self.model if model is None else model
-        for m in model.modules():
-            if isinstance(m, nn.BatchNorm2d):
-                m.reset_running_stats()
-
-    def recompute_bn_running_statistics(self, num_batch=100, clear=True, model=None, data_loader=None):
-        data_loader = self.train_loader if data_loader is None else data_loader
-        model = self.model if model is None else model
-        if clear:
-            self.clear_bn_running_statistics(model)
-        is_training = model.training
-        model.train()
-        with torch.no_grad():
-            trn_iter = iter(data_loader)
-            for _ in range(num_batch):
-                try:
-                    trn_X, _ = next(trn_iter)
-                except StopIteration:
-                    trn_iter = iter(data_loader)
-                    trn_X, _ = next(trn_iter)
-                model(trn_X.to(device=model.device_ids[0]))
-                del trn_X
-        if not is_training:
-            model.eval()
-
-    def reset_training_states(self, tot_epochs=None, config=None, model=None, scale_lr=True):
+    def reset_training_states(self, tot_epochs=None, config=None, device=None,
+                              w_optim_config=None, lr_scheduler_config=None,
+                              model=None, scale_lr=True):
         model = self.model if model is None else model
         config = self.config if config is None else config
         tot_epochs = config.epochs if tot_epochs is None else tot_epochs
-        self.w_optim = get_optimizer(model.weights(), config.w_optim, model.device_ids, scale_lr)
-        self.lr_scheduler = get_lr_scheduler(self.w_optim, config.lr_scheduler, tot_epochs)
+        if not self.trainer is None:
+            self.trainer.init(model, w_optim_config=w_optim_config,
+                              tot_epochs=tot_epochs, scale_lr=scale_lr,
+                              lr_scheduler_config=lr_scheduler_config,
+                              device=device)
         self.cur_epoch = -1
+
+    def get_next_trn_batch(self):
+        self.tprof.timer_start('data')
+        try:
+            trn_X, trn_y = next(self.trn_iter)
+        except StopIteration:
+            self.trn_iter = iter(self.train_loader)
+            trn_X, trn_y = next(self.trn_iter)
+        trn_X, trn_y = trn_X.to(self.device, non_blocking=True), trn_y.to(self.device, non_blocking=True)
+        self.tprof.timer_stop('data')
+        self.cur_trn_batch = trn_X, trn_y
+        return trn_X, trn_y
+
+    def get_cur_trn_batch(self):
+        return self.cur_trn_batch
+
+    def get_next_val_batch(self):
+        if self.valid_loader is None:
+            if self.no_valid_warn:
+                self.logger.warning('no valid loader, returning training batch instead')
+                self.no_valid_warn = False
+            return self.get_next_trn_batch()
+        self.tprof.timer_start('data')
+        try:
+            val_X, val_y = next(self.val_iter)
+        except StopIteration:
+            self.val_iter = iter(self.valid_loader)
+            val_X, val_y = next(self.val_iter)
+        val_X, val_y = val_X.to(self.device, non_blocking=True), val_y.to(self.device, non_blocking=True)
+        self.tprof.timer_stop('data')
+        self.cur_val_batch = val_X, val_y
+        return val_X, val_y
+
+    def get_cur_val_batch(self):
+        return self.cur_val_batch
 
     def load_state_dict(self, state_dict):
         pass
 
     def state_dict(self):
-        return {}
+        return {
+            'cur_epoch': self.cur_epoch
+        }
 
     def save_model(self, save_name=None):
         expman = self.expman
@@ -302,20 +268,15 @@ class EstimatorBase():
 
     def save(self, epoch=None, save_name=None):
         expman = self.expman
-        w_optim = self.w_optim
-        lr_scheduler = self.lr_scheduler
         logger = self.logger
         save_name = 'estim_{}_{}.pt'.format(self.name, save_name)
         chkpt_path = expman.join('chkpt', save_name)
         epoch = epoch or self.cur_epoch
         try:
-            torch.save({
-                'w_optim': w_optim.state_dict(),
-                'lr_scheduler': lr_scheduler.state_dict(),
-                'epoch': epoch,
-                'states': self.state_dict(),
-            }, chkpt_path)
-        except:
+            chkpt = self.state_dict()
+            with open(chkpt_path, 'wb') as f:
+                pickle.dump(chkpt, f)
+        except RuntimeError:
             logger.error("Failed saving estimator: {}".format(traceback.format_exc()))
 
     def save_checkpoint(self, epoch=None, save_name=None):
@@ -328,28 +289,24 @@ class EstimatorBase():
         expman = self.expman
         logger = self.logger
         genotype = self.model.to_genotype() if genotype is None else genotype
-        if not epoch is None:
-            save_name = 'gene_{}_ep{:03d}.gt'.format(self.name, epoch+1)
+        if not save_name is None:
+            fname = 'gene_{}_{}.gt'.format(self.name, save_name)
         else:
-            save_name = 'gene_{}_{}.gt'.format(self.name, save_name)
-        save_path = expman.join('output', save_name)
+            epoch = epoch or self.cur_epoch
+            fname = 'gene_{}_ep{:03d}.gt'.format(self.name, epoch+1)
+        save_path = expman.join('output', fname)
         try:
             gt.to_file(genotype, save_path)
-        except:
+        except RuntimeError:
             logger.error("Failed saving genotype: {}".format(traceback.format_exc()))
 
     def load(self, chkpt_path):
         if chkpt_path is None:
             return
         self.logger.info("Resuming from checkpoint: {}".format(chkpt_path))
-        chkpt = torch.load(chkpt_path)
+        with open(chkpt_path, 'rb') as f:
+            chkpt = pickle.load(f)
         if 'model' in chkpt and not self.model is None:
             self.model.load(chkpt['model']) # legacy
-        if 'w_optim' in chkpt and not self.w_optim is None:
-            self.w_optim.load_state_dict(chkpt['w_optim'])
-        if 'lr_scheduler' in chkpt and not self.lr_scheduler is None:
-            self.lr_scheduler.load_state_dict(chkpt['lr_scheduler'])
         if 'states' in chkpt:
             self.load_state_dict(chkpt['states'])
-        if 'epoch' in chkpt:
-            self.cur_epoch = chkpt['epoch']

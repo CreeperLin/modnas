@@ -12,69 +12,47 @@ class SubNetEstimator(EstimatorBase):
         self.reset_subnet_params = reset_subnet_params
         self.num_bn_batch = num_bn_batch
         self.clear_subnet_bn = clear_subnet_bn
-        self.best_top1 = 0.
+        self.best_score = None
         self.best_genotype = None
 
     def step(self, params):
         ArchParamSpace.update_params(params)
         genotype = self.model.to_genotype()
         config = self.config
-        self.logger.info('Evaluating SubNet -> {}'.format(genotype))
         try:
-            subnet = self.construct_subnet(genotype)
+            self.construct_subnet(genotype)
         except RuntimeError:
             self.logger.info('subnet construct failed:\n{}'.format(traceback.format_exc()))
-            ret = {'acc_top1': 0.}
+            ret = {'error_no': -1}
             return ret
         tot_epochs = config.subnet_epochs
         if tot_epochs > 0:
-            self.reset_training_states(model=subnet, tot_epochs=tot_epochs)
-            self.apply_drop_path(model=subnet)
-            best_val_top1 = 0.
+            self.reset_training_states(tot_epochs=tot_epochs)
             for epoch in itertools.count(0):
                 if epoch == tot_epochs: break
-                # droppath
-                self.update_drop_path_prob(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
                 # train
-                trn_top1 = self.train_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
-                # validate
-                val_top1 = self.validate_epoch(epoch=epoch, tot_epochs=tot_epochs, model=subnet)
-                if val_top1 is None: val_top1 = trn_top1
-                best_val_top1 = max(best_val_top1, val_top1)
-        else:
-            best_val_top1 = self.validate_epoch(epoch=0, tot_epochs=1, model=subnet)
-        metrics_result = self.compute_metrics(model=subnet)
-        ret = {
-            'acc_top1': best_val_top1
-        }
-        if not metrics_result is None:
-            ret.update(metrics_result)
-        if best_val_top1 > self.best_top1:
-            self.best_top1 = best_val_top1
+                self.train_epoch(epoch=epoch, tot_epochs=tot_epochs)
+        ret = self.compute_metrics()
+        best_score = self.get_score(ret)
+        if self.best_score is None or not best_score is None and best_score > self.best_score:
+            self.best_score = best_score
             self.best_genotype = genotype
-        self.logger.info('SubNet metrics: {}'.format(ret))
+        self.logger.info('Evaluate: {} -> {}'.format(genotype, ret))
         return ret
-
-    def predict(self, ):
-        pass
 
     def construct_subnet(self, genotype):
         config = self.config
         if self.rebuild_subnet:
-            subnet = self.model_builder(genotype=genotype)
+            self.model = self.model_builder(genotype=genotype)
+        elif self.reset_subnet_params:
+            self.model.init_model(**config.get('init', {}))
         else:
-            subnet = self.model
-        if self.reset_subnet_params:
-            subnet.init_model(**config.get('init', {}))
-        else:
-            self.recompute_bn_running_statistics(num_batch=self.num_bn_batch,
-                                                 model=subnet, clear=self.clear_subnet_bn)
-        return subnet
+            utils.recompute_bn_running_statistics(self.model, self.train_loader,
+                                                  self.num_bn_batch, self.clear_subnet_bn)
 
     def validate(self):
-        subnet = self.construct_subnet(self.model.to_genotype())
-        top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0, model=subnet)
-        return top1_avg
+        self.construct_subnet(self.model.to_genotype())
+        return self.validate_epoch(epoch=0, tot_epochs=1)
 
     def search(self, optim):
         logger = self.logger
@@ -92,14 +70,14 @@ class SubNetEstimator(EstimatorBase):
                 optim.step(self)
             self.inputs = optim.next(batch_size=arch_batch_size)
             self.results = []
-            batch_top1 = 0.
+            batch_best = None
             for params in self.inputs:
                 # estim step
                 result = self.step(params)
                 self.results.append(result)
-                val_top1 = result['acc_top1']
-                if val_top1 > batch_top1:
-                    batch_top1 = val_top1
+                val_score = self.get_score(result)
+                if batch_best is None or val_score > batch_best:
+                    batch_best = val_score
             # save
             if config.save_gt:
                 self.save_genotype(epoch)
@@ -107,9 +85,9 @@ class SubNetEstimator(EstimatorBase):
                 self.save_checkpoint(epoch)
             self.save_genotype(save_name='best', genotype=self.best_genotype)
             eta_m.step()
-            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%} | ETA: {}'.format(
-                epoch+1, tot_epochs, batch_top1, self.best_top1, eta_m.eta_fmt()))
+            logger.info('Search: [{:3d}/{}] Current: {} Best: {} | ETA: {}'.format(
+                epoch+1, tot_epochs, batch_best, self.best_score, eta_m.eta_fmt()))
         return {
-            'best_top1': self.best_top1,
+            'best_score': self.best_score,
             'best_gt': self.best_genotype,
         }

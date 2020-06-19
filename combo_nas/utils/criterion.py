@@ -21,7 +21,9 @@ def get_criterion(config, device_ids=None):
 
 
 def torch_criterion_wrapper(cls):
-    def call_fn(self, loss, estim, X, y_pred, y_true):
+    def call_fn(self, loss, estim, model, X, y_pred, y_true):
+        if y_pred is None:
+            y_pred = model.logits(X)
         return cls.__call__(self, y_pred, y_true)
     new_cls = type('Wrapped{}'.format(cls.__name__), (cls, ), {'__call__': call_fn})
     return new_cls
@@ -59,7 +61,7 @@ class MixUp():
         self.use_flip = use_flip
         self.criterion = build(crit_type, **(crit_args or {}))
 
-    def __call__(self, loss, estim, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, X, y_pred, y_true):
         alpha = self.alpha
         lam = random.betavariate(alpha, alpha) if alpha > 0 else 1
         if self.use_flip:
@@ -72,8 +74,8 @@ class MixUp():
             alt_y_true = y_true[index, :]
         mixed_x = lam * X + (1 - lam) * alt_X
         mixed_y_true = lam * y_true + (1 - lam) * alt_y_true
-        mixed_y_pred = estim.model.logits(mixed_x)
-        return self.criterion(loss, estim, X, mixed_y_pred, mixed_y_true)
+        mixed_y_pred = model.logits(mixed_x)
+        return self.criterion(loss, estim, model, X, mixed_y_pred, mixed_y_true)
 
 
 @register_as('Auxiliary')
@@ -87,8 +89,8 @@ class Auxiliary():
         else:
             raise ValueError('unsupported loss type: {}'.format(loss_type))
 
-    def __call__(self, loss, estim, X, y_pred, y_true):
-        aux_logits = estim.model.call(self.fwd_func, X)
+    def __call__(self, loss, estim, model, X, y_pred, y_true):
+        aux_logits = model.call(self.fwd_func, X)
         if aux_logits is None:
             return loss
         aux_loss = self.loss_func(aux_logits, y_true).to(device=loss.device)
@@ -126,7 +128,7 @@ class KnowledgeDistill():
             model.load_state_dict(state_dict)
         return model
 
-    def __call__(self, loss, estim, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, X, y_pred, y_true):
         with torch.no_grad():
             self.kd_model.to(device=X.device)
             soft_logits = self.kd_model(X)
@@ -143,8 +145,8 @@ class AddMetrics():
         self.target_val = float(target_val)
         self.metrics = metrics
 
-    def __call__(self, loss, estim, X, y_pred, y_true):
-        mt = estim.compute_metrics(name=self.metrics).to(device=loss.device)
+    def __call__(self, loss, estim, model, X, y_pred, y_true):
+        mt = estim.compute_metrics(name=self.metrics, to_scalar=False).to(device=loss.device)
         return loss + self.lamd * (mt / self.target_val - 1.)
 
 
@@ -157,8 +159,8 @@ class MultMetrics():
         self.target_val = float(target_val)
         self.metrics = metrics
 
-    def __call__(self, loss, estim, X, y_pred, y_true):
-        mt = estim.compute_metrics(name=self.metrics).to(device=loss.device)
+    def __call__(self, loss, estim, model, X, y_pred, y_true):
+        mt = estim.compute_metrics(name=self.metrics, to_scalar=False).to(device=loss.device)
         return self.alpha * loss * (mt / self.target_val) ** self.beta
 
 
@@ -171,8 +173,8 @@ class MultLogMetrics():
         self.target_val = float(target_val)
         self.metrics = metrics
 
-    def __call__(self, loss, estim, X, y_pred, y_true):
-        mt = estim.compute_metrics(name=self.metrics).to(device=loss.device)
+    def __call__(self, loss, estim, model, X, y_pred, y_true):
+        mt = estim.compute_metrics(name=self.metrics, to_scalar=False).to(device=loss.device)
         return self.alpha * loss * (torch.log(mt) / math.log(self.target_val)) ** self.beta
 
 

@@ -16,7 +16,7 @@ class HParamNumeric(ParamNumeric):
 def build_hparam_space_from_dict(hp_dict):
     for k, v in hp_dict.items():
         if isinstance(v, list) and len(v) == 1 and isinstance(v[0], list):
-            hp = HParamNumeric(*v[0], name=k)
+            hp = HParamNumeric(low=v[0][0], high=v[0][1], name=k)
         elif isinstance(v, list):
             hp = HParamCategorical(choices=v, name=k)
         else:

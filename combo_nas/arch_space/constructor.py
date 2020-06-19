@@ -11,7 +11,7 @@ class Slot(nn.Module):
     _convert_fn = None
     _visited = set()
 
-    def __init__(self, chn_in, chn_out, stride, name=None, kwargs=None):
+    def __init__(self, chn_in, chn_out=None, stride=None, name=None, kwargs=None):
         super().__init__()
         Slot.register(self)
         self.name = str(self.sid) if name is None else name
@@ -35,6 +35,7 @@ class Slot(nn.Module):
         Slot._slots = []
         Slot._slot_id = -1
         Slot._convert_fn = None
+        Slot._visited = set()
 
     @staticmethod
     def new_slot_id():
@@ -248,11 +249,21 @@ def convert_from_layers(model, layers_conf, convert_fn=None, gen=None, fn_kwargs
         logging.debug('new slots from layer: {}'.format(len(new_slots)))
 
 
-def build_predefined(*args, **kwargs):
+def build_predefined(*args, fn_kwargs=None, **kwargs):
     net = build(*args, **kwargs)
     try:
-        convert_fn = net.get_predefined_augment_converter()
+        convert_fn = net.get_predefined_augment_converter(**(fn_kwargs or {}))
     except AttributeError:
         convert_fn = None
     net = convert_from_predefined_net(net, convert_fn=convert_fn)
+    return net
+
+
+def build_genotype(*args, fn_kwargs=None, genotype=None, **kwargs):
+    net = build(*args, **kwargs)
+    try:
+        convert_fn = net.get_genotype_augment_converter(**(fn_kwargs or {}))
+    except AttributeError:
+        convert_fn = None
+    net = convert_from_genotype(net, genotype=genotype, convert_fn=convert_fn)
     return net

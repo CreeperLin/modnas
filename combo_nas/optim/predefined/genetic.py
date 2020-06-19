@@ -42,9 +42,9 @@ class GeneticOptim(CategoricalSpaceOptim):
 
 
 class EvolutionOptim(GeneticOptim):
-    def __init__(self, space, pop_size=100, n_parents=2, n_offsprings=1,
-                 n_select=10, n_survival=None, n_crossover=None,
-                 mutation_prob=0.1, logger=None):
+    def __init__(self, space, pop_size=20, n_parents=2, n_offsprings=1,
+                 n_select=10, n_eliminate=1, n_crossover=None,
+                 mutation_prob=0.01, logger=None):
         super().__init__(space, pop_size, logger)
         self.add_operator(self._survival)
         self.add_operator(self._selection)
@@ -52,8 +52,8 @@ class EvolutionOptim(GeneticOptim):
         self.add_operator(self._mutation)
         self.n_parents = n_parents
         self.n_offsprings = n_offsprings
-        self.n_select = n_select
-        self.n_survival = pop_size if n_survival is None else n_survival
+        self.n_select = pop_size if n_select is None else n_select
+        self.n_eliminate = 0 if n_eliminate is None else n_eliminate
         self.n_crossover = pop_size if n_crossover is None else n_crossover
         self.mutation_prob = mutation_prob
 
@@ -61,7 +61,7 @@ class EvolutionOptim(GeneticOptim):
         return [self.get_random_params() for _ in range(self.pop_size)]
 
     def _survival(self, pop):
-        n_survival = self.n_survival
+        n_survival = len(pop) - self.n_eliminate
         if n_survival >= len(pop):
             return pop
         metrics = np.array(self.metrics)
@@ -71,6 +71,8 @@ class EvolutionOptim(GeneticOptim):
 
     def _selection(self, pop):
         n_select = self.n_select
+        if n_select >= len(pop):
+            return pop
         metrics = np.array(self.metrics)
         idx = np.argpartition(metrics, -n_select)[-n_select:]
         self.metrics = [metrics[i] for i in idx]
@@ -105,9 +107,8 @@ class EvolutionOptim(GeneticOptim):
 
 class RegularizedEvolutionOptim(EvolutionOptim):
     def _survival(self, pop):
-        n_survival = self.n_survival
-        s_idx = len(pop) - n_survival
-        if s_idx < 0:
+        s_idx = self.n_eliminate
+        if s_idx <= 0:
             return pop
         self.metrics = self.metrics[s_idx:]
         return pop[s_idx:]

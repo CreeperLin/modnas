@@ -84,14 +84,14 @@ def check_config(config, top_keys=[]):
         'genotypes.to_args': {},
         'estimator.*.save_gt': True,
         'estimator.*.save_freq': 0,
-        'estimator.*.print_freq': 200,
         'estimator.*.drop_path_prob': 0.,
-        'estimator.*.w_grad_clip': 0.,
         'estimator.*.arch_update_epoch_start': 0,
         'estimator.*.arch_update_epoch_intv': 1,
         'estimator.*.arch_update_intv': -1,
         'estimator.*.arch_update_batch': 1,
         'estimator.*.criterion': 'CE',
+        'estimator.*.metrics': 'Validate',
+        'estimator.*.trainer': 'ImgCls',
     }
 
     for key, val in defaults.items():
@@ -219,6 +219,32 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(1.0 / batch_size))
 
     return res
+
+
+def clear_bn_running_statistics(model):
+    for m in model.modules():
+        if isinstance(m, torch.nn.BatchNorm2d):
+            m.reset_running_stats()
+
+
+def recompute_bn_running_statistics(model, data_loader, num_batch=100, clear=True):
+    if clear:
+        clear_bn_running_statistics(model)
+    is_training = model.training
+    model.train()
+    with torch.no_grad():
+        trn_iter = iter(data_loader)
+        for _ in range(num_batch):
+            try:
+                trn_X, _ = next(trn_iter)
+            except StopIteration:
+                trn_iter = iter(data_loader)
+                trn_X, _ = next(trn_iter)
+            model(trn_X.to(device=model.device_ids[0]))
+            del trn_X
+    if not is_training:
+        model.eval()
+
 
 def format_time(sec):
     m, s = divmod(sec, 60)

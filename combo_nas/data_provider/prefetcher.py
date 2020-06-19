@@ -37,8 +37,8 @@ class DataPrefetcher():
         self.iter = iter(loader)
         self.length = len(loader)
         self.stream = torch.cuda.Stream()
-        self.mean = torch.tensor([m*255 for m in mean]).cuda().view(1,3,1,1)
-        self.std = torch.tensor([s*255 for s in std]).cuda().view(1,3,1,1)
+        self.mean = torch.tensor([m * 255 for m in mean]).cuda().view(1, 3, 1, 1).float()
+        self.std = torch.tensor([s * 255 for s in std]).cuda().view(1, 3, 1, 1).float()
         self.cutout = cutout_impl
         self.preload()
 

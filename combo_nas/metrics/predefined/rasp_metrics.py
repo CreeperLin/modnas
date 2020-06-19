@@ -1,6 +1,7 @@
 from ..base import MetricsBase
 from .. import register_as, build
 from ...arch_space.constructor import Slot
+from ...arch_space.mixed_ops import MixedOp
 try:
     import rasp
     import rasp.frontend as F
@@ -15,21 +16,6 @@ class RASPStatsMetrics(MetricsBase):
 
     def compute(self, node):
         return node[self.item]
-
-
-@register_as('RASPStatsDelegateMetrics')
-class RASPStatsDelegateMetrics(MetricsBase):
-    def __init__(self, logger, metrics, args={}, ignore_none=True):
-        super().__init__(logger)
-        self.metrics = build(metrics, logger, **args)
-        self.ignore_none = ignore_none
-
-    def compute(self, node):
-        stats = node.stats
-        mt = self.metrics.compute(stats)
-        if not self.ignore_none and mt is None:
-            raise ValueError('Metrics return None for input: {}'.format(stats))
-        return mt
 
 
 @register_as('RASPTraversalMetrics')
@@ -54,21 +40,27 @@ class RASPTraversalMetrics(MetricsBase):
         self.excluded = set()
 
     def traverse_tape_nodes(self, node):
-        if node in self.excluded:
-            return 0
-        ret = self.metrics.compute(node)
-        if not ret is None:
-            return ret
         ret = 0
+        if node in self.excluded:
+            return ret
+        if node.num_children == 0:
+            ret = self.metrics.compute(node)
+            return ret
+        if node.tape is None:
+            return ret
         for cur_node in node.tape.items:
             module = cur_node.module
             if isinstance(module, Slot):
-                ent_node = F.get_stats_node(module.ent)
                 prim_type = module.gene
-                if isinstance(prim_type, (tuple, list)):
-                    prim_type = prim_type[0]
-                ent_node['prim_type'] = prim_type
-            n_ret = self.traverse_tape_nodes(cur_node)
+                if not prim_type is None:
+                    if isinstance(prim_type, (tuple, list)):
+                        prim_type = prim_type[0]
+                    ent_node = F.get_stats_node(module.ent)
+                    ent_node['prim_type'] = prim_type
+            if cur_node['prim_type']:
+                n_ret = self.metrics.compute(cur_node)
+            else:
+                n_ret = self.traverse_tape_nodes(cur_node)
             if n_ret is None:
                 n_ret = 0
             ret += n_ret
@@ -86,7 +78,11 @@ class RASPTraversalMetrics(MetricsBase):
         return ret
 
     def compute(self, model):
-        net = model.net
+        try:
+            net = model.net
+        except AttributeError:
+            net = model
+        self.excluded.clear()
         root = F.get_stats_node(net)
         if root is None:
             root = F.reg_stats_node(net)
@@ -97,10 +93,10 @@ class RASPTraversalMetrics(MetricsBase):
             F.run(net, F.get_random_data(self.input_shape), self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
-        if not self.keep_stats:
-            F.unreg_stats_node(net)
         mt = 0
-        for m in model.mixed_ops():
+        for m in net.modules():
+            if not isinstance(m, MixedOp):
+                continue
             mixop_node = F.get_stats_node(m)
             self.excluded.add(mixop_node)
             assert mixop_node['in_shape'] is not None
@@ -112,11 +108,18 @@ class RASPTraversalMetrics(MetricsBase):
                     subn['prim_type'] = pn
                 if subn['compute_updated'] is None:
                     rasp.profiler.eval.eval_compute_nofwd(subn, m_in, m_out)
-                smt = self.metrics.compute(subn)
-                mixop_mt = mixop_mt + smt * p
+                subn_mt = self.metrics.compute(subn)
+                if subn_mt is None:
+                    print('oops')
+                    subn_mt = self.traverse(subn)
+                if subn_mt is None:
+                    subn_mt = 0
+                mixop_mt = mixop_mt + subn_mt * p
             mt += mixop_mt
         if not self.mixed_only:
             mt = mt + self.traverse(root)
+        if not self.keep_stats:
+            F.unreg_stats_node(net)
         return mt
 
 

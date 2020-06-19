@@ -35,16 +35,6 @@ class RegressionEstimator(EstimatorBase):
             self.best_genotype = genotype
         return genotype, score
 
-    def predict(self, ):
-        pass
-
-    def train(self):
-        pass
-
-    def validate(self):
-        top1_avg = self.validate_epoch(epoch=0, tot_epochs=1, cur_step=0)
-        return top1_avg
-
     def search(self, optim):
         config = self.config
         tot_epochs = config.epochs

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from . import dataloader, torch_dataloader, torch_dataset
+from . import dataloader, torch_dataloader, torch_dataset, rand_dataset
 
 def load_data(config, validation):
     dloader_config = config.get('data_loader', None)

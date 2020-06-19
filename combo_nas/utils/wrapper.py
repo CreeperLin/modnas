@@ -12,11 +12,11 @@ from ..arch_space.constructor import Slot
 from ..core.param_space import ArchParamSpace
 from ..core.controller import NASController
 from ..optim import build as build_optim
+from ..estimator import build as build_estimator
 from .. import utils
 from ..utils.config import Config
 from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
-from .routine import search, augment, hptune
 
 def import_modules(modules):
     for m in modules:
@@ -31,6 +31,32 @@ def load_config(conf):
         loaded_cfg = Config.load(cfg)
         config = loaded_cfg if config is None else Config.merge(config, loaded_cfg)
     return config
+
+
+def build_estim_all(estim_config, estim_comp):
+    estims = {}
+    for estim_name, estim_conf in estim_config.items():
+        estim_type = estim_conf.type
+        estim_args = estim_conf.get('args', {})
+        estim_args.update(estim_comp)
+        estim_args['name'] = estim_name
+        estim_args['config'] = estim_conf
+        estim = build_estimator(estim_type, **estim_args)
+        estim.load(estim_conf.get('chkpt', None))
+        estims[estim_name] = estim
+    return estims
+
+
+def estims_routine(logger, optim, estims):
+    results = {}
+    for estim_name, estim in estims.items():
+        logger.info('Running estim: {} type: {}'.format(estim_name, estim.__class__.__name__))
+        ret = estim.search(optim)
+        results[estim_name] = ret
+        logger.info('Results: {}: {{{}}}'.format(estim_name, ', '.join(['{}: {}'.format(k, v) for k, v in ret.items()])))
+    logger.info('All results: {{\n{}\n}}'.format('\n'.join(['{}: {}'.format(k, v) for k, v in results.items()])))
+    results['final'] = ret
+    return results
 
 
 def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
@@ -117,19 +143,22 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     if 'optim' in config:
         optim_kwargs = config.optim.get('args', {})
         optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
+    # estim
+    estim_kwargs = {
+        'expman': expman,
+        'train_loader': trn_loader,
+        'valid_loader': val_loader,
+        'model_builder': model_builder,
+        'model': model,
+        'writer': writer,
+        'logger': logger,
+        'device': dev,
+    }
+    estims = build_estim_all(config.estimator, estim_kwargs)
     return {
-        'config': config.estimator,
+        'logger': logger,
         'optim': optim,
-        'estim_kwargs': {
-            'expman': expman,
-            'train_loader': trn_loader,
-            'valid_loader': val_loader,
-            'model_builder': model_builder,
-            'model': model,
-            'writer': writer,
-            'logger': logger,
-            'device': dev,
-        }
+        'estims': estims
     }
 
 
@@ -189,18 +218,22 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     model = model_builder()
     if chkpt:
         model.load(chkpt)
+    # estim
+    estim_kwargs = {
+        'expman': expman,
+        'train_loader': trn_loader,
+        'valid_loader': val_loader,
+        'model_builder': model_builder,
+        'model': model,
+        'writer': writer,
+        'logger': logger,
+        'device': dev,
+    }
+    estims = build_estim_all(config.estimator, estim_kwargs)
     return {
-        'config': config.estimator,
-        'estim_kwargs': {
-            'expman': expman,
-            'train_loader': trn_loader,
-            'valid_loader': val_loader,
-            'model_builder': model_builder,
-            'model': model,
-            'writer': writer,
-            'logger': logger,
-            'device': dev,
-        }
+        'logger': logger,
+        'optim': None,
+        'estims': estims
     }
 
 
@@ -230,46 +263,43 @@ def init_all_hptune(config, name, exp='exp', device='all', measure_fn=None, conf
     # measure_fn
     if measure_fn is None:
         measure_fn = default_measure_fn
+    # estim
+    estim_kwargs = {
+        'expman': expman,
+        'train_loader': None,
+        'valid_loader': None,
+        'model_builder': None,
+        'model': None,
+        'writer': writer,
+        'logger': logger,
+        'device': dev,
+        'measure_fn': measure_fn,
+    }
+    estims = build_estim_all(config.estimator, estim_kwargs)
     return {
-        'config': config.estimator,
+        'logger': logger,
         'optim': optim,
-        'estim_kwargs': {
-            'expman': expman,
-            'train_loader': None,
-            'valid_loader': None,
-            'model_builder': None,
-            'model': None,
-            'writer': writer,
-            'logger': logger,
-            'device': dev,
-            'measure_fn': measure_fn,
-        }
+        'estims': estims
     }
 
 
 def default_measure_fn(proc, *args, **kwargs):
     runner = get_runner(proc)
     ret = runner(*args, **kwargs)
-    if proc == 'search':
-        return ret['best_top1']
-    elif proc == 'augment':
-        return ret['best_top1']
-    elif proc == 'hptune':
-        return ret['best_score']
-    elif proc == 'pipeline':
-        return ret['final']['best_top1']
+    ret = ret['final']
+    return ret.get('best_score', list(ret.values())[0])
 
 
 def run_search(*args, **kwargs):
-    return search(**init_all_search(*args, **kwargs))
+    return estims_routine(**init_all_search(*args, **kwargs))
 
 
 def run_augment(*args, **kwargs):
-    return augment(**init_all_augment(*args, **kwargs))
+    return estims_routine(**init_all_augment(*args, **kwargs))
 
 
 def run_hptune(*args, **kwargs):
-    return hptune(**init_all_hptune(*args, **kwargs))
+    return estims_routine(**init_all_hptune(*args, **kwargs))
 
 
 def run_pipeline(config, name, exp='exp', config_override=None):

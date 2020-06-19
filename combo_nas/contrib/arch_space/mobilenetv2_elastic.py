@@ -4,7 +4,24 @@ from combo_nas.arch_space import register_as
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
     conv2d_rank_weight_l1norm_fan_in, conv2d_rank_weight_l1norm_fan_out, batchnorm2d_rank_weight_l1norm
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
-from combo_nas.core.param_space import ArchParamCategorical
+from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
+
+def elastic_to_genotype(fix_first=True, max_depth=4):
+    gts = []
+    if fix_first:
+        gts.append(None)
+    params = {k: p.value() for k, p in ArchParamSpace.named_params()}
+    seq_values = [v for k, v in params.items() if k.startswith('seq')]
+    n_sequential = len(seq_values)
+    spa_values = [v for k, v in params.items() if k.startswith('spa')]
+    for i, spa in enumerate(spa_values):
+        cur_seq_idx = i // max_depth
+        seq = seq_values[cur_seq_idx] if cur_seq_idx < len(seq_values) else cur_seq_idx
+        exp_gene = spa if cur_seq_idx >= n_sequential or i % max_depth < seq else -1
+        gene = 'NIL' if exp_gene == -1 else 'MB3E{}'.format(exp_gene)
+        gts.append(gene)
+    return gts
+
 
 class MobileNetV2ElasticSpatialConverter():
     def __init__(self, model, fix_first=True, expansion_range=[1, 3, 6], rank_fn='l1_fan_in', search=False):
@@ -143,6 +160,9 @@ class MobileNetV2Elastic(MobileNetV2):
 
     def get_predefined_search_converter(self, *args, **kwargs):
         return MobileNetV2ElasticConverter(self, search=True, *args, **kwargs)
+
+    def to_genotype(self):
+        return elastic_to_genotype()
 
 
 @register_as('MobileNetV2-E-Spatial')

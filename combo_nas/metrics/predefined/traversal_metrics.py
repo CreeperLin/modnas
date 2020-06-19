@@ -23,9 +23,9 @@ class MixedOpTraversalMetrics(MetricsBase):
         super().__init__(logger)
         self.metrics = build(metrics, logger, **args)
 
-    def compute(self, model):
+    def compute(self, estim):
         mt = 0
-        for m in model.mixed_ops():
+        for m in estim.model.mixed_ops():
             for p, op in zip(m.prob(), m.primitives()):
                 mt = mt + self.metrics.compute(op) * p
         return mt
@@ -37,9 +37,9 @@ class ModuleTraversalMetrics(MetricsBase):
         super().__init__(logger)
         self.metrics = build(metrics, logger, **args)
 
-    def compute(self, model):
+    def compute(self, estim):
         mt = 0
-        for m in model.modules():
+        for m in estim.model.modules():
             if not isinstance(m, MixedOp):
                 mt = mt + self.metrics.compute(m)
             else:

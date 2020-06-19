@@ -55,7 +55,7 @@ class DARTSOptim(GradientBasedOptim):
         trn_X, trn_y = estim.get_cur_trn_batch()
         val_X, val_y = estim.get_next_val_batch()
         lr = estim.get_lr()
-        w_optim = estim.w_optim
+        w_optim = estim.get_w_optim()
         model = estim.model
         if self.v_net is None: self.v_net = copy.deepcopy(model)
         # do virtual step (calc w`)
@@ -191,33 +191,23 @@ class REINFORCEOptim(GradientBasedOptim):
         self.baseline = None
         self.baseline_decay_weight = 0.99
 
-    def reward(self, net_info):
-        acc1 = net_info['acc1']
-        acc_reward = acc1
-        total_reward = acc_reward
-        return total_reward
-
     def step(self, estim):
         self.optim_reset()
         grad_batch = []
         reward_batch = []
-        net_info_batch = []
         val_X, val_y = estim.get_next_val_batch()
         for _ in range(self.batch_size):
-            logits = estim.model.logits(val_X)
-            acc1, _ = accuracy(logits, val_y, topk=(1, 5))
-            net_info = {'acc1':acc1.item(), }
-            net_info.update(estim.compute_metrics())
-            net_info_batch.append(net_info)
+            acc_top1, _ = accuracy(estim.model.logits(val_X), val_y, topk=(1, 5))
             # calculate reward according to net_info
-            reward = self.reward(net_info)
+            # reward = estim.get_score(estim.compute_metrics()) + acc_top1.item()
+            reward = acc_top1.item()
             # loss term
             obj_term = 0
             for m in estim.model.mixed_ops():
                 p = m.alpha()
                 if p.grad is not None:
                     p.grad.data.zero_()
-                path_prob = m.w_path_f
+                path_prob = m.prob()
                 smpl = m.s_path_f
                 path_prob_f = path_prob.index_select(-1, torch.tensor(smpl).to(path_prob.device))
                 obj_term = obj_term + torch.log(path_prob_f)

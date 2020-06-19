@@ -7,8 +7,12 @@ from ...utils.config import Config
 class HPTuneEstimator(EstimatorBase):
     def __init__(self, measure_fn, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.trial_index = 0
         self.measure_fn = measure_fn
+        self.results_all = list()
+        self.best_hparams = None
+        self.best_score = 0
+        self.best_iter = 0
+        self.trial_index = 0
 
     def step(self, hp):
         logger = self.logger
@@ -24,71 +28,48 @@ class HPTuneEstimator(EstimatorBase):
         try:
             score = self.measure_fn(**measure_args)
             error_no = 0
-        except Exception as exc:
-            traceback.print_exc()
+        except:
             score = 0
             error_no = 1
-            logger.debug('trial {} failed with error: {}'.format(self.trial_index, exc))
+            logger.info('trial {} failed with error: {}'.format(self.trial_index, traceback.format_exc()))
         result = {
             'score': score,
             'error_no': error_no,
         }
         return result
 
-    def load(self, chkpt_path):
-        pass
-
-    def predict(self, ):
-        pass
-
-    def train(self):
-        pass
-
-    def validate(self):
-        pass
-
     def search(self, optim):
         logger = self.logger
         config = self.config
         tot_epochs = config.epochs
         batch_size = config.get('batch_size', 1)
-        early_stopping = config.get('early_stopping', 1e9)
+        early_stopping = config.get('early_stopping', None)
 
-        best_hparams = None
-        best_score = 0
-        best_iter = 0
-        error_ct = 0
-        logger.info('hptune: start: epochs={} early_stopping={}'.format(tot_epochs, early_stopping))
+        logger.info('hptune: start: epochs: {}'.format(tot_epochs))
         for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             if not optim.has_next():
-                logger.info('hptune: optim stop iter: {}'.format(epoch))
+                logger.info('hptune: optim stop at epoch: {}'.format(epoch))
                 break
             self.inputs = optim.next(batch_size)
             self.results = []
             for hp in self.inputs:
                 res = self.step(hp)
-                # keep best config
-                if res['error_no'] == 0:
-                    score = res['score']
-                    error_ct = 0
-                else:
-                    score = 0
-                    error_ct += 1
-                if score > best_score:
-                    best_score = score
-                    best_hparams = hp
-                    best_iter = epoch
+                score = 0 if res['error_no'] else res['score']
+                if score > self.best_score:
+                    self.best_score = score
+                    self.best_hparams = hp
+                    self.best_iter = epoch
                 self.results.append(score)
-            logger.info('hptune: iter: {}\t score: {:.4f}/{:.4f}'.format(epoch+1, score, best_score))
+                self.results_all.append((hp, score))
+            logger.info('hptune: epoch: {}\t score: {:.4f}/{:.4f}'.format(epoch+1, score, self.best_score))
             optim.step(self)
-            if epoch >= best_iter + early_stopping:
+            if not early_stopping is None and epoch >= self.best_iter + early_stopping:
                 logger.info('hptune: early stopped: {}'.format(epoch))
                 break
-            if error_ct > 150:
-                logger.warning('hptune: Too many errors in tuning: {}'.format(error_ct))
         return {
-            'best_iter': best_iter,
-            'best_score': best_score,
-            'best_hparams': best_hparams
+            'best_iter': self.best_iter,
+            'best_score': self.best_score,
+            'best_hparams': self.best_hparams,
+            'results_all': self.results_all,
         }

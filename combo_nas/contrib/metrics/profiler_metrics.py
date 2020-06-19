@@ -5,20 +5,13 @@ from combo_nas.metrics.base import MetricsBase
 
 @metrics.register_as('LocalProfilerMetrics')
 class LocalProfilerMetrics(MetricsBase):
-    def __init__(self, logger, device=None, head=None, rep=50, warmup=10):
+    def __init__(self, logger, device=None, rep=50, warmup=10):
         super().__init__(logger)
-        if head is None:
-            head = ['name']
-        self.results = {}
         self.rep = rep
         self.warmup = warmup
-        self.head = head
         self.device = device
 
     def compute(self, node):
-        key = '#'.join([str(node[k]) for k in self.head])
-        if key in self.results:
-            return self.results[key]
         in_shape = node['in_shape']
         op = node.module
         plist = list(op.parameters())
@@ -39,8 +32,7 @@ class LocalProfilerMetrics(MetricsBase):
                 torch.cuda.synchronize()
         toc = time.perf_counter()
         lat = 1000. * (toc - tic) / self.rep
-        self.results[key] = lat
         op.to(device=last_device)
-        self.logger.info('local profiler: {}\tdev: {}\tlat: {:.3f} ms'.format(key, device, lat))
+        self.logger.debug('local profiler:\tdev: {}\tlat: {:.3f} ms'.format(device, lat))
         return lat
         

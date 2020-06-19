@@ -2,7 +2,7 @@ import yaml
 import pickle
 import numpy as np
 from ..base import MetricsBase
-from .. import register_as
+from .. import register_as, build
 
 @register_as('StatsLUTMetrics')
 class StatsLUTMetrics(MetricsBase):
@@ -26,6 +26,30 @@ class StatsLUTMetrics(MetricsBase):
             val = float(np.random.normal(val['mean'], val['std']))
         else:
             val = float(val)
+        return val
+
+
+@register_as('StatsRecordMetrics')
+class StatsRecordMetrics(MetricsBase):
+    def __init__(self, logger, metrics, head=None, args=None, save_path=None):
+        super().__init__(logger)
+        self.head = head
+        self.metrics = build(metrics, logger, **(args or {}))
+        self.record = dict()
+        self.save_path = save_path
+        self.save_file = None
+        if not save_path is None:
+            self.save_file = open(save_path, 'w')
+
+    def compute(self, stats):
+        key = '#'.join([str(stats[k]) for k in self.head if not stats[k] is None])
+        if key in self.record:
+            return self.record[key]
+        val = self.metrics.compute(stats)
+        self.record[key] = val
+        self.logger.info('StatsRecord:\t{}: {}'.format(key, val))
+        if not self.save_file is None:
+            self.save_file.write('{}: {}\n'.format(key, val))
         return val
 
 

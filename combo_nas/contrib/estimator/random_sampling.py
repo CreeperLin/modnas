@@ -15,4 +15,4 @@ class RandomSamplingEstimator(DefaultEstimator):
         params = ArchParamSpace.get_categorical_params(random.randint(0, self.space_size - 1))
         ArchParamSpace.update_params(params)
         logits = model.logits(X)
-        return self.criterion(X, logits, y, mode=mode), logits
+        return self.criterion(X, logits, y, model=model, mode=mode), logits

@@ -6,6 +6,7 @@ from combo_nas.estimator.base import EstimatorBase
 from combo_nas.estimator import register_as
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
+from combo_nas.utils import recompute_bn_running_statistics
 
 @register_as('ProgressiveShrinking')
 class ProgressiveShrinkingEstimator(EstimatorBase):
@@ -121,14 +122,14 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                     loss.backward()
                 self.apply_subnet_config(config)
                 logits = model.logits(X)
-                loss = self.criterion(X, logits, y, mode=mode)
+                loss = self.criterion(X, logits, y, model=model, mode=mode)
                 subnet_logits.append(logits)
                 visited.add(key)
             if len(visited) > 1:
                 logits = torch.mean(torch.stack(subnet_logits), dim=0)
         else:
             logits = model.logits(X)
-            loss = self.criterion(X, logits, y, mode=mode)
+            loss = self.criterion(X, logits, y, model=model, mode=mode)
         return loss, logits
 
     def train_stage(self):
@@ -213,7 +214,8 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         results = dict()
         for name, conf in configs.items():
             self.apply_subnet_config(conf)
-            self.recompute_bn_running_statistics(num_batch=self.num_bn_batch, clear=self.clear_subnet_bn)
+            recompute_bn_running_statistics(self.model, self.train_loader,
+                                            self.num_bn_batch, self.clear_subnet_bn)
             val_top1 = self.validate_epoch(*args, **kwargs)
             results[name] = val_top1
         return results

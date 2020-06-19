@@ -19,7 +19,7 @@ class OptimBase():
     def _next(self):
         pass
 
-    def next(self, batch_size):
+    def next(self, batch_size=1):
         batch = []
         for _ in range(batch_size):
             if not self.has_next():
@@ -54,6 +54,12 @@ class GradientBasedOptim(OptimBase):
     def optim_reset(self):
         self.a_optim.zero_grad()
 
+    def has_next(self):
+        return True
+
+    def _next(self):
+        return {}
+
 
 class CategoricalSpaceOptim(OptimBase):
     def __init__(self, space, logger=None):
@@ -87,11 +93,3 @@ class CategoricalSpaceOptim(OptimBase):
 
     def _next(self):
         raise NotImplementedError
-
-    def next(self, batch_size):
-        batch = []
-        for _ in range(batch_size):
-            if not self.has_next(): break
-            index = self._next()
-            batch.append(index)
-        return batch
