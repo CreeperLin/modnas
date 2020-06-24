@@ -8,7 +8,6 @@ class SuperNetEstimator(EstimatorBase):
         self.best_score = None
         self.best_genotype = None
         self.reset_training_states()
-        self.print_model_info()
 
     def search(self, optim):
         model = self.model
@@ -24,6 +23,7 @@ class SuperNetEstimator(EstimatorBase):
             # eval
             genotype = model.to_genotype()
             mt_ret = self.compute_metrics()
+            self.logger.info('Evaluate: {} -> {}'.format(genotype, mt_ret))
             score = self.get_score(mt_ret)
             if self.best_score is None or score > self.best_score:
                 self.best_score = score
@@ -35,8 +35,8 @@ class SuperNetEstimator(EstimatorBase):
                 self.save_checkpoint(epoch)
             self.save_genotype(save_name='best', genotype=self.best_genotype)
             eta_m.step()
-            self.logger.info('Search: [{:3d}/{}] {} -> {} | ETA: {}'.format(
-                epoch+1, tot_epochs, genotype, mt_ret, eta_m.eta_fmt()))
+            self.logger.info('Search: [{:3d}/{}] Current: {} Best: {} | ETA: {}'.format(
+                epoch+1, tot_epochs, score, self.best_score, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
             'best_gt': self.best_genotype,

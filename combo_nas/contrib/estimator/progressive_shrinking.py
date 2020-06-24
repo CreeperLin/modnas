@@ -27,7 +27,6 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         self.num_bn_batch = num_bn_batch
         self.clear_subnet_bn = clear_subnet_bn
         self.subnet_valid_freq = subnet_valid_freq
-        self.print_model_info()
 
     def set_stage(self, stage):
         self.set_spatial_candidates(stage.get('spatial', None))

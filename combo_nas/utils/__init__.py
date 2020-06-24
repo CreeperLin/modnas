@@ -46,12 +46,18 @@ def check_config(config, top_keys=[]):
             for idx in range(len(keys)):
                 cur_key = keys[idx]
                 if cur_key == '*':
-                    for k in cur_dict.keys():
+                    if isinstance(cur_dict, list):
+                        key_list = ['#{}'.format(i) for i in range(len(cur_dict))]
+                    else:
+                        key_list = cur_dict.keys()
+                    for k in key_list:
                         keys[idx] = k
                         nfield = '.'.join(keys)
                         if check_field(config, nfield, default):
                             return True
                     return False
+                if cur_key.startswith('#'):
+                    cur_key = int(cur_key[1:])
                 cur_dict = cur_dict[cur_key]
         except KeyError:
             if idx != len(keys) - 1:

@@ -1,3 +1,4 @@
+import torch
 from ..base import MetricsBase
 from .. import register_as, build
 from ...arch_space.constructor import Slot
@@ -77,6 +78,15 @@ class RASPTraversalMetrics(MetricsBase):
             ret += n_ret
         return ret
 
+    def stat(self, module, input_shape):
+        if self.eval_compute:
+            F.hook_compute(module)
+        if self.eval_timing:
+            F.hook_timing(module)
+        F.run(module, F.get_random_data(input_shape), self.device)
+        F.unhook_compute(module)
+        F.unhook_timing(module)
+
     def compute(self, model):
         try:
             net = model.net
@@ -86,13 +96,7 @@ class RASPTraversalMetrics(MetricsBase):
         root = F.get_stats_node(net)
         if root is None:
             root = F.reg_stats_node(net)
-            if self.eval_compute:
-                F.hook_compute(net)
-            if self.eval_timing:
-                F.hook_timing(net)
-            F.run(net, F.get_random_data(self.input_shape), self.device)
-            F.unhook_compute(net)
-            F.unhook_timing(net)
+            self.stat(net, self.input_shape)
         mt = 0
         for m in net.modules():
             if not isinstance(m, MixedOp):
@@ -103,16 +107,21 @@ class RASPTraversalMetrics(MetricsBase):
             mixop_mt = 0
             m_in, m_out = mixop_node['in_shape'], mixop_node['out_shape']
             for p, (pn, op) in zip(m.prob(), m.named_primitives()):
+                if not p:
+                    continue
                 subn = F.get_stats_node(op)
                 if subn['prim_type'] is None:
                     subn['prim_type'] = pn
                 if subn['compute_updated'] is None:
-                    rasp.profiler.eval.eval_compute_nofwd(subn, m_in, m_out)
+                    if subn['in_shape'] is None:
+                        subn['in_shape'] = m_in
+                    self.stat(subn.module, subn['in_shape'])
+                    subn['compute_updated'] = True
                 subn_mt = self.metrics.compute(subn)
                 if subn_mt is None:
-                    print('oops')
                     subn_mt = self.traverse(subn)
                 if subn_mt is None:
+                    self.logger.warning('unresolved node: {} type: {}'.format(node['name'], node['type']))
                     subn_mt = 0
                 mixop_mt = mixop_mt + subn_mt * p
             mt += mixop_mt

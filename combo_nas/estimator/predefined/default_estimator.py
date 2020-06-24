@@ -1,6 +1,7 @@
 import itertools
 from ..base import EstimatorBase
 from ...arch_space.droppath import update_drop_path_prob, apply_drop_path
+from ...utils import ETAMeter
 
 class DefaultEstimator(EstimatorBase):
     def __init__(self, *args, save_best=True, **kwargs):
@@ -8,7 +9,6 @@ class DefaultEstimator(EstimatorBase):
         self.reset_training_states()
         self.save_best = save_best
         self.best_score = None
-        self.print_model_info()
 
     def predict(self, ):
         pass
@@ -17,11 +17,14 @@ class DefaultEstimator(EstimatorBase):
         return self.train()
 
     def train(self):
+        self.print_model_info()
         config = self.config
         tot_epochs = config.epochs
         drop_prob = self.config.drop_path_prob
         if drop_prob > 0:
             apply_drop_path(self.model)
+        eta_m = ETAMeter(tot_epochs, self.cur_epoch)
+        eta_m.start()
         for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             # droppath
@@ -40,6 +43,9 @@ class DefaultEstimator(EstimatorBase):
                     self.save_checkpoint(epoch, save_name='best')
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
+            eta_m.step()
+            self.logger.info('Default: [{:3d}/{}] Current: {} Best: {} | ETA: {}'.format(
+                epoch+1, tot_epochs, val_score, self.best_score, eta_m.eta_fmt()))
         metrics = self.compute_metrics()
         ret = {
             'best_score': self.best_score

@@ -1,4 +1,5 @@
 import os
+import sys
 import queue
 import importlib
 from ..utils.exp_manager import ExpManager
@@ -23,6 +24,14 @@ def import_modules(modules):
         importlib.import_module(m)
 
 
+def import_files(names, files):
+    for name, path in zip(names, files):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+
+
 def load_config(conf):
     if not isinstance(conf, list):
         conf = [conf]
@@ -35,6 +44,8 @@ def load_config(conf):
 
 def build_estim_all(estim_config, estim_comp):
     estims = {}
+    if isinstance(estim_config, list):
+        estim_config = {c.get('name', str(i)): c for i, c in enumerate(estim_config)}
     for estim_name, estim_conf in estim_config.items():
         estim_type = estim_conf.type
         estim_args = estim_conf.get('args', {})

@@ -137,45 +137,59 @@ class KnowledgeDistill():
         return loss
 
 
-@register_as('AddMetrics')
-class AddMetrics():
-    def __init__(self, target_val, metrics, lamd=0.01,):
+class AggMetricsCriterion():
+    def __init__(self, metrics, target_val=None, target_decay=0.1):
         super().__init__()
-        self.lamd = lamd
-        self.target_val = float(target_val)
+        if not target_val is None:
+            target_val = float(target_val)
+        self.target_val = target_val
+        self.target_decay = target_decay
         self.metrics = metrics
+    
+    def get_metrics(self, estim):
+        mt = estim.compute_metrics(name=self.metrics, to_scalar=False)
+        mt_val = mt.detach().item()
+        target_val = self.target_val 
+        if target_val is None:
+            target_val = mt_val
+        target_val += self.target_decay * (mt_val - target_val)
+        self.target_val = target_val
+        return mt
+
+
+@register_as('AddMetrics')
+class AddMetrics(AggMetricsCriterion):
+    def __init__(self, metrics, target_val=None, target_decay=0.1, lamd=0.01,):
+        super().__init__(metrics, target_val, target_decay)
+        self.lamd = lamd
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        mt = estim.compute_metrics(name=self.metrics, to_scalar=False).to(device=loss.device)
-        return loss + self.lamd * (mt / self.target_val - 1.)
+        mt = self.get_metrics(estim)
+        return loss + self.lamd * (mt.to(device=loss.device) / self.target_val - 1.)
 
 
 @register_as('MultMetrics')
-class MultMetrics():
-    def __init__(self, target_val, metrics, alpha=1., beta=0.6):
-        super().__init__()
+class MultMetrics(AggMetricsCriterion):
+    def __init__(self, metrics, target_val=None, target_decay=0.1, alpha=1., beta=0.6):
+        super().__init__(metrics, target_val, target_decay)
         self.alpha = alpha
         self.beta = beta
-        self.target_val = float(target_val)
-        self.metrics = metrics
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        mt = estim.compute_metrics(name=self.metrics, to_scalar=False).to(device=loss.device)
-        return self.alpha * loss * (mt / self.target_val) ** self.beta
+        mt = self.get_metrics(estim)
+        return self.alpha * loss * (mt.to(device=loss.device) / self.target_val) ** self.beta
 
 
 @register_as('MultLogMetrics')
-class MultLogMetrics():
-    def __init__(self, target_val, metrics, alpha=1., beta=0.6):
-        super().__init__()
+class MultLogMetrics(AggMetricsCriterion):
+    def __init__(self, metrics, target_val=None, target_decay=0.1, alpha=1., beta=0.6):
+        super().__init__(metrics, target_val, target_decay)
         self.alpha = alpha
         self.beta = beta
-        self.target_val = float(target_val)
-        self.metrics = metrics
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        mt = estim.compute_metrics(name=self.metrics, to_scalar=False).to(device=loss.device)
-        return self.alpha * loss * (torch.log(mt) / math.log(self.target_val)) ** self.beta
+        mt = self.get_metrics(estim)
+        return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val)) ** self.beta
 
 
 register(torch_criterion_wrapper(nn.CrossEntropyLoss), 'CE')

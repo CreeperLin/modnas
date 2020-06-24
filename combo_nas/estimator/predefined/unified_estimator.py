@@ -22,7 +22,6 @@ class UnifiedEstimator(EstimatorBase):
         self.best_score = None
         self.best_genotype = None
         self.reset_training_states()
-        self.print_model_info()
 
     def step(self, params):
         ArchParamSpace.update_params(params)
