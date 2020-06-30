@@ -47,7 +47,7 @@ class SubNetEstimator(EstimatorBase):
         elif self.reset_subnet_params:
             self.model.init_model(**config.get('init', {}))
         else:
-            utils.recompute_bn_running_statistics(self.model, self.train_loader,
+            utils.recompute_bn_running_statistics(self.model, self.data_provider.get_train_iter(),
                                                   self.num_bn_batch, self.clear_subnet_bn)
 
     def validate(self):

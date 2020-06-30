@@ -9,14 +9,13 @@ from ..trainer import build as build_trainer
 from ..arch_space import genotypes as gt
 
 class EstimatorBase():
-    def __init__(self, config=None, expman=None, train_loader=None, valid_loader=None,
+    def __init__(self, config=None, expman=None, data_provider=None,
                  model_builder=None, model=None, writer=None, logger=None,
-                 device=None, name=None, profiling=False):
+                 name=None, profiling=False):
         self.name = '' if name is None else name
         self.config = config
         self.expman = expman
-        self.train_loader = train_loader
-        self.valid_loader = valid_loader
+        self.data_provider = data_provider
         self.model_builder = model_builder
         self.model = model
         if self.model is None and not model_builder is None:
@@ -26,7 +25,6 @@ class EstimatorBase():
                 logger.info('Model build failed: {}'.format(e))
         self.writer = writer
         self.logger = logger
-        self.device = device
         self.cur_epoch = -1
         metrics = {}
         mt_configs = config.get('metrics', None)
@@ -83,26 +81,13 @@ class EstimatorBase():
                 'lr_scheduler': config.get('lr_scheduler', None),
             }
             trn_args.update(trn_conf.get('args', {}))
-            trainer = build_trainer(trn_conf['type'], writer=writer, logger=logger,
-                                    device=device, **trn_args)
+            trainer = build_trainer(trn_conf['type'], writer=writer, logger=logger, **trn_args)
         self.trainer = trainer
         self.results = []
         self.inputs = []
         self.tprof = TimeProfiler(enabled=profiling)
-        if self.train_loader is None:
-            self.trn_iter = None
-            n_trn_batch = 0
-        else:
-            self.trn_iter = iter(self.train_loader)
-            n_trn_batch = len(self.train_loader)
-        if self.valid_loader is None:
-            self.val_iter = None
-            n_val_batch = 0
-        else:
-            self.val_iter = iter(self.valid_loader)
-            n_val_batch = len(self.valid_loader)
-        self.n_trn_batch = n_trn_batch
-        self.n_val_batch = n_val_batch
+        self.n_trn_batch = 0 if self.data_provider is None else self.data_provider.get_num_train_batch()
+        self.n_val_batch = 0 if self.data_provider is None else self.data_provider.get_num_valid_batch()
         self.cur_trn_batch = None
         self.cur_val_batch = None
         self.no_valid_warn = True
@@ -125,9 +110,9 @@ class EstimatorBase():
             loss = crit(loss, self, model, X, y_pred, y_true)
         return loss
 
-    def loss(self, X, y, model=None, mode=None):
+    def loss(self, X, y, output=None, model=None, mode=None):
         model = self.model if model is None else model
-        return self.criterion(X, None, y, model, mode)
+        return self.criterion(X, output, y, model, mode)
 
     def loss_logits(self, X, y, model=None, mode=None):
         model = self.model if model is None else model
@@ -179,24 +164,27 @@ class EstimatorBase():
     def get_w_optim(self):
         return self.trainer.w_optim
 
-    def train_epoch(self, epoch, tot_epochs, model=None, train_loader=None):
-        train_loader = self.train_loader if train_loader is None else train_loader
+    def train_epoch(self, epoch, tot_epochs, model=None):
+        self.data_provider.reset_train_iter()
         model = self.model if model is None else model
-        return self.trainer.train_epoch(estim=self, model=model, epoch=epoch,
-                                        tot_epochs=tot_epochs, train_loader=train_loader)
+        tprof = self.tprof
+        ret = self.trainer.train_epoch(estim=self, model=model, tot_steps=self.n_trn_batch,
+                                       epoch=epoch, tot_epochs=tot_epochs)
+        tprof.stat('data')
+        tprof.stat('train')
+        return ret
 
-    def train_step(self, epoch, tot_epochs, step, tot_steps, model=None, ):
+    def train_step(self, epoch, tot_epochs, step, tot_steps, model=None):
         model = self.model if model is None else model
         return self.trainer.train_step(estim=self, model=model,
                                        epoch=epoch, tot_epochs=tot_epochs,
                                        step=step, tot_steps=tot_steps)
 
-    def validate_epoch(self, epoch=0, tot_epochs=1, model=None, valid_loader=None):
-        valid_loader = self.valid_loader if valid_loader is None else valid_loader
-        if valid_loader is None: return None
+    def validate_epoch(self, epoch=0, tot_epochs=1, model=None):
+        self.data_provider.reset_valid_iter()
         model = self.model if model is None else model
-        return self.trainer.validate_epoch(estim=self, model=model, epoch=epoch,
-                                           tot_epochs=tot_epochs, valid_loader=valid_loader)
+        return self.trainer.validate_epoch(estim=self, model=model, tot_steps=self.n_val_batch,
+                                           epoch=epoch, tot_epochs=tot_epochs)
 
     def validate_step(self, epoch, tot_epochs, step, tot_steps, model=None, ):
         model = self.model if model is None else model
@@ -219,35 +207,20 @@ class EstimatorBase():
 
     def get_next_trn_batch(self):
         self.tprof.timer_start('data')
-        try:
-            trn_X, trn_y = next(self.trn_iter)
-        except StopIteration:
-            self.trn_iter = iter(self.train_loader)
-            trn_X, trn_y = next(self.trn_iter)
-        trn_X, trn_y = trn_X.to(self.device, non_blocking=True), trn_y.to(self.device, non_blocking=True)
+        ret = self.data_provider.get_next_train_batch()
         self.tprof.timer_stop('data')
-        self.cur_trn_batch = trn_X, trn_y
-        return trn_X, trn_y
+        self.cur_trn_batch = ret
+        return ret
 
     def get_cur_trn_batch(self):
         return self.cur_trn_batch
 
     def get_next_val_batch(self):
-        if self.valid_loader is None:
-            if self.no_valid_warn:
-                self.logger.warning('no valid loader, returning training batch instead')
-                self.no_valid_warn = False
-            return self.get_next_trn_batch()
         self.tprof.timer_start('data')
-        try:
-            val_X, val_y = next(self.val_iter)
-        except StopIteration:
-            self.val_iter = iter(self.valid_loader)
-            val_X, val_y = next(self.val_iter)
-        val_X, val_y = val_X.to(self.device, non_blocking=True), val_y.to(self.device, non_blocking=True)
+        ret = self.data_provider.get_next_valid_batch()
         self.tprof.timer_stop('data')
-        self.cur_val_batch = val_X, val_y
-        return val_X, val_y
+        self.cur_val_batch = ret
+        return ret
 
     def get_cur_val_batch(self):
         return self.cur_val_batch

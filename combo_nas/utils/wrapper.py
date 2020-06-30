@@ -20,6 +20,8 @@ from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 
 def import_modules(modules):
+    if modules is None:
+        return
     for m in modules:
         importlib.import_module(m)
 
@@ -85,11 +87,11 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
-    import_modules(config.get('imports', []))
+    import_modules(config.get('imports', None))
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    trn_loader, val_loader = load_data(config, False)
+    data_provider = load_data(config, dev, False, logger)
     # ops
     if 'ops' in config:
         configure_ops(config.ops)
@@ -157,13 +159,11 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     # estim
     estim_kwargs = {
         'expman': expman,
-        'train_loader': trn_loader,
-        'valid_loader': val_loader,
+        'data_provider': data_provider,
         'model_builder': model_builder,
         'model': model,
         'writer': writer,
         'logger': logger,
-        'device': dev,
     }
     estims = build_estim_all(config.estimator, estim_kwargs)
     return {
@@ -185,11 +185,11 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
-    import_modules(config.get('imports', []))
+    import_modules(config.get('imports', None))
     # device
     dev, dev_list = utils.init_device(config.device, device)
     # data
-    trn_loader, val_loader = load_data(config, True)
+    data_provider = load_data(config, dev, True, logger)
     # ops
     if 'ops' in config:
         if not config.ops.get('affine', False):
@@ -232,13 +232,11 @@ def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype
     # estim
     estim_kwargs = {
         'expman': expman,
-        'train_loader': trn_loader,
-        'valid_loader': val_loader,
+        'data_provider': data_provider,
         'model_builder': model_builder,
         'model': model,
         'writer': writer,
         'logger': logger,
-        'device': dev,
     }
     estims = build_estim_all(config.estimator, estim_kwargs)
     return {
@@ -261,7 +259,7 @@ def init_all_hptune(config, name, exp='exp', device='all', measure_fn=None, conf
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
-    import_modules(config.get('imports', []))
+    import_modules(config.get('imports', None))
     # device
     dev, _ = utils.init_device(config.device, device)
     # hpspace
@@ -277,13 +275,11 @@ def init_all_hptune(config, name, exp='exp', device='all', measure_fn=None, conf
     # estim
     estim_kwargs = {
         'expman': expman,
-        'train_loader': None,
-        'valid_loader': None,
+        'data_provider': None,
         'model_builder': None,
         'model': None,
         'writer': writer,
         'logger': logger,
-        'device': dev,
         'measure_fn': measure_fn,
     }
     estims = build_estim_all(config.estimator, estim_kwargs)
@@ -325,7 +321,7 @@ def run_pipeline(config, name, exp='exp', config_override=None):
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
-    import_modules(config.get('imports', []))
+    import_modules(config.get('imports', None))
     # pipeline
     pipeconf = config.pipeline
     pending = queue.Queue()

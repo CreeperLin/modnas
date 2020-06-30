@@ -44,13 +44,9 @@ class SuperNetEstimator(EstimatorBase):
 
     def search_epoch(self, epoch, optim):
         config = self.config
-        train_loader = self.train_loader
-        valid_loader = self.valid_loader
+        n_trn_batch = self.n_trn_batch
+        n_val_batch = self.n_val_batch
         tot_epochs = config.epochs
-        n_trn_batch = len(train_loader)
-        if not valid_loader is None:
-            self.val_iter = iter(valid_loader)
-            n_val_batch = len(valid_loader)
         update_arch = False
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
@@ -58,7 +54,7 @@ class SuperNetEstimator(EstimatorBase):
             update_arch = True
             arch_update_intv = config.arch_update_intv
             if arch_update_intv == -1: # update proportionally
-                arch_update_intv = max(n_trn_batch / n_val_batch, 1) if not valid_loader is None else 1
+                arch_update_intv = max(n_trn_batch / n_val_batch, 1) if n_val_batch else 1
             elif arch_update_intv == 0: # update last step
                 arch_update_intv = n_trn_batch
             arch_update_batch = config.arch_update_batch

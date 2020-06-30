@@ -4,8 +4,9 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from .prefetcher import fast_collate, DataPrefetcher
-from .dataloader import register_as
-from .dataset import build, get_metadata
+from . import register_as
+from ..dataset import build
+from ..dataset.image_cls import get_metadata
 
 def get_label_class(label):
     if isinstance(label, float):
@@ -62,7 +63,7 @@ def map_data_label(data, mapping):
         data.test_labels = [mapping.get(get_label_class(c), c) for c in labels]
 
 
-@register_as('pytorch')
+@register_as('ImageCls')
 def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
                          trn_batch_size=64, val_batch_size=64, classes=None,
                          workers=2, prefetch=False, collate_fn=None,

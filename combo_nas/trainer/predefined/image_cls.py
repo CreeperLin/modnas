@@ -6,9 +6,9 @@ from ... import utils
 from ..base import TrainerBase
 from .. import register_as
 
-@register_as('ImgCls')
+@register_as('ImageCls')
 class ImageClsTrainer(TrainerBase):
-    def __init__(self, logger=None, writer=None, device=None,
+    def __init__(self, logger=None, writer=None,
                  w_optim=None, lr_scheduler=None, expman=None,
                  w_grad_clip=0, print_freq=200):
         super().__init__(logger, writer)
@@ -17,7 +17,6 @@ class ImageClsTrainer(TrainerBase):
         self.losses = None
         self.print_freq = print_freq
         self.w_grad_clip = w_grad_clip
-        self.device = device
         self.expman = expman
         self.w_optim = None
         self.lr_scheduler = None
@@ -63,13 +62,9 @@ class ImageClsTrainer(TrainerBase):
     def get_lr(self):
         return self.lr_scheduler.get_lr()[0]
 
-    def train_epoch(self, estim, model, epoch, tot_epochs, train_loader):
-        tot_steps = len(train_loader)
+    def train_epoch(self, estim, model, tot_steps, epoch, tot_epochs):
         for step in range(tot_steps):
             self.train_step(estim, model, epoch, tot_epochs, step, tot_steps)
-        tprof = estim.tprof
-        tprof.stat('data')
-        tprof.stat('train')
         return {
             'acc_top1': self.top1.avg,
             'acc_top5': self.top5.avg
@@ -95,7 +90,7 @@ class ImageClsTrainer(TrainerBase):
         N = trn_X.size(0)
         tprof.timer_start('train')
         w_optim.zero_grad()
-        loss, logits = estim.loss_logits(trn_X, trn_y, model=model)
+        loss, logits = estim.loss_logits(trn_X, trn_y, model=model, mode='train')
         loss.backward()
         # gradient clipping
         if self.w_grad_clip > 0:
@@ -120,8 +115,9 @@ class ImageClsTrainer(TrainerBase):
             logger.info("Train: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
         return loss, prec1, prec5
 
-    def validate_epoch(self, estim, model, valid_loader, epoch=0, tot_epochs=1):
-        tot_steps = len(valid_loader)
+    def validate_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
+        if not tot_steps:
+            return None
         for step in range(tot_steps):
             self.validate_step(estim, model, epoch, tot_epochs, step, tot_steps)
         return {

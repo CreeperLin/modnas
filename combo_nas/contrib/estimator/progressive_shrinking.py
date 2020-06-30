@@ -213,7 +213,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         results = dict()
         for name, conf in configs.items():
             self.apply_subnet_config(conf)
-            recompute_bn_running_statistics(self.model, self.train_loader,
+            recompute_bn_running_statistics(self.model, self.data_provider.get_train_iter(),
                                             self.num_bn_batch, self.clear_subnet_bn)
             val_top1 = self.validate_epoch(*args, **kwargs)
             results[name] = val_top1

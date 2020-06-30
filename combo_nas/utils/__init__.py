@@ -73,8 +73,8 @@ def check_config(config, top_keys=[]):
     flag = False
 
     defaults = {
-        'data.type': 'pytorch',
-        'data_loader.type': 'pytorch',
+        'data.type': 'ImageCls',
+        'data_loader.type': 'ImageCls',
         'ops.ops_order': 'act_weight_bn',
         'ops.affine': False,
         'ops.bias': False,
@@ -97,7 +97,7 @@ def check_config(config, top_keys=[]):
         'estimator.*.arch_update_batch': 1,
         'estimator.*.criterion': 'CE',
         'estimator.*.metrics': 'Validate',
-        'estimator.*.trainer': 'ImgCls',
+        'estimator.*.trainer': 'ImageCls',
     }
 
     for key, val in defaults.items():
@@ -233,19 +233,17 @@ def clear_bn_running_statistics(model):
             m.reset_running_stats()
 
 
-def recompute_bn_running_statistics(model, data_loader, num_batch=100, clear=True):
+def recompute_bn_running_statistics(model, trn_iter, num_batch=100, clear=True):
     if clear:
         clear_bn_running_statistics(model)
     is_training = model.training
     model.train()
     with torch.no_grad():
-        trn_iter = iter(data_loader)
         for _ in range(num_batch):
             try:
                 trn_X, _ = next(trn_iter)
             except StopIteration:
-                trn_iter = iter(data_loader)
-                trn_X, _ = next(trn_iter)
+                break
             model(trn_X.to(device=model.device_ids[0]))
             del trn_X
     if not is_training:
