@@ -15,14 +15,14 @@ class ParamStatsEstimator(SuperNetEstimator):
         self.probs = []
 
     def record_probs(self):
-        self.probs.append([F.softmax(a.detach(), dim=-1).cpu().numpy() for a in self.model.arch_param_tensor()])
+        self.probs.append([F.softmax(a.detach(), dim=-1).cpu().numpy() for a in ArchParamSpace.tensor_values()])
 
     def search_epoch(self, epoch, optim):
         self.record_probs()
         return super().search_epoch(epoch, optim)
 
-    def search(self, optim):
-        ret = super().search(optim)
+    def run(self, optim):
+        ret = super().run(optim)
         self.record_probs()
         probs = self.probs
         n_alphas = len(probs[0])

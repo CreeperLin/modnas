@@ -1,15 +1,23 @@
 import itertools
 from ..base import EstimatorBase
+from ...core.param_space import ArchParamSpace
 from ... import utils
 
 class SuperNetEstimator(EstimatorBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.best_score = None
-        self.best_genotype = None
-        self.reset_training_states()
+        self.best_arch_desc = None
 
-    def search(self, optim):
+    def print_tensor_params(self, max_num=3):
+        logger = self.logger
+        ap_cont = tuple(a.detach().softmax(dim=-1).cpu().numpy() for a in ArchParamSpace.tensor_values())
+        max_num = min(len(ap_cont)//2, max_num)
+        logger.info('TENSOR: {}\n{}'.format(
+            len(ap_cont), '\n'.join([str(a) for a in (ap_cont[:max_num]+('...',)+ap_cont[-max_num:])])))
+
+    def run(self, optim):
+        self.reset_training_states()
         model = self.model
         config = self.config
         tot_epochs = config.epochs
@@ -18,34 +26,34 @@ class SuperNetEstimator(EstimatorBase):
         for epoch in itertools.count(self.cur_epoch+1):
             if epoch == tot_epochs: break
             # train
-            self.model.print_arch_params(self.logger)
+            self.print_tensor_params()
             self.search_epoch(epoch, optim)
             # eval
-            genotype = model.to_genotype()
+            arch_desc = self.model_exporter(model)
             mt_ret = self.compute_metrics()
-            self.logger.info('Evaluate: {} -> {}'.format(genotype, mt_ret))
+            self.logger.info('Evaluate: {} -> {}'.format(arch_desc, mt_ret))
             score = self.get_score(mt_ret)
             if self.best_score is None or score > self.best_score:
                 self.best_score = score
-                self.best_genotype = genotype
+                self.best_arch_desc = arch_desc
             # save
             if config.save_gt:
-                self.save_genotype(epoch, genotype=genotype)
+                self.save_arch_desc(epoch, arch_desc=arch_desc)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            self.save_genotype(save_name='best', genotype=self.best_genotype)
+            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             eta_m.step()
-            self.logger.info('Search: [{:3d}/{}] Current: {} Best: {} | ETA: {}'.format(
-                epoch+1, tot_epochs, score, self.best_score, eta_m.eta_fmt()))
+            self.logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+                epoch+1, tot_epochs, score or 0, self.best_score or 0, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
-            'best_gt': self.best_genotype,
+            'best_arch': self.best_arch_desc,
         }
 
     def search_epoch(self, epoch, optim):
         config = self.config
-        n_trn_batch = self.n_trn_batch
-        n_val_batch = self.n_val_batch
+        n_trn_batch = self.get_num_train_batch(epoch)
+        n_val_batch = self.get_num_valid_batch(epoch)
         tot_epochs = config.epochs
         update_arch = False
         arch_epoch_start = config.arch_update_epoch_start

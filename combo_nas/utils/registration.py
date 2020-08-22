@@ -2,22 +2,10 @@ import importlib
 import logging
 from functools import partial
 
-class Registry(object):
-    """
-    registry
-    """
-
-    def __init__(self, name=''):
+class Registry():
+    def __init__(self, name='root'):
         self.name = name
         self._reg_class = {}
-
-    def make(self, path):
-        try:
-            module = importlib.import_module(path)
-            # catch ImportError for python2.7 compatibility
-        except ImportError:
-            raise ValueError('A module ({}) not found'.format(path))
-        return module
 
     def all(self):
         return self._reg_class.values()
@@ -25,45 +13,56 @@ class Registry(object):
     def get_reg_name(self, name):
         return name.lower().replace('-', '').replace('_', '').replace(' ', '')
 
-    def register(self, regclass, rid=None):
-        rid = regclass.__name__ if rid is None else rid
-        rid = self.get_reg_name(rid)
-        if rid in self._reg_class:
-            raise ValueError('Cannot re-register rid: {}'.format(rid))
-        self._reg_class[rid] = regclass
+    def register(self, regclass, _reg_id):
+        _reg_id = self.get_reg_name(_reg_id)
+        if _reg_id in self._reg_class:
+            raise ValueError('Cannot re-register _reg_id: {}'.format(_reg_id))
+        self._reg_class[_reg_id] = regclass
 
     def update(self, regdict):
         self._reg_class.update(regdict)
 
-    def get(self, rid):
-        rid = self.get_reg_name(rid)
-        if not rid in self._reg_class: raise ValueError('id \'{}\' not found in registry {}'.format(rid, self.name))
-        return self._reg_class[rid]
+    def get(self, _reg_id):
+        _reg_id = self.get_reg_name(_reg_id)
+        if not _reg_id in self._reg_class: raise ValueError('id \'{}\' not found in registry {}'.format(_reg_id, self.name))
+        return self._reg_class[_reg_id]
 
 
-def register(reg, net_builder, rid=None):
-    reg.register(net_builder, rid)
-    logging.info('registered {}: {}'.format(reg.name, rid))
+registry = Registry()
 
-def get_builder(reg, rid):
-    return reg.get(rid)
 
-def build(reg, rid, *args, **kwargs):
-    # logging.debug('build {}: {}'.format(reg.name, rid))
-    return reg.get(rid)(*args, **kwargs)
+def get_full_path(_reg_path, _reg_id):
+    return '{}.{}'.format(_reg_path, _reg_id)
 
-def register_as(reg, rid):
+
+def register(_reg_path, builder, _reg_id=None):
+    if _reg_id is None:
+        _reg_id = builder.__qualname__
+    _reg_id = get_full_path(_reg_path, _reg_id)
+    registry.register(builder, _reg_id)
+    logging.info('registered: {}'.format(_reg_id))
+    return builder
+
+
+def get_builder(_reg_path, _reg_id):
+    return registry.get(get_full_path(_reg_path, _reg_id))
+
+
+def build(_reg_path, _reg_id, *args, **kwargs):
+    return registry.get(get_full_path(_reg_path, _reg_id))(*args, **kwargs)
+
+
+def register_as(_reg_path, _reg_id=None):
     def reg_builder(func):
-        register(reg, func, rid)
-        def reg_builder_rid(*args, **kwargs):
-            return func(*args, **kwargs)
-        return reg_builder_rid
+        register(_reg_path, func, _reg_id)
+        return func
     return reg_builder
 
-def get_registry_utils(name):
-    _registry = Registry(name)
-    _register = partial(register, _registry)
-    _get_builder = partial(get_builder, _registry)
-    _build = partial(build, _registry)
-    _register_as = partial(register_as, _registry)
-    return _registry, _register, _get_builder, _build, _register_as
+
+def get_registry_utils(_reg_path):
+    # _registry = Registry(name)
+    _register = partial(register, _reg_path)
+    _get_builder = partial(get_builder, _reg_path)
+    _build = partial(build, _reg_path)
+    _register_as = partial(register_as, _reg_path)
+    return _reg_path, _register, _get_builder, _build, _register_as

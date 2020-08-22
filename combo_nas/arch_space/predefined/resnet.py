@@ -1,12 +1,14 @@
 from functools import partial
 import torch.nn as nn
-from ...arch_space.constructor import Slot
+from ..slot import Slot
+from ..construct.default import DefaultSlotTraversalConstructor
 from .. import register
 from ..ops import Identity
+from ..construct import register as register_constructor
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
     """3x3 convolution with padding"""
-    return Slot(in_planes, out_planes, stride, kwargs={'groups': groups})
+    return Slot(_chn_in=in_planes, _chn_out=out_planes, _stride=stride, groups=groups)
 
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
@@ -141,16 +143,19 @@ class ResNet(nn.Module):
 
         return x
 
-    def get_predefined_augment_converter(self):
-        if self.use_bn:
-            return lambda slot: nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1,
-                                          stride=slot.stride, bias=False, **slot.kwargs)
-        else:
-            return lambda slot: nn.Sequential(
-                nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1,
-                          stride=slot.stride, bias=False, **slot.kwargs),
-                nn.BatchNorm2d(slot.chn_out)
-            )
+
+@register_constructor
+class ResNetPredefinedConstructor(DefaultSlotTraversalConstructor):
+    def __init__(self, use_bn=False):
+        super().__init__()
+        self.use_bn = use_bn
+
+    def convert(self, slot):
+        return nn.Sequential(
+            nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1,
+                                      stride=slot.stride, bias=False, **slot.kwargs),
+            nn.BatchNorm2d(slot.chn_out) if self.use_bn else Identity(),
+        )
 
 
 class ImageNetResNet(ResNet):

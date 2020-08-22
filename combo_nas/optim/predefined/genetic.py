@@ -83,25 +83,25 @@ class EvolutionOptim(GeneticOptim):
         while len(next_pop) < self.n_crossover:
             parents = [random.choice(pop) for _ in range(self.n_parents)]
             for _ in range(self.n_offsprings):
-                n_gene = parents[0].copy()
+                n_desc = parents[0].copy()
                 for name in parents[0]:
                     values = [p[name] for p in parents]
-                    n_gene[name] = random.choice(values)
-                next_pop.append(n_gene)
+                    n_desc[name] = random.choice(values)
+                next_pop.append(n_desc)
         return next_pop
 
     def _mutation(self, pop):
         next_pop = []
-        for gene in pop:
-            m_gene = gene.copy()
-            for name, value in gene.items():
+        for desc in pop:
+            m_desc = desc.copy()
+            for name, value in desc.items():
                 p = self.space.get_param(name)
                 if random.random() < self.mutation_prob:
                     nidx = idx = p.get_index(value)
                     while nidx == idx:
                         nidx = random.randint(0, len(p) - 1)
-                    m_gene[name] = p.get_value(nidx)
-            next_pop.append(m_gene)
+                    m_desc[name] = p.get_value(nidx)
+            next_pop.append(m_desc)
         return next_pop
 
 

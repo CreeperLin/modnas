@@ -18,8 +18,8 @@ class SubNetStatsEstimator(SubNetEstimator):
         self.subnet_results.append((params, ret))
         return ret
 
-    def search(self, optim):
-        ret = super().search(optim)
+    def run(self, optim):
+        ret = super().run(optim)
         subnet_results = self.subnet_results
         axis_list = self.axis_list
         if axis_list is None:

@@ -1,5 +1,6 @@
 import math
 import torch.nn as nn
+from . import register
 
 def init_he_normal_fout(t, gain, fan_in, fan_out):
     stdv = gain / math.sqrt(fan_out)
@@ -16,6 +17,14 @@ def init_he_uniform_fout(t, gain, fan_in, fan_out):
 def init_he_uniform_fin(t, gain, fan_in, fan_out):
     b = math.sqrt(3.) * gain / math.sqrt(fan_in)
     nn.init.uniform_(t, -b, b)
+
+def init_xavier_uniform(t, gain, fan_in, fan_out):
+    b = math.sqrt(6.) * gain / math.sqrt(fan_in + fan_out)
+    nn.init.uniform_(t, -b, b)
+
+def init_xavier_normal(t, gain, fan_in, fan_out):
+    stdv = math.sqrt(2.) * gain / math.sqrt(fan_in + fan_out)
+    nn.init.normal_(t, 0, stdv)
 
 def init_uniform_fin(t, gain, fan_in, fan_out):
     b = 1.0 / math.sqrt(fan_in)
@@ -41,10 +50,12 @@ def init_ones(t, gain, fan_in, fan_out):
 _initializers = {k[5:]: v for (k, v) in globals().items() if k.startswith('init_')}
 
 
+@register
 class DefaultModelInitializer():
-    def __init__(self, conv_init_type=None, conv_div_groups=True,
+    def __init__(self, default_init_type=None, conv_init_type=None, conv_div_groups=True,
                  bn_init_type=None, bn_momentum=None, bn_eps=None, fc_init_type=None,
                  bias_init_type=None, neg_slope=math.sqrt(5), nonlinear='leaky_relu'):
+        self.default_init_type = default_init_type
         self.conv_init_type = conv_init_type
         self.conv_div_groups = conv_div_groups
         self.bn_init_type = bn_init_type
@@ -90,3 +101,8 @@ class DefaultModelInitializer():
                 self.init_tensor(self.fc_init_type, m.weight, gain, fan_in, fan_out)
                 if m.bias is None: continue
                 self.init_tensor(self.bias_init_type, m.bias, gain, fan_in, fan_out)
+            elif len(list(m.children())) == 0:
+                for p in m.parameters():
+                    fan_out = p.shape[0] if len(p.shape) else 1
+                    fan_in = p.shape[min(1, len(p.shape)-1)] if len(p.shape) else 1
+                    self.init_tensor(self.default_init_type, p, gain, fan_in, fan_out)

@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import TensorDataset
-from . import register_as
+from . import register
 
 def get_data_shape(shape):
     if shape in [None, 'nil', 'None']:
@@ -28,17 +28,12 @@ def get_random_data(shape, dtype, drange):
     return data.to(dtype=get_dtype(dtype))
 
 
-@register_as('Rand')
-def get_rand_dataset(validation, data_spec,
-                      trn_size=128, val_size=128):
-    trn_dset = val_dset = None
-    trn_data = []
+def get_rand_dataset(data_spec, data_size=128):
+    data = []
     for dshape, dtype, drange in data_spec:
-        trn_data.append(get_random_data([trn_size] + get_data_shape(dshape), dtype, drange))
-    trn_dset = TensorDataset(*trn_data)
-    if validation:
-        val_data = []
-        for dshape, dtype, drange in data_spec:
-            val_data.append(get_random_data([val_size] + get_data_shape(dshape), dtype, drange))
-        val_dset = TensorDataset(*val_data)
-    return trn_dset, val_dset
+        data.append(get_random_data([data_size] + get_data_shape(dshape), dtype, drange))
+    dset = TensorDataset(*data)
+    return dset
+
+
+register(get_rand_dataset, 'Rand')

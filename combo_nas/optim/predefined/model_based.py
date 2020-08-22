@@ -33,10 +33,8 @@ class ModelBasedOptim(CategoricalSpaceOptim):
         for inp, res in zip(inputs, results):
             self.train_x.append(inp)
             self.train_y.append(res)
-
         if len(self.train_x) < self.n_next_pts * (self.train_ct + 1):
             return
-
         self.cost_model.fit(self.train_x, self.train_y)
         self.next_xs = self.model_optimizer.get_maximums(
             self.cost_model, self.n_next_pts, self.visited)

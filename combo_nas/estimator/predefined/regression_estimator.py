@@ -9,7 +9,7 @@ class ArchPredictor():
     def fit(self, ):
         pass
 
-    def predict(self, genotype):
+    def predict(self, arch_desc):
         pass
 
 
@@ -18,24 +18,24 @@ class RegressionEstimator(EstimatorBase):
         super().__init__(*args, **kwargs)
         self.predictor = None
         self.best_score = 0.
-        self.best_genotype = None
+        self.best_arch_desc = None
 
     def step(self, params):
         ArchParamSpace.update_params(params)
         predictor = self.predictor
         model = self.model
         if model is None:
-            genotype = list(params.values())
+            arch_desc = list(params.values())
             score = predictor.predict(params)
         else:
-            genotype = model.to_genotype()
-            score = predictor.predict(genotype)
+            arch_desc = model.to_arch_desc()
+            score = predictor.predict(arch_desc)
         if score > self.best_score:
             self.best_score = score
-            self.best_genotype = genotype
-        return genotype, score
+            self.best_arch_desc = arch_desc
+        return arch_desc, score
 
-    def search(self, optim):
+    def run(self, optim):
         config = self.config
         tot_epochs = config.epochs
         logger = self.logger
@@ -53,18 +53,18 @@ class RegressionEstimator(EstimatorBase):
             best_gt_batch = None
             for params in self.inputs:
                 # estim step
-                genotype, score = self.step(params)
+                arch_desc, score = self.step(params)
                 if score > best_score_batch:
                     best_score_batch = score
-                    best_gt_batch = genotype
+                    best_gt_batch = arch_desc
                 self.results.append(score)
             # save
             if config.save_gt:
-                self.save_genotype(epoch, genotype=best_gt_batch)
-            self.save_genotype(save_name='best', genotype=self.best_genotype)
-            logger.info('Search: [{:3d}/{}] Prec@1: {:.4%} Best: {:.4%}'.format(
-                epoch+1, tot_epochs, best_score_batch, self.best_score))
+                self.save_arch_desc(epoch, arch_desc=best_gt_batch)
+            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
+            logger.info('Search: [{:3d}/{}] Prec@1: {:.4f} Best: {:.4f}'.format(
+                epoch+1, tot_epochs, best_score_batch or 0, self.best_score or 0))
         return {
             'best_score': self.best_score,
-            'best_gt': self.best_genotype,
+            'best_arch': self.best_arch_desc,
         }

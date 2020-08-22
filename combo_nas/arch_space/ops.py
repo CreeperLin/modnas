@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 import logging
 import torch
 import torch.nn as nn
 from ..utils.registration import get_registry_utils
 from ..utils import get_same_padding
 
-registry, register, get_builder, build, register_as = get_registry_utils('ops')
+from .slot import register_slot_ccs
 
-register(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
-register(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'MAX')
-register(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
+register_slot_ccs(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
+register_slot_ccs(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'MAX')
+register_slot_ccs(lambda C_in, C_out, stride: Identity() if C_in == C_out and stride == 1 
                                         else FactorizedReduce(C_in, C_out), 'IDT')
 kernel_sizes = [1, 3, 5, 7, 9, 11, 13]
 for k in kernel_sizes:
@@ -17,14 +16,14 @@ for k in kernel_sizes:
     p2 = get_same_padding(2*k-1)
     p3 = get_same_padding(3*k-2)
     kabbr = str(k)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, C_out, ks, stride, pd), 'AP'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, C_out, ks, stride, pd), 'MP'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: SepConv(C_in, C_out, ks, stride, pd), 'SC'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: SepSingle(C_in, C_out, ks, stride, pd), 'SS'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: StdConv(C_in, C_out, ks, stride, pd), 'NC'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p2: DilConv(C_in, C_out, ks, stride, pd, 2), 'DC'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'DD'+kabbr)
-    register(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'FC'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('avg', C_in, C_out, ks, stride, pd), 'AP'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: PoolBN('max', C_in, C_out, ks, stride, pd), 'MP'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: SepConv(C_in, C_out, ks, stride, pd), 'SC'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: SepSingle(C_in, C_out, ks, stride, pd), 'SS'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: StdConv(C_in, C_out, ks, stride, pd), 'NC'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p2: DilConv(C_in, C_out, ks, stride, pd, 2), 'DC'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'DD'+kabbr)
+    register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'FC'+kabbr)
 
 
 OPS_ORDER = ['bn','act','weight']
@@ -260,4 +259,4 @@ class FactorizedReduce(nn.Module):
         out = self.bn(out)
         return out
 
-register(Zero, 'NIL')
+register_slot_ccs(Zero, 'NIL')

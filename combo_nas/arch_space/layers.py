@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
 import logging
 import torch
 import torch.nn as nn
 from .layer_defs import get_merger, get_allocator, get_enumerator
 from ..utils.registration import get_registry_utils
+from .slot import Slot
+from .slot import register_slot_ccs
 
-registry, register, get_builder, build, register_as = get_registry_utils('layers')
-
-
+@register_slot_ccs
 class DAGLayer(nn.Module):
     def __init__(self, chn_in, chn_out, stride, n_nodes,
-                 allocator, merger_state, merger_out, enumerator, preproc,
-                 edge_cls, edge_kwargs, name=None):
+                 allocator, merger_state, merger_out, enumerator, preproc=None,
+                 edge_cls=Slot, edge_kwargs=None, name=None):
         super().__init__()
         self.n_nodes = n_nodes
         self.stride = stride
@@ -19,7 +18,8 @@ class DAGLayer(nn.Module):
         self.chn_in = chn_in
         self.n_input = len(chn_in)
         self.n_states = self.n_input + self.n_nodes
-        e_chn_in = edge_kwargs['chn_in']
+        edge_kwargs = edge_kwargs or {}
+        e_chn_in = edge_kwargs.get('_chn_in')
         self.n_input_e = 1 if e_chn_in is None or isinstance(e_chn_in, int) else len(e_chn_in)
         self.allocator = get_allocator(allocator)(self.n_input, self.n_nodes)
         self.merger_state = get_merger(merger_state)()
@@ -33,7 +33,7 @@ class DAGLayer(nn.Module):
             self.preprocs = None
             chn_states.extend(chn_in)
         else:
-            chn_cur = edge_kwargs['chn_in']
+            chn_cur = edge_kwargs.get('_chn_in')
             chn_cur = chn_cur if self.n_input == 1 else chn_cur[0]
             self.preprocs = nn.ModuleList()
             for i in range(self.n_input):
@@ -48,10 +48,10 @@ class DAGLayer(nn.Module):
             self.dag.append(nn.ModuleList())
             for sidx in self.enumerator.enum(cur_state, self.n_input_e):
                 e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
-                edge_kwargs['chn_in'] = e_chn_in
-                edge_kwargs['stride'] = stride if all(s < self.n_input for s in sidx) else 1
+                edge_kwargs['_chn_in'] = e_chn_in
+                edge_kwargs['_stride'] = stride if all(s < self.n_input for s in sidx) else 1
                 if not chn_out is None:
-                    edge_kwargs['chn_out'] = chn_out
+                    edge_kwargs['_chn_out'] = chn_out
                 if not name is None:
                     edge_kwargs['name'] = '{}_{}'.format(name, self.num_edges)
                 e = edge_cls(**edge_kwargs)
@@ -60,7 +60,7 @@ class DAGLayer(nn.Module):
             chn_states.append(self.merger_state.chn_out([ei.chn_out for ei in self.dag[i]]))
             self.chn_out = self.merger_out.chn_out(chn_states)
         logging.debug('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(
-            str(edge_cls), self.chn_in, edge_kwargs['chn_in'][0], self.n_nodes, self.num_edges))
+            str(edge_cls), self.chn_in, edge_kwargs['_chn_in'][0], self.n_nodes, self.num_edges))
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.chn_states = chn_states
 
@@ -83,19 +83,19 @@ class DAGLayer(nn.Module):
         out = self.merger_out.merge(states)
         return out
 
-    def to_genotype(self, k=2):
-        gene = []
+    def to_arch_desc(self, k=2):
+        desc = []
         edge_k = 1
         k_states = k
         if isinstance(k_states, int):
             k_states = [k_states] * len(self.dag)
         for nidx, edges in enumerate(self.dag):
-            topk_genes = []
+            topk_edges = []
             n_states = self.n_input + nidx
             topo = self.topology[nidx] if self.fixed else None
             for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if not topo is None and not eidx in topo: continue
-                g_edge_child = edges[eidx].to_genotype(k=edge_k+1)
+                g_edge_child = edges[eidx].to_arch_desc(k=edge_k+1)
                 if not isinstance(g_edge_child, (list, tuple)):
                     g_edge_child = [g_edge_child]
                 g_edge_child = [g for g in g_edge_child if g != 'NIL'][:edge_k]
@@ -104,33 +104,33 @@ class DAGLayer(nn.Module):
                 except:
                     w_edge = -1
                 if w_edge < 0: continue
-                g_edge = (g_edge_child, sidx, n_states)
-                if len(topk_genes) < k_states[nidx]:
-                    topk_genes.append((w_edge, g_edge))
+                g_edge = [g_edge_child, list(sidx), n_states]
+                if len(topk_edges) < k_states[nidx]:
+                    topk_edges.append((w_edge, g_edge))
                     continue
-                for i in range(len(topk_genes)):
-                    w, _ = topk_genes[i]
+                for i in range(len(topk_edges)):
+                    w, _ = topk_edges[i]
                     if w_edge > w:
-                        topk_genes[i] = (w_edge, g_edge)
+                        topk_edges[i] = (w_edge, g_edge)
                         break
-            gene.append([g for w, g in topk_genes])
-        return gene
+            desc.append([g for w, g in topk_edges])
+        return desc
 
-    def build_from_genotype(self, gene, *args, **kwargs):
-        """ generate discrete ops from gene """
+    def build_from_arch_desc(self, desc, *args, **kwargs):
+        """ generate discrete ops from desc """
         chn_states = self.chn_states[:self.n_input]
         num_edges = 0
         self.topology = []
-        for nidx, (edges, dag_rows) in enumerate(zip(gene, self.dag)):
+        for nidx, (edges, dag_rows) in enumerate(zip(desc, self.dag)):
             cur_state = self.n_input+nidx
             e_chn_out = []
             topo = []
             dag_topology = list(self.enumerator.enum(cur_state, self.n_input_e))
             for g_child, sidx, _ in edges:
-                eidx = dag_topology.index(sidx)
+                eidx = dag_topology.index(tuple(sidx))
                 topo.append(eidx)
                 e = dag_rows[eidx]
-                e.build_from_genotype(g_child, *args, **kwargs)
+                e.build_from_arch_desc(g_child, *args, **kwargs)
                 num_edges += 1
                 e_chn_out.append(e.chn_out)
             self.topology.append(topo)
@@ -142,12 +142,14 @@ class DAGLayer(nn.Module):
         logging.debug('DAGLayer: chn_in:{} #n:{} #e:{}'.format(self.chn_in, self.n_nodes, self.num_edges))
 
 
+@register_slot_ccs
 class MultiChainLayer(nn.Module):
     def __init__(self, chn_in, chn_out, stride, n_chain, n_chain_nodes,
-                 allocator, merger_out, preproc,
-                 edge_cls, edge_kwargs, name=None):
+                 allocator, merger_out, preproc=None,
+                 edge_cls=Slot, edge_kwargs=None, name=None):
         super().__init__()
         chn_in = (chn_in, ) if isinstance(chn_in, int) else chn_in
+        edge_kwargs = edge_kwargs or {}
         self.chn_in = chn_in
         self.chn_out = chn_out
         self.stride = stride
@@ -169,7 +171,7 @@ class MultiChainLayer(nn.Module):
             self.preprocs = None
             chn_states.extend(chn_in)
         else:
-            chn_cur = edge_kwargs['chn_in']
+            chn_cur = edge_kwargs.get('chn_in')
             chn_cur = chn_cur if self.n_input == 1 else chn_cur[0]
             self.preprocs = nn.ModuleList()
             for i in range(self.n_input):
@@ -184,10 +186,10 @@ class MultiChainLayer(nn.Module):
             cur_state = self.n_input + cidx
             e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
             for nidx in range(self.n_chain_nodes[cidx]):
-                edge_kwargs['chn_in'] = e_chn_in
-                edge_kwargs['stride'] = stride if nidx == 0 else 1
+                edge_kwargs['_chn_in'] = e_chn_in
+                edge_kwargs['_stride'] = stride if nidx == 0 else 1
                 if nidx == 0:
-                    edge_kwargs['chn_out'] = sum([chn_out * e // s for e, s in zip(e_chn_in, self.chn_in)])
+                    edge_kwargs['_chn_out'] = sum([chn_out * e // s for e, s in zip(e_chn_in, self.chn_in)])
                 if not name is None:
                     edge_kwargs['name'] = '{}_{}_{}'.format(name, cidx, nidx)
                 e = edge_cls(**edge_kwargs)
@@ -213,20 +215,16 @@ class MultiChainLayer(nn.Module):
         out = self.merger_out.merge(states)
         return out
 
-    def to_genotype(self, *args, **kwargs):
-        gene = []
+    def to_arch_desc(self, *args, **kwargs):
+        desc = []
         for chain in self.chains:
-            g_chain = [e.to_genotype(*args, **kwargs) for e in chain]
-            gene.append(g_chain)
-        return gene
+            g_chain = [e.to_arch_desc(*args, **kwargs) for e in chain]
+            desc.append(g_chain)
+        return desc
 
-    def build_from_genotype(self, gene, *args, **kwargs):
-        assert len(gene) == len(self.chains)
-        for g_chain, chain in zip(gene, self.chains):
+    def build_from_arch_desc(self, desc, *args, **kwargs):
+        assert len(desc) == len(self.chains)
+        for g_chain, chain in zip(desc, self.chains):
             assert len(g_chain) == len(chain)
             for g_edge, e in zip(g_chain, chain):
-                e.build_from_genotype(g_edge, *args, **kwargs)
-
-
-register(DAGLayer, 'DAG')
-register(MultiChainLayer, 'MultiChain')
+                e.build_from_arch_desc(g_edge, *args, **kwargs)

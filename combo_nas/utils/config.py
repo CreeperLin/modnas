@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # modified from https://github.com/HarryVolek/PyTorch_Speaker_Verification
 import yaml
 import copy
@@ -13,22 +12,6 @@ def load_config(filename):
         for k, v in doc.items():
             config_dict[k] = v
     return config_dict
-
-
-def parse_data_str(dstr):
-    if dstr == 'null':
-        return None
-    if dstr == 'True':
-        return True
-    if dstr == 'False':
-        return False
-    if dstr.isnumeric():
-        return int(dstr)
-    else:
-        try:
-            return float(dstr)
-        except ValueError:
-            return dstr
 
 
 class Config(dict):
@@ -89,7 +72,7 @@ class Config(dict):
         if isinstance(dct, dict):
             dct = Config(dct=dct)
         elif isinstance(dct, list):
-            dct = {k: parse_data_str(v) for (k, v) in [item.split('=') for item in dct]}
+            dct = {k: yaml.load(v) for (k, v) in [item.split('=') for item in dct]}
         else:
             raise ValueError('unsupported apply type: {}'.format(type(dct)))
         for k, v in dct.items():
@@ -121,5 +104,5 @@ class Config(dict):
         elif isinstance(conf, dict):
             config = Config(dct=conf)
         else:
-            raise ValueError('invalid config type')
+            raise ValueError('invalid config type: {}'.format(type(conf)))
         return config

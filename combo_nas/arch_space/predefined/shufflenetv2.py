@@ -1,12 +1,15 @@
 import torch
 import torch.nn as nn
-from ...arch_space.constructor import Slot, default_mixed_op_converter
-from .. import ops, register_as
+from .. import ops, build, register_as
+from ..slot import Slot
+from ..construct import register as register_constructor
+from ..construct.default import DefaultMixedOpConstructor, DefaultSlotTraversalConstructor
+from ..slot import register_slot_ccs
 
 kernel_sizes = [3, 5, 7, 9]
 for k in kernel_sizes:
-    ops.register(lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnit(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid), 'SHU{}'.format(k))
-    ops.register(lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnitXception(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid), 'SHX{}'.format(k))
+    register_slot_ccs(lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnit(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid), 'SHU{}'.format(k))
+    register_slot_ccs(lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnitXception(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid), 'SHX{}'.format(k))
 
 
 def channel_split(x, split):
@@ -164,7 +167,7 @@ class ShuffleNetV2(nn.Module):
                 for j in range(n):
                     block_stride = s if j == 0 else 1
                     chn_mid = int(c // 2 * e)
-                    features.append(Slot(chn_in, c, block_stride, kwargs={'chn_mid': chn_mid}))
+                    features.append(Slot(_chn_in=chn_in, _chn_out=c, _stride=block_stride, chn_mid=chn_mid))
                     chn_in = c
             chn_in = c
         self.features = nn.Sequential(*features)
@@ -222,18 +225,26 @@ class ShuffleNetV2(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-    def get_predefined_augment_converter(self):
-        return lambda slot: ops.build('SHU3', slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
-    def get_predefined_search_converter(self, add_identity_op=True):
-        def convert_fn(slot, primitives, *args, **kwargs):
-            primitives = primitives[:]
-            if convert_fn.add_identity_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
-                primitives.append('IDT')
-            ent = default_mixed_op_converter(slot, primitives=primitives, *args, **kwargs)
-            return ent
-        convert_fn.add_identity_op = add_identity_op
-        return convert_fn
+@register_constructor
+class ShuffleNetV2SearchConstructor(DefaultMixedOpConstructor):
+    def __init__(self, *args, add_identity_op=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.add_identity_op = add_identity_op
+
+    def convert(self, slot):
+        prims = self.primitives[:]
+        if self.add_identity_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
+            self.primitives.append('IDT')
+        ent = super().convert(slot)
+        self.primitives = prims
+        return ent
+
+
+@register_constructor
+class ShuffleNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
+    def convert(self, slot):
+        return build('SHU3', slot)
 
 
 @register_as('ShuffleNetV2_OneShot')

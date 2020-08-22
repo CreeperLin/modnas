@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 from functools import partial
 import torch.nn as nn
-from ..layers import build as build_layer
+from .. import build
 from ..ops import FactorizedReduce, StdConv
-from ..constructor import Slot, default_mixed_op_converter
+from ..slot import Slot
+from ..construct.default import DefaultMixedOpConstructor
+from ..layers import DAGLayer
 from .. import register
 
 class PreprocLayer(StdConv):
@@ -72,8 +73,8 @@ class DARTSLikeNet(nn.Module):
             cell_kwargs['chn_in'] = (chn_pp, chn_p)
             cell_kwargs['stride'] = stride
             cell_kwargs['name'] = 'reduce' if reduction else 'normal'
-            cell_kwargs['edge_kwargs']['chn_in'] = (chn_cur, )
-            cell = build_layer(cell_cls, **cell_kwargs)
+            cell_kwargs['edge_kwargs']['_chn_in'] = (chn_cur, )
+            cell = cell_cls(**cell_kwargs)
             self.cells.append(cell)
             self.cell_group[1 if reduction else 0].append(cell)
             chn_out = chn_cur * cell_kwargs['n_nodes']
@@ -111,44 +112,38 @@ class DARTSLikeNet(nn.Module):
             return None
         return self.aux_out
 
-    def build_from_genotype(self, gene, *args, **kwargs):
-        assert len(self.cell_group) == len(gene.dag)
-        for cells, g in zip(self.cell_group, gene.dag):
+    def build_from_arch_desc(self, desc, *args, **kwargs):
+        assert len(self.cell_group) == len(desc)
+        for cells, g in zip(self.cell_group, desc):
             for c in cells:
-                c.build_from_genotype(g, *args, **kwargs)
+                c.build_from_arch_desc(g, *args, **kwargs)
 
-    def to_genotype(self, k=2):
-        gene = []
+    def to_arch_desc(self, k=2):
+        desc = []
         for cells in self.cell_group:
-            gene.append(cells[0].to_genotype(k))
-        return gene
+            desc.append(cells[0].to_arch_desc(k))
+        return desc
 
     def dags(self):
         for cell in self.cells:
             yield cell
 
-    def get_predefined_search_converter(self):
-        if not self.shared_a: return default_mixed_op_converter
-        def convert_fn(slot, *args, **kwargs):
-            if not hasattr(convert_fn, 'param_map'):
-                convert_fn.param_map = {}
-            arch_params = convert_fn.param_map.get(slot.name, None)
-            mixed_op_args = {}
-            if not arch_params is None:
-                mixed_op_args['arch_param_map'] = arch_params
-            mixed_op_args.update(kwargs.pop('mixed_op_args', {}))
-            ent = default_mixed_op_converter(slot, *args, **kwargs, mixed_op_args=mixed_op_args)
-            if not slot.name in convert_fn.param_map:
-                convert_fn.param_map[slot.name] = ent.arch_param_map
-            return ent
-        return convert_fn
 
-    def get_predefined_augment_converter(self):
-        return lambda slot: nn.Sequential(
-            nn.ReLU(inplace=False),
-            nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1, bias=False, groups=slot.chn_in),
-            nn.BatchNorm2d(slot.chn_out),
-        )
+class DARTSSearchConstructor(DefaultMixedOpConstructor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.param_map = {}
+
+    def convert(self, slot):
+        arch_params = self.param_map.get(slot.name, None)
+        mixed_args = self.mixed_args
+        if not arch_params is None:
+            mixed_args['arch_param_map'] = arch_params
+        ent = super.__call__(slot)
+        del mixed_args['arch_param_map']
+        if not slot.name in self.param_map:
+            self.param_map[slot.name] = ent.arch_param_map
+        return ent
 
 
 class ImageNetDARTSLikeNet(DARTSLikeNet):
@@ -176,7 +171,7 @@ def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
         'n_inputs_model': 1,
         'n_inputs_layer': 2,
         'n_inputs_node': 1,
-        'cell_cls': 'DAG',
+        'cell_cls': DAGLayer,
         'cell_kwargs': {
             'chn_in': None,
             'chn_out': None,
@@ -189,9 +184,9 @@ def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
             'preproc': None,
             'edge_cls': Slot,
             'edge_kwargs': {
-                'chn_in': None,
-                'chn_out': None,
-                'stride': None,
+                '_chn_in': None,
+                '_chn_out': None,
+                '_stride': None,
             },
         },
     }

@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 import math
 import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..arch_space import build as build_arch_space
-from ..arch_space.constructor import Slot, convert_from_predefined_net
+from ..arch_space.construct import build as build_constructor
 from .registration import get_registry_utils
 
 registry, register, get_builder, build, register_as = get_registry_utils('criterion')
@@ -23,7 +21,7 @@ def get_criterion(config, device_ids=None):
 def torch_criterion_wrapper(cls):
     def call_fn(self, loss, estim, model, X, y_pred, y_true):
         if y_pred is None:
-            y_pred = model.logits(X)
+            y_pred = model(X)
         return cls.__call__(self, y_pred, y_true)
     new_cls = type('Wrapped{}'.format(cls.__name__), (cls, ), {'__call__': call_fn})
     return new_cls
@@ -34,7 +32,7 @@ def label_smoothing(y_pred, y_true, eta):
     # convert to one-hot
     y_true = torch.unsqueeze(y_true, 1)
     soft_y_true = torch.zeros_like(y_pred)
-    soft_y_true.scatter_(1, y_true, 1)
+    soft_y_true.scatter_(1, y_true.to(dtype=int), 1)
     # label smoothing
     soft_y_true = soft_y_true * (1 - eta) + eta / n_classes * 1
     return soft_y_true
@@ -73,9 +71,10 @@ class MixUp():
             alt_X = X[index, :]
             alt_y_true = y_true[index, :]
         mixed_x = lam * X + (1 - lam) * alt_X
-        mixed_y_true = lam * y_true + (1 - lam) * alt_y_true
-        mixed_y_pred = model.logits(mixed_x)
-        return self.criterion(loss, estim, model, X, mixed_y_pred, mixed_y_true)
+        mixed_y_pred = model(mixed_x)
+        loss = loss or 0
+        return lam * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, y_true)
+        + (1 - lam) * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, alt_y_true)
 
 
 @register_as('Auxiliary')
@@ -90,20 +89,20 @@ class Auxiliary():
             raise ValueError('unsupported loss type: {}'.format(loss_type))
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        aux_logits = model.call(self.fwd_func, X)
+        aux_logits = getattr(model, self.fwd_func)(X)
         if aux_logits is None:
             return loss
-        aux_loss = self.loss_func(aux_logits, y_true).to(device=loss.device)
+        aux_loss = self.loss_func(aux_logits, y_true).to(device=X.device)
         return loss + self.aux_ratio * aux_loss
 
 
 @register_as('KnowledgeDistill')
 class KnowledgeDistill():
-    def __init__(self, kd_model_path, kd_model_type, kd_model_args={},
-                 kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
+    def __init__(self, kd_model_constructor=None, kd_model=None,
+                 kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
-        if kd_model is None:
-            kd_model = self.load_model(kd_model_path, kd_model_type, kd_model_args)
+        if not kd_model_constructor is None:
+            kd_model = self.load_model(kd_model, kd_model_constructor)
         self.kd_model = kd_model
         self.kd_ratio = kd_ratio
         self.loss_scale = loss_scale
@@ -114,19 +113,13 @@ class KnowledgeDistill():
         else:
             raise ValueError('unsupported loss_type: {}'.format(loss_type))
 
-    def load_model(self, model_path, model_type, model_args):
-        if model_type is None:
-            return torch.load(model_path)
-        model = build_arch_space(model_type, **model_args)
-        convert_fn = model.get_predefined_augment_converter()
-        model = convert_from_predefined_net(model, convert_fn, gen=Slot.gen_slots_model(model))
-        model.train()
-        if not model_path is None:
-            state_dict = torch.load(model_path)
-            if 'model' in state_dict:
-                state_dict = state_dict['model']
-            model.load_state_dict(state_dict)
-        return model
+    def load_model(self, kd_model, kd_model_constructor):
+        kd_model = None
+        if not isinstance(kd_model_constructor, list):
+            kd_model_constructor = [kd_model_constructor]
+        for con_conf in kd_model_constructor:
+            kd_model = build_constructor(con_conf.type, **(con_conf.get('args') or {}))(kd_model)
+        return kd_model
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
         with torch.no_grad():
@@ -145,9 +138,9 @@ class AggMetricsCriterion():
         self.target_val = target_val
         self.target_decay = target_decay
         self.metrics = metrics
-    
+
     def get_metrics(self, estim):
-        mt = estim.compute_metrics(name=self.metrics, to_scalar=False)
+        mt = estim.compute_metrics(name=self.metrics, to_scalar=False)[self.metrics]
         mt_val = mt.detach().item()
         target_val = self.target_val 
         if target_val is None:

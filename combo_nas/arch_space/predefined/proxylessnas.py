@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from queue import Queue
 from ...utils import param_count
-from ...arch_space.constructor import Slot
+from ...arch_space.slot import Slot
 
 def list_sum(x):
     if len(x) == 1:
@@ -1340,7 +1340,7 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
                     cell_edge2 = ConvLayer(out_plane, out_plane, kernel_size=3, stride=stride, groups=groups_3x3,
                                            use_bn=True, act_func='relu', dropout_rate=dropout_rate, ops_order=ops_order)
 
-                edge_kwargs['chn_in'] = (out_plane, )
+                edge_kwargs['_chn_in'] = (out_plane, )
                 cell = FixedTreeCell(out_plane, out_plane, cell_edge1, cell_edge2, edge_cls, edge_kwargs, tree_node_config)
 
                 out_bottle = ConvLayer(out_plane, out_plane * bottleneck, kernel_size=1, use_bn=True,
@@ -1366,13 +1366,6 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
 
         return ProxylessNASNet(blocks, classifier, ops_order, tree_node_config, groups_3x3)
 
-    def get_predefined_augment_converter(self):
-        return lambda slot: nn.Sequential(
-            nn.BatchNorm2d(slot.chn_in),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(slot.chn_in, slot.chn_out, 3, slot.stride, 1, bias=False),
-        )
-
 
 def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks,
                       conv_groups, alpha, bottleneck_ratio, path_drop_rate, ops_order,
@@ -1396,9 +1389,9 @@ def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks
         ######################################################
         'edge_cls': Slot,
         'edge_kwargs': {
-            'chn_in': None,
-            'chn_out': None,
-            'stride': 1,
+            '_chn_in': None,
+            '_chn_out': None,
+            '_stride': 1,
         },
         'tree_node_config': {
             'use_avg': use_avg,

@@ -2,21 +2,22 @@ import os
 import sys
 import queue
 import importlib
+from collections import OrderedDict
+from ..utils.registration import get_registry_utils
+registry, register, get_builder, build, register_as = get_registry_utils('runner')
 from ..utils.exp_manager import ExpManager
-from ..data_provider import load_data
-from ..arch_space.constructor import convert_from_predefined_net,\
-    convert_from_genotype, convert_from_layers, default_mixed_op_converter,\
-    default_genotype_converter
+from ..data_provider import get_data_provider
+from ..arch_space.construct import build as build_con
+from ..arch_space.export import build as build_exp
 from ..arch_space.ops import configure_ops
 from ..arch_space import build as build_arch_space
-from ..arch_space.constructor import Slot
+from ..arch_space.slot import Slot
 from ..core.param_space import ArchParamSpace
-from ..core.controller import NASController
 from ..optim import build as build_optim
 from ..estimator import build as build_estimator
+from ..trainer import build as build_trainer
 from .. import utils
 from ..utils.config import Config
-from ..arch_space import genotypes as gt
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 
 def import_modules(modules):
@@ -44,14 +45,66 @@ def load_config(conf):
     return config
 
 
-def build_estim_all(estim_config, estim_comp):
+def get_model_constructor(config):
+    default_type = 'DefaultModelConstructor'
+    default_args = {}
+    default_args['model_type'] = config['type']
+    if 'args' in config:
+        default_args['args'] = config['args']
+    return {'type': default_type, 'args': default_args}
+
+
+def get_chkpt_constructor(path):
+    return {'type': 'DefaultTorchCheckpointLoader', 'args': {'path': path}}
+
+
+def get_mixed_op_constructor(config):
+    default_type = 'DefaultMixedOpConstructor'
+    default_args = {}
+    if 'primitives' in config:
+        default_args['primitives'] = config['primitives']
+    if 'type' in config:
+        default_args['mixed_type'] = config['type']
+    if 'args' in config:
+        default_args['mixed_args'] = config['args']
+    return {'type': default_type, 'args': default_args}
+
+
+def build_constructor_all(config):
+    return {k: build_con(conf['type'], **conf.get('args', {})) for k, conf in config.items()}
+
+
+def build_exporter_all(config):
+    if len(config) == 0:
+        config = {'default': {'type': 'DefaultSlotTraversalExporter'}}
+    if len(config) > 1:
+        return build_exp('MergeExporter', config)
+    if len(config) == 1:
+        conf = list(config.values())[0]
+        return build_exp(conf['type'], **conf.get('args', {}))
+    return None
+
+
+def build_trainer_all(trainer_config, trainer_comp=None):
+    trners = {}
+    for trner_name, trner_conf in trainer_config.items():
+        if isinstance(trner_conf, str):
+            trner_conf = {'type': trner_conf}
+        trner_args = trner_conf.get('args', {})
+        trner_args.update(trainer_comp or {})
+        trner = build_trainer(trner_conf['type'], **trner_args)
+        trners[trner_name] = trner
+    return trners
+
+
+def build_estim_all(estim_config, estim_comp=None):
     estims = {}
     if isinstance(estim_config, list):
         estim_config = {c.get('name', str(i)): c for i, c in enumerate(estim_config)}
     for estim_name, estim_conf in estim_config.items():
         estim_type = estim_conf.type
         estim_args = estim_conf.get('args', {})
-        estim_args.update(estim_comp)
+        estim_args.update(estim_comp or {})
         estim_args['name'] = estim_name
         estim_args['config'] = estim_conf
         estim = build_estimator(estim_type, **estim_args)
@@ -60,11 +113,16 @@ def build_estim_all(estim_config, estim_comp):
     return estims
 
 
+def bind_trainer(estims, trners):
+    for estim in estims.values():
+        estim.set_trainer(trners.get(estim.config.get('trainer', estim.name), trners.get('default')))
+
+
 def estims_routine(logger, optim, estims):
     results = {}
     for estim_name, estim in estims.items():
         logger.info('Running estim: {} type: {}'.format(estim_name, estim.__class__.__name__))
-        ret = estim.search(optim)
+        ret = estim.run(optim)
         results[estim_name] = ret
         logger.info('Results: {}: {{{}}}'.format(estim_name, ', '.join(['{}: {}'.format(k, v) for k, v in ret.items()])))
     logger.info('All results: {{\n{}\n}}'.format('\n'.join(['{}: {}'.format(k, v) for k, v in results.items()])))
@@ -72,100 +130,91 @@ def estims_routine(logger, optim, estims):
     return results
 
 
-def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
-    model_builder = model = None
+def default_model_builder(logger, construct_fn):
+    Slot.reset()
+    # net
+    net = None
+    for name, con_fn in construct_fn.items():
+        logger.info('Running constructor: {} type: {}'.format(name, con_fn.__class__.__name__))
+        net = con_fn(net)
+    return net
+
+
+def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
+    # reset
     ArchParamSpace.reset()
-    # config
-    config = load_config(config)
-    Config.apply(config, config_override or {})
-    Config.apply(config, config.get('search', {}))
-    utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
     # dir
-    expman = ExpManager(exp, name, **config.log.get('expman', {}))
-    logger = utils.get_logger(expman.logs_path, name, config.log)
-    writer = utils.get_writer(expman.writer_path, config.log.writer)
+    utils.check_config(config)
+    expman = ExpManager(exp, name, **config.get('expman', {}))
+    logger = utils.get_logger(expman.logs_path, name, **config.get('logger', {}))
+    writer = utils.get_writer(expman.writer_path, **config.get('writer', {}))
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
     import_modules(config.get('imports', None))
     # device
-    dev, dev_list = utils.init_device(config.device, device)
+    device_conf = config.get('device', {})
+    if device:
+        device_conf['device'] = device
+    device, device_ids = utils.init_device(**device_conf)
     # data
-    data_provider = load_data(config, dev, False, logger)
+    data_provider = get_data_provider(config, logger)
     # ops
     if 'ops' in config:
         configure_ops(config.ops)
-    # model
+    # construct
+    if construct_fn is None:
+        construct_fn = {}
+    if isinstance(construct_fn, list):
+        construct_fn = {str(i): v for i, v in enumerate(construct_fn)}
+    construct_fn = OrderedDict(construct_fn)
+    con_config = OrderedDict()
     if 'model' in config:
-        def default_model_builder(genotype=genotype, convert_fn=convert_fn):
-            Slot.reset()
-            # net
-            net = build_arch_space(config.model.type, **config.model.get('args', {}))
-            # layers
-            if not isinstance(convert_fn, list):
-                convert_fn = [convert_fn]
-            layer_convert_fn = convert_fn[:-1]
-            layers_conf = config.get('layers', None)
-            if not layers_conf is None:
-                convert_from_layers(net, layers_conf, layer_convert_fn)
-            fn_kwargs = {}
-            # mixed_op
-            use_mixed_op = False
-            if 'mixed_op' in config:
-                # primitives
-                if 'primitives' in config.mixed_op:
-                    fn_kwargs['primitives'] = config.mixed_op.primitives
-                fn_kwargs['mixed_op_type'] = config.mixed_op.type
-                fn_kwargs['mixed_op_args'] = config.mixed_op.get('args', {})
-                use_mixed_op = True
-            final_convert_fn = convert_fn[-1]
-            if genotype is None:
-                if final_convert_fn is None and hasattr(net, 'get_predefined_search_converter'):
-                    final_convert_fn = net.get_predefined_search_converter(**config.convert.get('predefined_search_args', {}))
-                if final_convert_fn is None and use_mixed_op:
-                    final_convert_fn = default_mixed_op_converter
-                convert_from_predefined_net(net, final_convert_fn, fn_kwargs=fn_kwargs)
-            else:
-                if final_convert_fn is None and hasattr(net, 'get_genotype_search_converter'):
-                    final_convert_fn = net.get_genotype_search_converter(**config.convert.get('genotype_search_args', {}))
-                if final_convert_fn is None:
-                    final_convert_fn = default_genotype_converter
-                genotype = gt.get_genotype(config.genotypes, genotype)
-                convert_from_genotype(net, genotype, final_convert_fn, fn_kwargs=fn_kwargs)
-            # controller
-            if config.model.get('virtual', False):
-                return net
-            model = NASController(net, dev_list)
-            # genotype
-            if config.genotypes.disable_dag:
-                model.to_genotype = model.to_genotype_ops
-            if config.genotypes.use_slot:
-                model.to_genotype_ops = model.to_genotype_slots
-            if config.genotypes.use_fallback:
-                model.to_genotype_ops = model.to_genotype_fallback
-            model.to_genotype_args = config.genotypes.to_args
-            # init
-            model.init_model(**config.get('init',{}))
-            return model
-        model_builder = default_model_builder
+        con_config['model'] = get_model_constructor(config.model)
+    con_config.update(config.get('construct', {}))
+    if 'mixed_op' in config:
+        con_config['mixed_op'] = get_mixed_op_constructor(config.mixed_op)
+    if not arch_desc is None:
+        default_con = con_config.get('arch_desc', {'type': 'DefaultSlotArchDescConstructor'})
+        args = default_con.get('args', {})
+        args['arch_desc'] = arch_desc
+        default_con['args'] = args
+        con_config['arch_desc'] = default_con
+    if device_ids and len(con_config):
+        con_config['device'] = {'type': 'ToDevice', 'args': {'device_ids': device_ids}}
+    if not chkpt is None:
+        con_config['chkpt'] = get_chkpt_constructor(chkpt)
+    construct_fn.update(build_constructor_all(con_config))
+    # model
+    model = model_builder = None
+    if construct_fn:
+        model_builder = lambda: default_model_builder(logger, construct_fn)
         model = model_builder()
-        if chkpt:
-            model.load(chkpt)
+    # export
+    model_exporter = build_exporter_all(config.get('export', {}))
     # optim
     optim = None
     if 'optim' in config:
         optim_kwargs = config.optim.get('args', {})
         optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
-    # estim
-    estim_kwargs = {
-        'expman': expman,
+    # trainer
+    trner_comp = {
         'data_provider': data_provider,
+        'writer': writer,
+        'logger': logger,
+    }
+    trners = build_trainer_all(config.get('trainer', {}), trner_comp)
+    # estim
+    estim_comp = {
+        'expman': expman,
         'model_builder': model_builder,
+        'model_exporter': model_exporter,
         'model': model,
         'writer': writer,
         'logger': logger,
     }
-    estims = build_estim_all(config.estimator, estim_kwargs)
+    estims = build_estim_all(config.get('estimator', {}), estim_comp)
+    bind_trainer(estims, trners)
     return {
         'logger': logger,
         'optim': optim,
@@ -173,151 +222,59 @@ def init_all_search(config, name, exp='exp', chkpt=None, device='all', genotype=
     }
 
 
-def init_all_augment(config, name, exp='exp', chkpt=None, device='all', genotype=None, convert_fn=None, config_override=None):
+def init_all_search(config, name, exp='exp', chkpt=None, device=None, arch_desc=None, construct_fn=None, config_override=None):
+    # config
     config = load_config(config)
     Config.apply(config, config_override or {})
-    Config.apply(config, config.get('augment', {}))
-    utils.check_config(config, top_keys=['log', 'convert', 'genotypes', 'device'])
-    # dir
-    expman = ExpManager(exp, name, **config.log.get('expman', {}))
-    logger = utils.get_logger(expman.logs_path, name, config.log)
-    writer = utils.get_writer(expman.writer_path, config.log.writer)
-    logger.info('config loaded:\n{}'.format(config))
-    logger.info(utils.env_info())
-    # imports
-    import_modules(config.get('imports', None))
-    # device
-    dev, dev_list = utils.init_device(config.device, device)
-    # data
-    data_provider = load_data(config, dev, True, logger)
-    # ops
-    if 'ops' in config:
-        if not config.ops.get('affine', False):
-            logger.warning('option \'ops.affine\' set to False in augment run')
-        configure_ops(config.ops)
-    # net
-    def model_builder(genotype=genotype, convert_fn=convert_fn):
-        Slot.reset()
-        net = build_arch_space(config.model.type, **config.model.get('args', {}))
-        # layers
-        if not isinstance(convert_fn, list):
-            convert_fn = [convert_fn]
-        layer_convert_fn = convert_fn[:-1]
-        layers_conf = config.get('layers', None)
-        if not layers_conf is None:
-            convert_from_layers(net, layers_conf, layer_convert_fn)
-        # final
-        final_convert_fn = convert_fn[-1]
-        if genotype is None:
-            if final_convert_fn is None and hasattr(net, 'get_predefined_augment_converter'):
-                final_convert_fn = net.get_predefined_augment_converter(**config.convert.get('predefined_augment_args', {}))
-            convert_from_predefined_net(net, final_convert_fn)
-        else:
-            if final_convert_fn is None and hasattr(net, 'get_genotype_augment_converter'):
-                final_convert_fn = net.get_genotype_augment_converter(**config.convert.get('genotype_augment_args', {}))
-            if final_convert_fn is None:
-                final_convert_fn = default_genotype_converter
-            genotype = gt.get_genotype(config.genotypes, genotype)
-            convert_from_genotype(net, genotype, final_convert_fn)
-        # controller
-        if config.model.get('virtual', False):
-            return net
-        model = NASController(net, dev_list)
-        # init
-        model.init_model(**config.get('init',{}))
-        return model
-    model = model_builder()
-    if chkpt:
-        model.load(chkpt)
-    # estim
-    estim_kwargs = {
-        'expman': expman,
-        'data_provider': data_provider,
-        'model_builder': model_builder,
-        'model': model,
-        'writer': writer,
-        'logger': logger,
-    }
-    estims = build_estim_all(config.estimator, estim_kwargs)
-    return {
-        'logger': logger,
-        'optim': None,
-        'estims': estims
-    }
+    Config.apply(config, config.pop('search', {}))
+    return init_all(config, name, exp, chkpt, device, arch_desc, construct_fn)
 
 
-def init_all_hptune(config, name, exp='exp', device='all', measure_fn=None, config_override=None):
-    HParamSpace.reset()
+def init_all_augment(config, name, exp='exp', chkpt=None, device=None, arch_desc=None, construct_fn=None, config_override=None):
     config = load_config(config)
     Config.apply(config, config_override or {})
-    Config.apply(config, config.get('hptune', {}))
-    utils.check_config(config, top_keys=['log', 'device'])
-    # dir
-    expman = ExpManager(exp, name, **config.log.get('expman', {}))
-    logger = utils.get_logger(expman.logs_path, name, config.log)
-    writer = utils.get_writer(expman.writer_path, config.log.writer)
-    logger.info('config loaded:\n{}'.format(config))
-    logger.info(utils.env_info())
-    # imports
-    import_modules(config.get('imports', None))
-    # device
-    dev, _ = utils.init_device(config.device, device)
+    Config.apply(config, config.pop('augment', {}))
+    return init_all(config, name, exp, chkpt, device, arch_desc, construct_fn)
+
+
+def init_all_hptune(config, name, exp='exp', measure_fn=None, config_override=None):
+    config = load_config(config)
+    Config.apply(config, config_override or {})
+    Config.apply(config, config.pop('hptune', {}))
     # hpspace
-    hp_path = config.hpspace.get('hp_path', None)
-    if hp_path is None:
-        build_hparam_space_from_dict(config.hpspace.hp_dict)
-    # optim
-    optim_kwargs = config.optim.get('args', {})
-    optim = build_optim(config.optim.type, space=HParamSpace, logger=logger, **optim_kwargs)
-    # measure_fn
-    if measure_fn is None:
-        measure_fn = default_measure_fn
-    # estim
-    estim_kwargs = {
-        'expman': expman,
-        'data_provider': None,
-        'model_builder': None,
-        'model': None,
-        'writer': writer,
-        'logger': logger,
-        'measure_fn': measure_fn,
-    }
-    estims = build_estim_all(config.estimator, estim_kwargs)
-    return {
-        'logger': logger,
-        'optim': optim,
-        'estims': estims
-    }
+    HParamSpace.reset()
+    build_hparam_space_from_dict(config.hpspace.get('hp_dict', {}))
+    hptune_config = list(config.estimator.values())[0]
+    hptune_args = hptune_config.get('args', {})
+    hptune_args['measure_fn'] = measure_fn
+    hptune_config['args'] = hptune_args
+    return init_all(config, name, exp, None, None, None, None)
 
 
-def default_measure_fn(proc, *args, **kwargs):
-    runner = get_runner(proc)
-    ret = runner(*args, **kwargs)
-    ret = ret['final']
-    return ret.get('best_score', list(ret.values())[0])
-
-
+@register_as('search')
 def run_search(*args, **kwargs):
     return estims_routine(**init_all_search(*args, **kwargs))
 
 
+@register_as('augment')
 def run_augment(*args, **kwargs):
     return estims_routine(**init_all_augment(*args, **kwargs))
 
 
+@register_as('hptune')
 def run_hptune(*args, **kwargs):
     return estims_routine(**init_all_hptune(*args, **kwargs))
 
 
+@register_as('pipeline')
 def run_pipeline(config, name, exp='exp', config_override=None):
     config = load_config(config)
     Config.apply(config, config_override or {})
-    Config.apply(config, config.get('pipeline', {}))
     utils.check_config(config, top_keys=['log'])
     # dir
     expman = ExpManager(exp, name, **config.log.get('expman', {}))
     logger = utils.get_logger(expman.logs_path, name, config.log)
-    # writer = utils.get_writer(expman.writer_path, config.log.writer)
+    writer = utils.get_writer(expman.writer_path, config.log.writer)
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
@@ -341,7 +298,7 @@ def run_pipeline(config, name, exp='exp', config_override=None):
             pending.put(pname)
             continue
         ptype = pconf.type
-        proc = get_runner(ptype)
+        proc = get_builder(ptype)
         pargs = pconf.get('args', {})
         pargs.exp = os.path.join(expman.root_dir, pargs.get('exp', ''))
         pargs.name = pargs.get('name', pname)
@@ -361,23 +318,7 @@ def run_pipeline(config, name, exp='exp', config_override=None):
     return ret_values
 
 
-_runner_map = {
-    'search': run_search,
-    'augment': run_augment,
-    'hptune': run_hptune,
-    'pipeline': run_pipeline
-}
-
-
-def get_runner(rtype):
-    if rtype in _runner_map:
-        return _runner_map[rtype]
-    else:
-        raise ValueError('pipeline: unknown type: {}'.format(rtype))
-
-
 def run(config, *args, proc=None, **kwargs):
     config = Config.load(config)
-    proc = config.get('proc', None) if proc is None else proc
-    proc = get_runner(proc)
-    return proc(*args, config=config, **kwargs)
+    proc = proc or config.get('proc', None)
+    return build(proc, *args, config=config, **kwargs)

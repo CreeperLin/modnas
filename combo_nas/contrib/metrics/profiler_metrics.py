@@ -35,4 +35,3 @@ class LocalProfilerMetrics(MetricsBase):
         op.to(device=last_device)
         self.logger.debug('local profiler:\tdev: {}\tlat: {:.3f} ms'.format(device, lat))
         return lat
-        

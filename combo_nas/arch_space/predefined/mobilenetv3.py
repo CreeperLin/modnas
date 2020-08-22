@@ -8,16 +8,19 @@ arXiv preprint arXiv:1905.02244.
 import math
 import torch.nn as nn
 import torch.nn.functional as F
-from ...arch_space.constructor import Slot, default_mixed_op_converter, default_genotype_converter
-from ..ops import register as register_ops
+from ..slot import Slot
+from ..construct.default import DefaultMixedOpConstructor, DefaultSlotTraversalConstructor
+from ..construct.arch_desc import DefaultSlotArchDescConstructor
+from ..slot import register_slot_ccs
+from ..construct import register as register_constructor
 
 for ksize in [3, 5, 7, 9]:
     for exp in [1, 3, 6, 9]:
-        register_ops(lambda C_in, C_out, S, use_se, use_hs, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, use_se, use_hs),
+        register_slot_ccs(lambda C_in, C_out, S, use_se=0, use_hs=0, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, use_se, use_hs),
                      'M3B{}E{}'.format(ksize, exp))
-        register_ops(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 0, 1), 'M3B{}E{}H'.format(ksize, exp))
-        register_ops(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 0), 'M3B{}E{}S'.format(ksize, exp))
-        register_ops(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 1), 'M3B{}E{}SH'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 0, 1), 'M3B{}E{}H'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 0), 'M3B{}E{}S'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 1), 'M3B{}E{}SH'.format(ksize, exp))
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -111,13 +114,12 @@ class MobileInvertedResidualBlock(nn.Module):
         super(MobileInvertedResidualBlock, self).__init__()
         assert stride in [1, 2]
         self.identity = stride == 1 and chn_in == chn_out
-        self.conv = Slot(chn_in, chn_out, stride,
-                         kwargs={
-                             'chn': chn,
-                             'kernel_size': kernel_size,
-                             'use_se': use_se,
-                             'use_hs': use_hs
-                         })
+        self.conv = Slot(_chn_in=chn_in, _chn_out=chn_out, _stride=stride,
+                         chn=chn,
+                         kernel_size=kernel_size,
+                         use_se=use_se,
+                         use_hs=use_hs
+                         )
 
     def forward(self, x):
         if self.identity:
@@ -172,61 +174,65 @@ class MobileNetV3(nn.Module):
         x = x.view(x.size(0), -1)
         return x
 
-    def get_predefined_search_converter(self, fix_first=True, add_zero_op=True, keep_config=True):
-        def convert_fn(slot, primitives, *args, **kwargs):
-            if convert_fn.fix_first and not hasattr(convert_fn, 'first'):
-                ent = MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
-                convert_fn.first = True
-            else:
-                primitives = primitives[:]
-                if convert_fn.add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
-                    primitives.append('NIL')
-                if convert_fn.keep_config:
-                    if 'primitive_args' not in kwargs:
-                        kwargs['primitive_args'] = {}
-                    kwargs['primitive_args']['use_hs'] = slot.kwargs['use_hs']
-                    kwargs['primitive_args']['use_se'] = slot.kwargs['use_se']
-                ent = default_mixed_op_converter(slot, primitives=primitives, *args, **kwargs)
-            return ent
-        convert_fn.fix_first = fix_first
-        convert_fn.add_zero_op = add_zero_op
-        convert_fn.keep_config = keep_config
-        return convert_fn
 
-    def get_genotype_augment_converter(self, fix_first=True, keep_config=True):
-        def convert_fn(slot, *args, **kwargs):
-            if convert_fn.fix_first and not hasattr(convert_fn, 'first'):
-                ent = MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
-                convert_fn.first = True
-            else:
-                if convert_fn.keep_config:
-                    if 'op_args' not in kwargs:
-                        kwargs['op_args'] = {}
-                    kwargs['op_args']['use_hs'] = slot.kwargs['use_hs']
-                    kwargs['op_args']['use_se'] = slot.kwargs['use_se']
-                ent = default_genotype_converter(slot, *args, **kwargs)
-            return ent
-        convert_fn.fix_first = fix_first
-        convert_fn.keep_config = keep_config
-        return convert_fn
+mbv3_predefined_converter = lambda slot: MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
 
-    def get_predefined_augment_converter(self):
-        return lambda slot: MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
+@register_constructor
+class MobileNetV3PredefinedConstructor(DefaultSlotTraversalConstructor):
+    def convert(self, slot):
+        return mbv3_predefined_converter(slot)
 
-    def init_model(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-                if m.bias is not None:
-                    m.bias.data.zero_()
-            elif isinstance(m, nn.BatchNorm2d) and m.affine:
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-            elif isinstance(m, nn.Linear):
-                n = m.weight.size(1)
-                m.weight.data.normal_(0, 0.01)
-                m.bias.data.zero_()
+
+@register_constructor
+class MobileNetV3SearchConstructor(DefaultMixedOpConstructor):
+    def __init__(self, *args, fix_first=True, add_zero_op=True, keep_config=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fix_first = fix_first
+        self.add_zero_op = add_zero_op
+        self.keep_config = keep_config
+        self.predefined_fn = mbv3_predefined_converter
+        self.first = True
+
+    def convert(self, slot):
+        if self.fix_first and self.first:
+            ent = self.predefined_fn(slot)
+            self.first = False
+        else:
+            prims = self.primitives[:]
+            prim_args = self.primitive_args.copy()
+            if self.add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
+                self.primitives.append('NIL')
+            if self.keep_config:
+                self.primitive_args['use_hs'] = slot.kwargs['use_hs']
+                self.primitive_args['use_se'] = slot.kwargs['use_se']
+            ent = super().convert(slot)
+            self.primitives = prims
+            self.primitive_args = prim_args
+        return ent
+
+
+@register_constructor
+class MobileNetV3ArchDescConstructor(DefaultSlotArchDescConstructor):
+    def __init__(self, *args, fix_first=True, keep_config=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fix_first = fix_first
+        self.keep_config = keep_config
+        self.predefined_fn = mbv3_predefined_converter
+        self.first = True
+
+    def convert(self, slot):
+        if self.fix_first and self.first:
+            ent = self.predefined_fn(slot)
+            self.first = False
+            self.get_next_desc()
+        else:
+            fn_args = self.fn_args.copy()
+            if self.keep_config:
+                self.fn_args['use_hs'] = slot.kwargs['use_hs']
+                self.fn_args['use_se'] = slot.kwargs['use_se']
+            ent = super().convert(slot)
+            self.fn_args = fn_args
+        return ent
 
 
 def mobilenetv3_large(cfgs=None, **kwargs):

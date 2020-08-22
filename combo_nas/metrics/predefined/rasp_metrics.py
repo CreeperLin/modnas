@@ -1,7 +1,7 @@
 import torch
 from ..base import MetricsBase
 from .. import register_as, build
-from ...arch_space.constructor import Slot
+from ...arch_space.slot import Slot
 from ...arch_space.mixed_ops import MixedOp
 try:
     import rasp
@@ -52,7 +52,7 @@ class RASPTraversalMetrics(MetricsBase):
         for cur_node in node.tape.items:
             module = cur_node.module
             if isinstance(module, Slot):
-                prim_type = module.gene
+                prim_type = module.desc
                 if not prim_type is None:
                     if isinstance(prim_type, (tuple, list)):
                         prim_type = prim_type[0]
@@ -87,11 +87,7 @@ class RASPTraversalMetrics(MetricsBase):
         F.unhook_compute(module)
         F.unhook_timing(module)
 
-    def compute(self, model):
-        try:
-            net = model.net
-        except AttributeError:
-            net = model
+    def compute(self, net):
         self.excluded.clear()
         root = F.get_stats_node(net)
         if root is None:
@@ -143,8 +139,7 @@ class RASPRootMetrics(MetricsBase):
         self.input_shape = input_shape
         self.device = device
 
-    def compute(self, model):
-        net = model.net
+    def compute(self, net):
         root = F.get_stats_node(net)
         if root is None:
             root = F.reg_stats_node(net)

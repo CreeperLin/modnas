@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-from ...arch_space.constructor import Slot
+from ..slot import Slot
+from ..construct.default import DefaultSlotTraversalConstructor
+from ..construct import register as register_constructor
 
 class GroupConv(nn.Module):
     def __init__(self, chn_in, chn_out, kernel_size, stride=1, padding=0, groups=1, relu=True, affine=True):
@@ -25,7 +27,7 @@ class BottleneckBlock(nn.Module):
                  downsample=None):
         super(BottleneckBlock, self).__init__()
         self.bottle_in = GroupConv(C_in, C, 1, 1, 0, relu=False)
-        self.cell = Slot(C, C, stride, kwargs={'groups': groups})
+        self.cell = Slot(_chn_in=C, _chn_out=C, _stride=stride, groups=groups)
         self.bottle_out = GroupConv(C, C * bottleneck_ratio, 1, 1, 0)
         self.bn = nn.BatchNorm2d(C * bottleneck_ratio)
         self.downsample = downsample
@@ -125,5 +127,8 @@ class PyramidNet(nn.Module):
 
         return x
 
-    def get_predefined_augment_converter(self):
-        return lambda slot: GroupConv(slot.chn_in, slot.chn_out, 3, slot.stride, 1, **slot.kwargs)
+
+@register_constructor
+class PyramidNetPredefinedConstructor(DefaultSlotTraversalConstructor):
+    def convert(self, slot):
+        return GroupConv(slot.chn_in, slot.chn_out, 3, slot.stride, 1, **slot.kwargs)

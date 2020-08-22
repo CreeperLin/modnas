@@ -1,9 +1,13 @@
 import math
 from collections import OrderedDict
 import torch.nn as nn
-from ...arch_space.constructor import Slot, default_mixed_op_converter, default_genotype_converter
+from ..slot import Slot
+from ..construct import register as register_constructor
+from ..construct.default import DefaultSlotTraversalConstructor, DefaultMixedOpConstructor
+from ..construct.arch_desc import DefaultSlotArchDescConstructor
 from ..ops import get_same_padding
-from ..ops import register as register_ops
+from .. import register as register_ops
+from ..slot import register_slot_builder
 
 kernel_sizes = [3, 5, 7, 9]
 expand_ratios = [1, 3, 6, 9]
@@ -11,7 +15,8 @@ for k in kernel_sizes:
     for e in expand_ratios:
         p = get_same_padding(k)
         builder = lambda C_in, C_out, stride, ks=k, exp=e, pd=p: MobileInvertedConv(C_in, C_out, C_in*exp, stride, ks, pd)
-        register_ops(builder, 'MB{}E{}'.format(k, e))
+        # register_ops(builder, 'MB{}E{}'.format(k, e))
+        register_slot_builder(builder, 'MB{}E{}'.format(k, e), 'i1o1s2')
 
 
 def round_filters(filters, width_coeff, divisor, min_depth=None):
@@ -58,7 +63,7 @@ class MobileInvertedResidualBlock(nn.Module):
         self.chn_in = chn_in
         self.chn_out = chn_out
         C = chn_in * t
-        self.conv = Slot(chn_in, chn_out, stride, kwargs={'C': C, 'activation': activation})
+        self.conv = Slot(_chn_in=chn_in, _chn_out=chn_out, _stride=stride, C=C, activation=activation)
 
     def forward(self, x):
         residual = x
@@ -66,6 +71,7 @@ class MobileInvertedResidualBlock(nn.Module):
         if self.stride == 1 and self.chn_in == self.chn_out:
             out += residual
         return out
+
 
 class MobileNetV2(nn.Module):
 
@@ -136,34 +142,53 @@ class MobileNetV2(nn.Module):
         x = self.fc(x)
         return x
 
-    def get_predefined_augment_converter(self):
-        return lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
-    def get_predefined_search_converter(self, fix_first=True, add_zero_op=True):
-        def convert_fn(slot, primitives, *args, **kwargs):
-            if convert_fn.fix_first and not hasattr(convert_fn, 'first'):
-                ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
-                convert_fn.first = True
-            else:
-                primitives = primitives[:]
-                if convert_fn.add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
-                    primitives.append('NIL')
-                ent = default_mixed_op_converter(slot, primitives=primitives, *args, **kwargs)
-            return ent
-        convert_fn.fix_first = fix_first
-        convert_fn.add_zero_op = add_zero_op
-        return convert_fn
+mbv2_predefined_convert_fn = lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
-    def get_genotype_augment_converter(self, fix_first=True):
-        def convert_fn(slot, *args, **kwargs):
-            if convert_fn.fix_first and not hasattr(convert_fn, 'first'):
-                ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
-                convert_fn.first = True
-            else:
-                ent = default_genotype_converter(slot, *args, **kwargs)
-            return ent
-        convert_fn.fix_first = fix_first
-        return convert_fn
+@register_constructor
+class MobileNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
+    def convert(self, slot):
+        return mbv2_predefined_convert_fn(slot)
+
+
+@register_constructor
+class MobileNetV2SearchConstructor(DefaultMixedOpConstructor):
+    def __init__(self, *args, fix_first=True, add_zero_op=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fix_first = fix_first
+        self.add_zero_op = add_zero_op
+        self.first = True
+        self.predefined_fn = mbv2_predefined_convert_fn
+
+    def convert(self, slot):
+        if self.fix_first and self.first:
+            ent = self.predefined_fn(slot)
+            self.first = False
+        else:
+            prims = self.primitives[:]
+            if self.add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
+                self.primitives.append('NIL')
+            ent = super().convert(slot)
+            self.primitives = prims
+        return ent
+
+
+@register_constructor
+class MobileNetV2ArchDescConstructor(DefaultSlotArchDescConstructor):
+    def __init__(self, *args, fix_first=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fix_first = fix_first
+        self.first = True
+        self.predefined_fn = mbv2_predefined_convert_fn
+
+    def convert(self, slot):
+        if self.fix_first and self.first:
+            ent = self.predefined_fn(slot)
+            self.first = False
+            self.get_next_desc()
+        else:
+            ent = super().convert(slot)
+        return ent
 
 
 def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):

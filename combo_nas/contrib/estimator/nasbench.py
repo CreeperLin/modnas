@@ -30,7 +30,7 @@ class NASBenchNet(nn.Module):
         self.matrix_params = matrix
         self.ops_params = ops
 
-    def to_genotype(self):
+    def to_arch_desc(self):
         matrix = [p.value() for p in self.matrix_params]
         ops = [p.value() for p in self.ops_params]
         return (
@@ -49,16 +49,16 @@ class NASBenchPredictor(ArchPredictor):
     def fit(self, ):
         pass
 
-    def predict(self, genotype):
+    def predict(self, arch_desc):
         max_nodes = self.max_nodes
         matrix = [[0]*max_nodes for i in range(max_nodes)]
-        g_matrix = genotype[0]
+        g_matrix = arch_desc[0]
         k = 0
         for i in range(max_nodes):
             for j in range(i+1, max_nodes):
                 matrix[i][j] = int(g_matrix[k])
                 k+=1
-        ops = [INPUT] + genotype[1] + [OUTPUT]
+        ops = [INPUT] + arch_desc[1] + [OUTPUT]
         model_spec = api.ModelSpec(matrix=matrix, ops=ops)
         try:
             data = self.nasbench.query(model_spec)
@@ -70,8 +70,8 @@ class NASBenchPredictor(ArchPredictor):
 @combo_nas.estimator.register_as('NASBench')
 class NASBenchEstimator(RegressionEstimator):
 
-    def search(self, optim):
+    def run(self, optim):
         config = self.config
         self.logger.info('loading NASBench data')
         self.predictor = NASBenchPredictor(config.record_path)
-        return super().search(optim)
+        return super().run(optim)

@@ -120,14 +120,14 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                 if not loss is None:
                     loss.backward()
                 self.apply_subnet_config(config)
-                logits = model.logits(X)
+                logits = model(X)
                 loss = self.criterion(X, logits, y, model=model, mode=mode)
                 subnet_logits.append(logits)
                 visited.add(key)
             if len(visited) > 1:
                 logits = torch.mean(torch.stack(subnet_logits), dim=0)
         else:
-            logits = model.logits(X)
+            logits = model(X)
             loss = self.criterion(X, logits, y, model=model, mode=mode)
         return loss, logits
 
@@ -183,7 +183,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         }
         return results
 
-    def search(self, optim):
+    def run(self, optim):
         return self.train()
 
     def rerank_spatial(self):

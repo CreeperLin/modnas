@@ -3,10 +3,7 @@ import random
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-from .prefetcher import fast_collate, DataPrefetcher
 from . import register_as
-from ..dataset import build
-from ..dataset.image_cls import get_metadata
 
 def get_label_class(label):
     if isinstance(label, float):
@@ -64,22 +61,11 @@ def map_data_label(data, mapping):
 
 
 @register_as('ImageCls')
-def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
-                         trn_batch_size=64, val_batch_size=64, classes=None,
-                         workers=2, prefetch=False, collate_fn=None,
+def get_torch_dataloader(trn_data, val_data, classes=None,
+                         trn_batch_size=64, val_batch_size=64,
+                         workers=2, collate_fn=None, parallel_multiplier=1,
                          train_size=0, train_ratio=1., train_seed=1,
                          valid_size=0, valid_ratio=0., valid_seed=1):
-    if prefetch:
-        collate_fn = fast_collate
-    data_args = data_config.get('args', {})
-    if prefetch:
-        data_args['to_tensor'] = False
-        cutout = 0
-        if 'cutout' in data_args:
-            cutout = data_args.pop('cutout')
-        metadata = get_metadata(data_args['dataset'])
-        mean, stddev = metadata['mean'], metadata['stddev']
-    trn_data, val_data = build(data_config.type, validation=validation, **data_args)
     # classes
     trn_labels = get_dataset_label(trn_data)
     if hasattr(trn_data, 'classes'):
@@ -113,7 +99,7 @@ def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
     if 0 < train_size < n_train_data:
         random.seed(train_seed)
         trn_idx = random.sample(trn_idx, train_size)
-    if validation:
+    if not val_data is None:
         val_labels = get_dataset_label(val_data)
         val_idx = list(range(len(val_data)))
         val_idx = filter_class(val_idx, val_labels, all_classes)
@@ -167,7 +153,4 @@ def get_torch_dataloader(data_config, validation, parallel_multiplier=1,
                                 batch_size=val_batch_size,
                                 sampler=val_sampler,
                                 **extra_kwargs)
-    if prefetch:
-        if not trn_loader is None: trn_loader = DataPrefetcher(trn_loader, mean, stddev, cutout)
-        if not val_loader is None: val_loader = DataPrefetcher(val_loader, mean, stddev, cutout)
     return trn_loader, val_loader

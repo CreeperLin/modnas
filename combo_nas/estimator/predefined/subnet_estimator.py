@@ -5,7 +5,7 @@ from ... import utils
 from ...core.param_space import ArchParamSpace
 
 class SubNetEstimator(EstimatorBase):
-    def __init__(self, rebuild_subnet=False, reset_subnet_params=True,
+    def __init__(self, rebuild_subnet=False, reset_subnet_params=False,
                  num_bn_batch=100, clear_subnet_bn=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rebuild_subnet = rebuild_subnet
@@ -13,14 +13,14 @@ class SubNetEstimator(EstimatorBase):
         self.num_bn_batch = num_bn_batch
         self.clear_subnet_bn = clear_subnet_bn
         self.best_score = None
-        self.best_genotype = None
+        self.best_arch_desc = None
 
     def step(self, params):
         ArchParamSpace.update_params(params)
-        genotype = self.model.to_genotype()
+        arch_desc = self.model_exporter(self.model)
         config = self.config
         try:
-            self.construct_subnet(genotype)
+            self.construct_subnet(arch_desc)
         except RuntimeError:
             self.logger.info('subnet construct failed:\n{}'.format(traceback.format_exc()))
             ret = {'error_no': -1}
@@ -36,25 +36,25 @@ class SubNetEstimator(EstimatorBase):
         best_score = self.get_score(ret)
         if self.best_score is None or not best_score is None and best_score > self.best_score:
             self.best_score = best_score
-            self.best_genotype = genotype
-        self.logger.info('Evaluate: {} -> {}'.format(genotype, ret))
+            self.best_arch_desc = arch_desc
+        self.logger.info('Evaluate: {} -> {}'.format(arch_desc, ret))
         return ret
 
-    def construct_subnet(self, genotype):
+    def construct_subnet(self, arch_desc):
         config = self.config
         if self.rebuild_subnet:
-            self.model = self.model_builder(genotype=genotype)
+            self.model = self.model_builder(arch_desc=arch_desc)
         elif self.reset_subnet_params:
-            self.model.init_model(**config.get('init', {}))
+            pass
         else:
-            utils.recompute_bn_running_statistics(self.model, self.data_provider.get_train_iter(),
+            utils.recompute_bn_running_statistics(self.model, self.trainer,
                                                   self.num_bn_batch, self.clear_subnet_bn)
 
     def validate(self):
-        self.construct_subnet(self.model.to_genotype())
+        self.construct_subnet(self.model_exporter(self.model))
         return self.validate_epoch(epoch=0, tot_epochs=1)
 
-    def search(self, optim):
+    def run(self, optim):
         logger = self.logger
         config = self.config
         tot_epochs = config.epochs
@@ -80,14 +80,14 @@ class SubNetEstimator(EstimatorBase):
                     batch_best = val_score
             # save
             if config.save_gt:
-                self.save_genotype(epoch)
+                self.save_arch_desc(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            self.save_genotype(save_name='best', genotype=self.best_genotype)
+            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             eta_m.step()
-            logger.info('Search: [{:3d}/{}] Current: {} Best: {} | ETA: {}'.format(
-                epoch+1, tot_epochs, batch_best, self.best_score, eta_m.eta_fmt()))
+            logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+                epoch+1, tot_epochs, batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
-            'best_gt': self.best_genotype,
+            'best_arch': self.best_arch_desc,
         }

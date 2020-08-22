@@ -1,5 +1,5 @@
 import torch.nn as nn
-from .constructor import Slot
+from .slot import Slot
 from .ops import DropPath_, Identity
 
 def update_drop_path_prob(model, drop_path_prob, epoch, tot_epochs):

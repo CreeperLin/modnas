@@ -54,7 +54,7 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
         while (temp > temp_end):
             next_params = [self.disturb(p) for p in params]
             next_results = model.predict(next_params)
-            
+
             for r, p in zip(next_results, next_params):
                 pi = self.space.get_categorical_index(p)
                 if pi in excludes: continue
@@ -74,6 +74,6 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
             elif cool_type == 'linear':
                 temp -= cool
             logging.debug('SA: temp: {:.4f} max: {:.4f}'.format(temp, np.max(next_results)))
-        
+
         if self.keep_history:
             self.history = params

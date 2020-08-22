@@ -4,19 +4,20 @@ from ...arch_space.droppath import update_drop_path_prob, apply_drop_path
 from ...utils import ETAMeter
 
 class DefaultEstimator(EstimatorBase):
-    def __init__(self, *args, save_best=True, **kwargs):
+    def __init__(self, *args, save_best=True, valid_intv=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.reset_training_states()
         self.save_best = save_best
         self.best_score = None
+        self.valid_intv = valid_intv
 
     def predict(self, ):
         pass
 
-    def search(self, optim):
+    def run(self, optim):
         return self.train()
 
     def train(self):
+        self.reset_training_states()
         self.print_model_info()
         config = self.config
         tot_epochs = config.epochs
@@ -33,19 +34,22 @@ class DefaultEstimator(EstimatorBase):
             # train
             trn_res = self.train_epoch(epoch, tot_epochs)
             # validate
-            val_res = self.validate_epoch(epoch, tot_epochs)
-            if val_res is None: val_res = trn_res
-            val_score = self.get_score(val_res)
+            if epoch+1 == tot_epochs or (not self.valid_intv is None and not (epoch+1) % self.valid_intv):
+                val_res = self.validate_epoch(epoch, tot_epochs)
+                if val_res is None: val_res = trn_res
+                val_score = self.get_score(val_res)
+            else:
+                val_score = None
             # save
-            if self.best_score is None or val_score > self.best_score:
+            if not val_score is None and (self.best_score is None or val_score > self.best_score):
                 self.best_score = val_score
                 if self.save_best:
                     self.save_checkpoint(epoch, save_name='best')
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
             eta_m.step()
-            self.logger.info('Default: [{:3d}/{}] Current: {} Best: {} | ETA: {}'.format(
-                epoch+1, tot_epochs, val_score, self.best_score, eta_m.eta_fmt()))
+            self.logger.info('Default: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+                epoch+1, tot_epochs, val_score or 0, self.best_score or 0, eta_m.eta_fmt()))
         metrics = self.compute_metrics()
         ret = {
             'best_score': self.best_score

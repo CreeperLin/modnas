@@ -6,6 +6,7 @@ class MetricsBase(object):
     def __init__(self, logger):
         super().__init__()
         self.logger = logging.getLogger('metrics') if logger is None else logger
+        self.estim = MetricsBase.get_estim()
 
     def compute(self, *args, **kwargs):
         raise NotImplementedError

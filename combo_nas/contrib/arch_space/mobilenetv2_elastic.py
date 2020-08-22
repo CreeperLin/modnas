@@ -1,31 +1,42 @@
 from functools import partial
-from combo_nas.arch_space.predefined.mobilenetv2 import MobileInvertedConv, MobileNetV2
-from combo_nas.arch_space import register_as
+from combo_nas.arch_space.predefined.mobilenetv2 import MobileNetV2PredefinedConstructor
+from combo_nas.arch_space.construct import register as register_constructor
+from combo_nas.arch_space.export import register as register_exporter
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
     conv2d_rank_weight_l1norm_fan_in, conv2d_rank_weight_l1norm_fan_out, batchnorm2d_rank_weight_l1norm
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
 from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
 
-def elastic_to_genotype(fix_first=True, max_depth=4):
-    gts = []
-    if fix_first:
-        gts.append(None)
-    params = {k: p.value() for k, p in ArchParamSpace.named_params()}
-    seq_values = [v for k, v in params.items() if k.startswith('seq')]
-    n_sequential = len(seq_values)
-    spa_values = [v for k, v in params.items() if k.startswith('spa')]
-    for i, spa in enumerate(spa_values):
-        cur_seq_idx = i // max_depth
-        seq = seq_values[cur_seq_idx] if cur_seq_idx < len(seq_values) else cur_seq_idx
-        exp_gene = spa if cur_seq_idx >= n_sequential or i % max_depth < seq else -1
-        gene = 'NIL' if exp_gene == -1 else 'MB3E{}'.format(exp_gene)
-        gts.append(gene)
-    return gts
+@register_exporter
+class MobileNetV2ElasticArchDescExporter():
+    def __init__(self, fix_first=True, max_stage_depth=4):
+        self.fix_first = fix_first
+        self.max_stage_depth = max_stage_depth
+
+    def __call__(self, model):
+        arch_desc = []
+        max_stage_depth = self.max_stage_depth
+        if self.fix_first:
+            arch_desc.append(None)
+        params = {k: p.value() for k, p in ArchParamSpace.named_params()}
+        seq_values = [v for k, v in params.items() if k.startswith('seq')]
+        n_sequential = len(seq_values)
+        spa_values = [v for k, v in params.items() if k.startswith('spa')]
+        if not len(spa_values):
+            spa_values = [6] * sum([len(btn) for btn in model.bottlenecks if len(btn) > 1])
+        for i, spa in enumerate(spa_values):
+            cur_seq_idx = i // max_stage_depth
+            seq = seq_values[cur_seq_idx] if cur_seq_idx < len(seq_values) else cur_seq_idx
+            exp = spa if cur_seq_idx >= n_sequential or i % max_stage_depth < seq else -1
+            desc = 'NIL' if exp == -1 else 'MB3E{}'.format(exp)
+            arch_desc.append(desc)
+        return arch_desc
 
 
-class MobileNetV2ElasticSpatialConverter():
-    def __init__(self, model, fix_first=True, expansion_range=[1, 3, 6], rank_fn='l1_fan_in', search=False):
-        self.model = model
+@register_constructor
+class MobileNetV2ElasticSpatialConverter(MobileNetV2PredefinedConstructor):
+    def __init__(self, fix_first=True, expansion_range=[1, 3, 6], rank_fn='l1_fan_in', search=True):
+        super().__init__()
         self.fix_first = fix_first
         self.first = False
         self.last_conv = None
@@ -35,18 +46,18 @@ class MobileNetV2ElasticSpatialConverter():
         self.rank_fn = rank_fn
         self.spa_group_cnt = 0
 
-    def __call__(self, slot, *args, **kwargs):
+    def convert(self, slot):
         if not self.first:
             self.first = True
             if self.fix_first:
-                ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+                ent = super().convert(slot)
                 self.last_conv = ent[3]
                 self.last_bn = ent[4]
                 return ent
             else:
                 self.last_conv = self.model.conv_first[0]
                 self.last_bn = self.model.conv_first[1]
-        ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+        ent = super().convert(slot)
         expansion_range = self.expansion_range
         if isinstance(expansion_range[0], list):
             expansion_range = expansion_range[self.spa_group_cnt]
@@ -96,15 +107,20 @@ class MobileNetV2ElasticSpatialConverter():
         self.spa_group_cnt += 1
 
 
-class MobileNetV2ElasticSequentialConverter():
-    def __init__(self, model, repeat_range=[1, 2, 3, 4], search=False):
-        self.model = model
+@register_constructor
+class MobileNetV2ElasticSequentialConverter(MobileNetV2PredefinedConstructor):
+    def __init__(self, repeat_range=[1, 2, 3, 4], search=True):
+        super().__init__()
         self.is_search = search
         self.repeat_range = repeat_range
-        self.make_sequential_groups()
 
-    def make_sequential_groups(self):
-        bottlenecks = self.model.bottlenecks
+    def __call__(self, model):
+        model = super().__call__(model)
+        self.make_sequential_groups(model)
+        return model
+
+    def make_sequential_groups(self, model):
+        bottlenecks = model.bottlenecks
         for i, btn in enumerate(bottlenecks):
             if len(list(btn)) <= 1:
                 continue
@@ -115,66 +131,22 @@ class MobileNetV2ElasticSequentialConverter():
 
     def add_seq_group(self, bottleneck, repeat_range):
         blocks = list(bottleneck)
-        max_depth = len(blocks)
+        max_stage_depth = len(blocks)
         g = ElasticSequentialGroup(*blocks)
-        if any([r > max_depth for r in repeat_range]):
-            raise ValueError('invalid repeat_range: {} max: {}'.format(repeat_range, max_depth))
+        if any([r > max_stage_depth for r in repeat_range]):
+            raise ValueError('invalid repeat_range: {} max: {}'.format(repeat_range, max_stage_depth))
         if self.is_search:
             def on_update_handler(group, param):
                 group.set_depth(param.value())
             p = ArchParamCategorical(repeat_range, name='seq', on_update=partial(on_update_handler, g))
 
-    def __call__(self, slot, *args, **kwargs):
-        ent = MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
-        return ent
 
-
+@register_constructor
 class MobileNetV2ElasticConverter(MobileNetV2ElasticSpatialConverter, MobileNetV2ElasticSequentialConverter):
-    def __init__(self, model, search=False, spatial_kwargs=None, sequential_kwargs=None):
-        MobileNetV2ElasticSpatialConverter.__init__(self, model, search=search, **(spatial_kwargs or {}))
-        MobileNetV2ElasticSequentialConverter.__init__(self, model, search=search, **(sequential_kwargs or {}))
+    __call__ = MobileNetV2ElasticSequentialConverter.__call__
+    convert = MobileNetV2ElasticSpatialConverter.convert
 
-    def __call__(self, slot, *args, **kwargs):
-        return MobileNetV2ElasticSpatialConverter.__call__(self, slot, *args, **kwargs)
+    def __init__(self, search=True, spatial_kwargs=None, sequential_kwargs=None):
+        MobileNetV2ElasticSpatialConverter.__init__(self, search=search, **(spatial_kwargs or {}))
+        MobileNetV2ElasticSequentialConverter.__init__(self, search=search, **(sequential_kwargs or {}))
 
-
-class MobileNetV2ElasticSpatial(MobileNetV2):
-    def get_predefined_augment_converter(self, *args, **kwargs):
-        return MobileNetV2ElasticSpatialConverter(self, search=False, *args, **kwargs)
-
-    def get_predefined_search_converter(self, *args, **kwargs):
-        return MobileNetV2ElasticSpatialConverter(self, search=True, *args, **kwargs)
-
-
-class MobileNetV2ElasticSequential(MobileNetV2):
-    def get_predefined_augment_converter(self, *args, **kwargs):
-        return MobileNetV2ElasticSequentialConverter(self, search=False, *args, **kwargs)
-
-    def get_predefined_search_converter(self, *args, **kwargs):
-        return MobileNetV2ElasticSequentialConverter(self, search=True, *args, **kwargs)
-
-
-class MobileNetV2Elastic(MobileNetV2):
-    def get_predefined_augment_converter(self, *args, **kwargs):
-        return MobileNetV2ElasticConverter(self, search=False, *args, **kwargs)
-
-    def get_predefined_search_converter(self, *args, **kwargs):
-        return MobileNetV2ElasticConverter(self, search=True, *args, **kwargs)
-
-    def to_genotype(self):
-        return elastic_to_genotype()
-
-
-@register_as('MobileNetV2-E-Spatial')
-def mobilenetv2_spatial(chn_in, n_classes, cfgs, **kwargs):
-    return MobileNetV2ElasticSpatial(chn_in, n_classes, cfgs, **kwargs)
-
-
-@register_as('MobileNetV2-E-Sequential')
-def mobilenetv2_sequential(chn_in, n_classes, cfgs, **kwargs):
-    return MobileNetV2ElasticSequential(chn_in, n_classes, cfgs, **kwargs)
-
-
-@register_as('MobileNetV2-E')
-def mobilenetv2_elastic(chn_in, n_classes, cfgs, **kwargs):
-    return MobileNetV2Elastic(chn_in, n_classes, cfgs, **kwargs)

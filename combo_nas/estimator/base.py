@@ -5,18 +5,18 @@ from ..metrics import build as build_metrics
 from ..metrics.base import MetricsBase
 from ..utils.criterion import get_criterion
 from ..utils.profiling import TimeProfiler
-from ..trainer import build as build_trainer
-from ..arch_space import genotypes as gt
+from ..arch_space.export import build as build_exporter
 
 class EstimatorBase():
-    def __init__(self, config=None, expman=None, data_provider=None,
-                 model_builder=None, model=None, writer=None, logger=None,
+    def __init__(self, config=None, expman=None, trainer=None,
+                 model_builder=None, model_exporter=None, model=None,
+                 writer=None, logger=None,
                  name=None, profiling=False):
         self.name = '' if name is None else name
         self.config = config
         self.expman = expman
-        self.data_provider = data_provider
         self.model_builder = model_builder
+        self.model_exporter = model_exporter
         self.model = model
         if self.model is None and not model_builder is None:
             try:
@@ -71,26 +71,15 @@ class EstimatorBase():
         self.criterions_train = criterions_train
         self.criterions_eval = criterions_eval
         self.criterions_valid = criterions_valid
-        trainer = None
-        trn_conf = config.get('trainer', None)
-        if trn_conf:
-            if isinstance(trn_conf, str):
-                trn_conf = {'type': trn_conf}
-            trn_args = {
-                'w_optim': config.get('w_optim', None),
-                'lr_scheduler': config.get('lr_scheduler', None),
-            }
-            trn_args.update(trn_conf.get('args', {}))
-            trainer = build_trainer(trn_conf['type'], writer=writer, logger=logger, **trn_args)
         self.trainer = trainer
         self.results = []
         self.inputs = []
         self.tprof = TimeProfiler(enabled=profiling)
-        self.n_trn_batch = 0 if self.data_provider is None else self.data_provider.get_num_train_batch()
-        self.n_val_batch = 0 if self.data_provider is None else self.data_provider.get_num_valid_batch()
         self.cur_trn_batch = None
         self.cur_val_batch = None
-        self.no_valid_warn = True
+
+    def set_trainer(self, trainer):
+        self.trainer = trainer
 
     def criterion(self, X, y_pred, y_true, model=None, mode=None):
         model = self.model if model is None else model
@@ -116,27 +105,35 @@ class EstimatorBase():
 
     def loss_logits(self, X, y, model=None, mode=None):
         model = self.model if model is None else model
-        logits = model.logits(X)
-        return self.criterion(X, logits, y, model, mode), logits
+        output = model(X)
+        return self.loss(X, y, output, model, mode), output
 
     def print_model_info(self):
         model = self.model
         if not model is None:
             self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
-                utils.param_count(model), utils.param_size(model)))
+                utils.param_count(model, factor=2), utils.param_size(model, factor=2)))
 
     def get_last_results(self):
         return self.inputs, self.results
 
     def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
-        model = self.model if model is None else model
-        if not name is None:
-            res = self.metrics[name].compute(model, *args, **kwargs)
-            return None if res is None else (float(res) if to_scalar else res)
+        fmt_key = lambda n, k: '{}.{}'.format(n, k)
+        def flatten_dict(n, r):
+            if isinstance(r, dict):
+                return {fmt_key(n, k): flatten_dict(fmt_key(n, k), v) for k, v in r.items()}
+            return r
+        def merge_results(dct, n, r):
+            if not isinstance(r, dict):
+                r = {n: r}
+            r = {k: None if v is None else (float(v) if to_scalar else v) for k, v in r.items()}
+            dct.update(r)
         ret = {}
-        for mt_name, mt in self.metrics.items():
-            res = mt.compute(model, *args, **kwargs)
-            ret[mt_name] = None if res is None else (float(res) if to_scalar else res)
+        model = self.model if model is None else model
+        names = [name] if not name is None else self.metrics.keys()
+        for mt_name in names:
+            res = self.metrics[mt_name].compute(model, *args, **kwargs)
+            merge_results(ret, mt_name, flatten_dict(mt_name, res))
         return ret
 
     def predict(self, ):
@@ -148,7 +145,7 @@ class EstimatorBase():
     def validate(self):
         return self.validate_epoch(epoch=0, tot_epochs=1)
 
-    def search(self, optim):
+    def run(self, optim):
         pass
 
     def get_score(self, res):
@@ -158,17 +155,11 @@ class EstimatorBase():
             score = 0 if len(res) == 0 else list(res.values())[0]
         return score
 
-    def get_lr(self):
-        return self.trainer.get_lr()
-
-    def get_w_optim(self):
-        return self.trainer.w_optim
-
     def train_epoch(self, epoch, tot_epochs, model=None):
-        self.data_provider.reset_train_iter()
         model = self.model if model is None else model
         tprof = self.tprof
-        ret = self.trainer.train_epoch(estim=self, model=model, tot_steps=self.n_trn_batch,
+        ret = self.trainer.train_epoch(estim=self, model=model,
+                                       tot_steps=self.get_num_train_batch(epoch),
                                        epoch=epoch, tot_epochs=tot_epochs)
         tprof.stat('data')
         tprof.stat('train')
@@ -181,9 +172,9 @@ class EstimatorBase():
                                        step=step, tot_steps=tot_steps)
 
     def validate_epoch(self, epoch=0, tot_epochs=1, model=None):
-        self.data_provider.reset_valid_iter()
         model = self.model if model is None else model
-        return self.trainer.validate_epoch(estim=self, model=model, tot_steps=self.n_val_batch,
+        return self.trainer.validate_epoch(estim=self, model=model, 
+                                           tot_steps=self.get_num_valid_batch(epoch),
                                            epoch=epoch, tot_epochs=tot_epochs)
 
     def validate_step(self, epoch, tot_epochs, step, tot_steps, model=None, ):
@@ -193,36 +184,44 @@ class EstimatorBase():
                                           step=step, tot_steps=tot_steps)
 
     def reset_training_states(self, tot_epochs=None, config=None, device=None,
-                              w_optim_config=None, lr_scheduler_config=None,
+                              optimizer_config=None, lr_scheduler_config=None,
                               model=None, scale_lr=True):
         model = self.model if model is None else model
         config = self.config if config is None else config
         tot_epochs = config.epochs if tot_epochs is None else tot_epochs
         if not self.trainer is None:
-            self.trainer.init(model, w_optim_config=w_optim_config,
+            self.trainer.init(model, optimizer_config=optimizer_config,
                               tot_epochs=tot_epochs, scale_lr=scale_lr,
                               lr_scheduler_config=lr_scheduler_config,
                               device=device)
         self.cur_epoch = -1
 
-    def get_next_trn_batch(self):
+    def get_num_train_batch(self, epoch=None):
+        epoch = self.cur_epoch if epoch is None else epoch
+        return 0 if self.trainer is None else self.trainer.get_num_train_batch(epoch=epoch)
+
+    def get_num_valid_batch(self, epoch=None):
+        epoch = self.cur_epoch if epoch is None else epoch
+        return 0 if self.trainer is None else self.trainer.get_num_valid_batch(epoch=epoch)
+
+    def get_next_train_batch(self):
         self.tprof.timer_start('data')
-        ret = self.data_provider.get_next_train_batch()
+        ret = self.trainer.get_next_train_batch()
         self.tprof.timer_stop('data')
         self.cur_trn_batch = ret
         return ret
 
-    def get_cur_trn_batch(self):
-        return self.cur_trn_batch
+    def get_cur_train_batch(self):
+        return self.cur_trn_batch or self.get_next_train_batch()
 
-    def get_next_val_batch(self):
+    def get_next_valid_batch(self):
         self.tprof.timer_start('data')
-        ret = self.data_provider.get_next_valid_batch()
+        ret = self.trainer.get_next_valid_batch()
         self.tprof.timer_stop('data')
         self.cur_val_batch = ret
         return ret
 
-    def get_cur_val_batch(self):
+    def get_cur_valid_batch(self):
         return self.cur_val_batch
 
     def load_state_dict(self, state_dict):
@@ -233,16 +232,16 @@ class EstimatorBase():
             'cur_epoch': self.cur_epoch
         }
 
-    def save_model(self, save_name=None):
+    def save_model(self, save_name=None, exporter='DefaultTorchCheckpointExporter'):
         expman = self.expman
         save_name = 'model_{}_{}.pt'.format(self.name, save_name)
         chkpt_path = expman.join('chkpt', save_name)
-        self.model.save(chkpt_path)
+        build_exporter(exporter, path=chkpt_path)(self.model)
 
     def save(self, epoch=None, save_name=None):
         expman = self.expman
         logger = self.logger
-        save_name = 'estim_{}_{}.pt'.format(self.name, save_name)
+        save_name = 'estim_{}_{}.pkl'.format(self.name, save_name)
         chkpt_path = expman.join('chkpt', save_name)
         epoch = epoch or self.cur_epoch
         try:
@@ -258,20 +257,19 @@ class EstimatorBase():
         self.save_model(save_name)
         self.save(epoch, save_name)
 
-    def save_genotype(self, epoch=None, genotype=None, save_name=None):
+    def save_arch_desc(self, epoch=None, arch_desc=None, save_name=None, exporter='DefaultToFileExporter'):
         expman = self.expman
         logger = self.logger
-        genotype = self.model.to_genotype() if genotype is None else genotype
         if not save_name is None:
-            fname = 'gene_{}_{}.gt'.format(self.name, save_name)
+            fname = 'arch_{}_{}'.format(self.name, save_name)
         else:
             epoch = epoch or self.cur_epoch
-            fname = 'gene_{}_ep{:03d}.gt'.format(self.name, epoch+1)
+            fname = 'arch_{}_ep{:03d}'.format(self.name, epoch+1)
         save_path = expman.join('output', fname)
         try:
-            gt.to_file(genotype, save_path)
+            build_exporter(exporter, path=save_path)(arch_desc)
         except RuntimeError:
-            logger.error("Failed saving genotype: {}".format(traceback.format_exc()))
+            logger.error("Failed saving arch_desc: {}".format(traceback.format_exc()))
 
     def load(self, chkpt_path):
         if chkpt_path is None:

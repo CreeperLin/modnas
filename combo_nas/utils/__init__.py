@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import sys
 import time
@@ -12,6 +11,7 @@ try:
 except ImportError:
     SummaryWriter = None
 
+
 def env_info():
     return 'environment info:\ncombo_nas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
         __version__,
@@ -20,23 +20,28 @@ def env_info():
         torch.backends.cudnn.version(),
     )
 
+
 def get_current_device():
     if not torch.cuda.is_available(): return 'cpu'
     return torch.cuda.current_device()
 
-def parse_gpus(gpus):
-    if gpus == 'cpu':
+
+def parse_device(device):
+    if not isinstance(device, str):
         return []
-    if gpus == 'all':
+    if device == 'cpu':
+        return []
+    if device == 'all':
         return list(range(torch.cuda.device_count()))
     else:
-        return [int(s) for s in gpus.split(',')]
+        return [int(s) for s in device.split(',')]
+
 
 def check_config(config, top_keys=[]):
     for k in top_keys:
         if not k in config:
             config[k] = Config()
-    
+
     def check_field(config, field, default, required=False):
         cur_key = ''
         idx = -1
@@ -80,14 +85,6 @@ def check_config(config, top_keys=[]):
         'ops.bias': False,
         'log.writer': False,
         'log.debug': False,
-        'device.seed': 2,
-        'device.gpus': 'all',
-        'genotypes.disable_dag': False,
-        'genotypes.use_slot': True,
-        'genotypes.use_fallback': False,
-        'genotypes.gt_str': '',
-        'genotypes.gt_path': '',
-        'genotypes.to_args': {},
         'estimator.*.save_gt': True,
         'estimator.*.save_freq': 0,
         'estimator.*.drop_path_prob': 0.,
@@ -97,7 +94,6 @@ def check_config(config, top_keys=[]):
         'estimator.*.arch_update_batch': 1,
         'estimator.*.criterion': 'CE',
         'estimator.*.metrics': 'Validate',
-        'estimator.*.trainer': 'ImageCls',
     }
 
     for key, val in defaults.items():
@@ -109,27 +105,22 @@ def check_config(config, top_keys=[]):
     return False
 
 
-def init_device(config, ovr_gpus):
-    np.random.seed(config.seed)
-    torch.manual_seed(config.seed)
-    if ovr_gpus is None:
-        config.gpus = parse_gpus(config.gpus)
-    else:
-        config.gpus = parse_gpus(ovr_gpus)
-    if len(config.gpus)==0:
+def init_device(gpus='all', seed=11235):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    device_ids = parse_device(gpus)
+    if not len(device_ids):
         device = torch.device('cpu')
-        return device, []
-    device = torch.device("cuda")
-    torch.cuda.set_device(config.gpus[0])
-
-    torch.cuda.manual_seed_all(config.seed)
-    torch.backends.cudnn.benchmark = True
-    logging.debug('device: {} {}'.format(device, config.gpus))
-    return device, config.gpus
+    else:
+        device = torch.device('cuda')
+        torch.cuda.set_device(device_ids[0])
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.benchmark = True
+    return device, device_ids
 
 
-def get_logger(log_dir, name, config):
-    level = logging.DEBUG if config.debug else logging.INFO
+def get_logger(log_dir, name, debug=False):
+    level = logging.DEBUG if debug else logging.INFO
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     log_path = os.path.join(log_dir, '%s-%d.log' % (name, time.time()))
@@ -145,17 +136,14 @@ def get_logger(log_dir, name, config):
 
 
 class DummyWriter():
-    def __init__(self):
+    def dummy(self, *args, **kwargs):
         pass
 
-    def add_scalar(self, *args, **kwargs):
-        pass
-
-    def add_text(self, *args, **kwargs):
-        pass
+    def __getattr__(self, item):
+        return self.dummy
 
 
-def get_writer(log_dir, enabled):
+def get_writer(log_dir, enabled=False):
     if enabled:
         if SummaryWriter is None:
             raise ValueError('module SummaryWriter is not found')
@@ -176,15 +164,14 @@ def get_same_padding(kernel_size):
     assert kernel_size % 2 > 0, 'kernel size should be odd number'
     return kernel_size // 2
 
-def param_size(model):
-    """ Compute parameter size in MB """
-    n_params = sum(p.data.nelement() for p in model.parameters())
-    return 4 * n_params / 1024. / 1024.
 
-def param_count(model):
-    """ Compute parameter count in million """
-    n_params = sum(p.data.nelement() for p in model.parameters())
-    return n_params / 1e6
+def param_count(model, factor=0, divisor=1000):
+    return sum(p.data.nelement() for p in model.parameters()) / divisor ** factor
+
+
+def param_size(model, factor=0, divisor=1024):
+    return 4 * param_count(model) / divisor ** factor
+
 
 class AverageMeter():
     """ Computes and stores the average and current value """
@@ -233,7 +220,7 @@ def clear_bn_running_statistics(model):
             m.reset_running_stats()
 
 
-def recompute_bn_running_statistics(model, trn_iter, num_batch=100, clear=True):
+def recompute_bn_running_statistics(model, trainer, num_batch=100, clear=True):
     if clear:
         clear_bn_running_statistics(model)
     is_training = model.training
@@ -241,10 +228,10 @@ def recompute_bn_running_statistics(model, trn_iter, num_batch=100, clear=True):
     with torch.no_grad():
         for _ in range(num_batch):
             try:
-                trn_X, _ = next(trn_iter)
+                trn_X, _ = trainer.get_next_train_batch()
             except StopIteration:
                 break
-            model(trn_X.to(device=model.device_ids[0]))
+            model(trn_X)
             del trn_X
     if not is_training:
         model.eval()
@@ -254,6 +241,7 @@ def format_time(sec):
     m, s = divmod(sec, 60)
     h, m = divmod(m, 60)
     return "%d h %d m %d s" % (h,m,s)
+
 
 class ETAMeter():
     def __init__(self, total_steps, cur_steps=-1):
@@ -266,12 +254,12 @@ class ETAMeter():
         self.last_time = time.time()
 
     def set_step(self, step):
-        self.speed = (step - self.last_step) / (time.time() - self.last_time)
+        self.speed = (step - self.last_step) / (time.time() - self.last_time + 1e-7)
         self.last_step = step
         self.last_time = time.time()
 
     def step(self, n=1):
-        self.speed = n / (time.time() - self.last_time)
+        self.speed = n / (time.time() - self.last_time + 1e-7)
         self.last_step += n
         self.last_time = time.time()
 

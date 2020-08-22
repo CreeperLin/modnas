@@ -49,12 +49,12 @@ class FakeDataPredictor(ArchPredictor):
 @combo_nas.estimator.register_as('FakeData')
 class FakeDataEstimator(RegressionEstimator):
 
-    def search(self, optim):
+    def run(self, optim):
         config = self.config
         self.predictor = FakeDataPredictor()
         self.model = None
-        ret = super().search(optim)
+        ret = super().run(optim)
         scores = np.array(list(self.predictor.scores.values()))
-        self.logger.info('global optimum genotype: {}, score: {}'.format(
+        self.logger.info('global optimum arch_desc: {}, score: {}'.format(
                          scores.argmax(1), sum(np.max(scores, 1)) / scores.shape[0]))
         return ret
