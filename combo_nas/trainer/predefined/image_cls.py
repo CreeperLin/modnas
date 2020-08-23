@@ -2,15 +2,24 @@ import torch
 import torch.nn as nn
 from ...utils.optimizer import get_optimizer
 from ...utils.lr_scheduler import get_lr_scheduler
+from ...data_provider import build as build_data_provider
 from ... import utils
 from ..base import TrainerBase
 from .. import register_as
 
+
 @register_as('ImageCls')
 class ImageClsTrainer(TrainerBase):
-    def __init__(self, logger=None, writer=None, expman=None, device='cuda',
-                 data_provider=None, optimizer=None, lr_scheduler=None,
-                 w_grad_clip=0, print_freq=200):
+    def __init__(self,
+                 logger=None,
+                 writer=None,
+                 expman=None,
+                 device='cuda',
+                 data_provider=None,
+                 optimizer=None,
+                 lr_scheduler=None,
+                 w_grad_clip=0,
+                 print_freq=200):
         super().__init__(logger, writer)
         self.device = device
         self.top1 = None
@@ -36,20 +45,26 @@ class ImageClsTrainer(TrainerBase):
             self.data_provider = data_provider
         self.reset_stats()
 
-    def init(self, model, optimizer_config=None, lr_scheduler_config=None,
-             data_provider_config=None, tot_epochs=None, scale_lr=True, device=None):
+    def init(self,
+             model,
+             optimizer_config=None,
+             lr_scheduler_config=None,
+             data_provider_config=None,
+             tot_epochs=None,
+             scale_lr=True,
+             device=None):
         if optimizer_config is None:
             optimizer_config = self.optimizer_config
         if lr_scheduler_config is None:
             lr_scheduler_config = self.lr_scheduler_config
         data_prvd_config = data_provider_config or self.data_provider_config
-        if not optimizer_config is None:
+        if optimizer_config is not None:
             self.optimizer = get_optimizer(model.parameters(), optimizer_config, device, scale_lr)
-        if not lr_scheduler_config is None:
+        if lr_scheduler_config is not None:
             self.lr_scheduler = get_lr_scheduler(self.optimizer, lr_scheduler_config, tot_epochs)
-        if not data_prvd_config is None:
+        if data_prvd_config is not None:
             self.data_provider = build_data_provider(data_prvd_config.type, **(data_prvd_config.args or {}))
-        if not device is None:
+        if device is not None:
             self.device = device
 
     def get_num_train_batch(self, epoch):
@@ -79,9 +94,9 @@ class ImageClsTrainer(TrainerBase):
         }
 
     def load_state_dict(self, sd):
-        if not self.optimizer is None:
+        if self.optimizer is not None:
             self.optimizer.load_state_dict(sd['optimizer'])
-        if not self.lr_scheduler is None:
+        if self.lr_scheduler is not None:
             self.lr_scheduler.load_state_dict(sd['lr_scheduler'])
 
     def get_lr(self):
@@ -135,18 +150,22 @@ class ImageClsTrainer(TrainerBase):
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
         top5.update(prec5.item(), N)
-        if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == tot_steps):
-            logger.info(
-                "Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f} "
-                "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(
-                    epoch+1, tot_epochs, step+1, tot_steps, lr, losses=losses,
-                    top1=top1, top5=top5))
+        if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
+            logger.info("Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f} "
+                        "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(epoch + 1,
+                                                                             tot_epochs,
+                                                                             step + 1,
+                                                                             tot_steps,
+                                                                             lr,
+                                                                             losses=losses,
+                                                                             top1=top1,
+                                                                             top5=top5))
         writer.add_scalar('train/loss', loss.item(), cur_step)
         writer.add_scalar('train/top1', prec1.item(), cur_step)
         writer.add_scalar('train/top5', prec5.item(), cur_step)
         if step == tot_steps - 1:
             lr_scheduler.step()
-            logger.info("Train: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
+            logger.info("Train: [{:3d}/{}] Prec@1 {:.4%}".format(epoch + 1, tot_epochs, top1.avg))
         return loss, prec1, prec5
 
     def validate_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
@@ -183,15 +202,18 @@ class ImageClsTrainer(TrainerBase):
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
         top5.update(prec5.item(), N)
-        if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == tot_steps):
-            logger.info(
-                "Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
-                "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(
-                    epoch+1, tot_epochs, step+1, tot_steps, losses=losses,
-                    top1=top1, top5=top5))
-        if step+1 == tot_steps:
+        if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
+            logger.info("Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
+                        "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(epoch + 1,
+                                                                             tot_epochs,
+                                                                             step + 1,
+                                                                             tot_steps,
+                                                                             losses=losses,
+                                                                             top1=top1,
+                                                                             top5=top5))
+        if step + 1 == tot_steps:
             writer.add_scalar('val/loss', losses.avg, cur_step)
             writer.add_scalar('val/top1', top1.avg, cur_step)
             writer.add_scalar('val/top5', top5.avg, cur_step)
-            logger.info("Valid: [{:3d}/{}] Prec@1 {:.4%}".format(epoch+1, tot_epochs, top1.avg))
+            logger.info("Valid: [{:3d}/{}] Prec@1 {:.4%}".format(epoch + 1, tot_epochs, top1.avg))
         return top1.avg

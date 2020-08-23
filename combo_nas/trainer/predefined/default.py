@@ -7,11 +7,19 @@ from ... import utils
 from ..base import TrainerBase
 from .. import register_as
 
+
 @register_as('Default')
 class DefaultTrainer(TrainerBase):
-    def __init__(self, logger=None, writer=None, expman=None, device='cuda',
-                 data_provider=None, optimizer=None, lr_scheduler=None,
-                 w_grad_clip=0, print_freq=200):
+    def __init__(self,
+                 logger=None,
+                 writer=None,
+                 expman=None,
+                 device='cuda',
+                 data_provider=None,
+                 optimizer=None,
+                 lr_scheduler=None,
+                 w_grad_clip=0,
+                 print_freq=200):
         super().__init__(logger, writer)
         self.print_freq = print_freq
         self.w_grad_clip = w_grad_clip
@@ -35,20 +43,26 @@ class DefaultTrainer(TrainerBase):
             self.data_provider = data_provider
         self.reset_stats()
 
-    def init(self, model, optimizer_config=None, lr_scheduler_config=None,
-             data_provider_config=None, tot_epochs=None, scale_lr=True, device=None):
+    def init(self,
+             model,
+             optimizer_config=None,
+             lr_scheduler_config=None,
+             data_provider_config=None,
+             tot_epochs=None,
+             scale_lr=True,
+             device=None):
         if optimizer_config is None:
             optimizer_config = self.optimizer_config
         if lr_scheduler_config is None:
             lr_scheduler_config = self.lr_scheduler_config
         data_prvd_config = data_provider_config or self.data_provider_config
-        if not optimizer_config is None:
+        if optimizer_config is not None:
             self.optimizer = get_optimizer(model.parameters(), optimizer_config, device, scale_lr)
-        if not lr_scheduler_config is None:
+        if lr_scheduler_config is not None:
             self.lr_scheduler = get_lr_scheduler(self.optimizer, lr_scheduler_config, tot_epochs)
-        if not data_prvd_config is None:
+        if data_prvd_config is not None:
             self.data_provider = build_data_provider(data_prvd_config.type, **(data_prvd_config.args or {}))
-        if not device is None:
+        if device is not None:
             self.device = device
 
     def get_num_train_batch(self, epoch):
@@ -76,9 +90,9 @@ class DefaultTrainer(TrainerBase):
         }
 
     def load_state_dict(self, sd):
-        if not self.optimizer is None:
+        if self.optimizer is not None:
             self.optimizer.load_state_dict(sd['optimizer'])
-        if not self.lr_scheduler is None:
+        if self.lr_scheduler is not None:
             self.lr_scheduler.load_state_dict(sd['lr_scheduler'])
 
     def get_lr(self):
@@ -128,14 +142,17 @@ class DefaultTrainer(TrainerBase):
         optimizer.step()
         tprof.timer_stop('train')
         losses.update(loss.item(), N)
-        if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == tot_steps):
-            logger.info(
-                "Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f}".format(
-                    epoch+1, tot_epochs, step+1, tot_steps, lr, losses=losses))
+        if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
+            logger.info("Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f}".format(epoch + 1,
+                                                                                                      tot_epochs,
+                                                                                                      step + 1,
+                                                                                                      tot_steps,
+                                                                                                      lr,
+                                                                                                      losses=losses))
         writer.add_scalar('train/loss', loss.item(), cur_step)
         if step == tot_steps - 1:
             lr_scheduler.step()
-            logger.info("Train: [{:3d}/{}] Loss {losses.avg:.3f}".format(epoch+1, tot_epochs, losses=losses))
+            logger.info("Train: [{:3d}/{}] Loss {losses.avg:.3f}".format(epoch + 1, tot_epochs, losses=losses))
         return loss
 
     def validate_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
@@ -165,11 +182,13 @@ class DefaultTrainer(TrainerBase):
         tprof.timer_stop('validate')
         N = val_X.size(0)
         losses.update(loss.item(), N)
-        if print_freq != 0 and ((step+1) % print_freq == 0 or step+1 == tot_steps):
-            logger.info(
-                "Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f}".format(
-                    epoch+1, tot_epochs, step+1, tot_steps, losses=losses))
-        if step+1 == tot_steps:
+        if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
+            logger.info("Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f}".format(epoch + 1,
+                                                                                            tot_epochs,
+                                                                                            step + 1,
+                                                                                            tot_steps,
+                                                                                            losses=losses))
+        if step + 1 == tot_steps:
             writer.add_scalar('val/loss', losses.avg, cur_step)
-            logger.info("Valid: [{:3d}/{}] Loss {losses.avg:.3f}".format(epoch+1, tot_epochs, losses=losses))
+            logger.info("Valid: [{:3d}/{}] Loss {losses.avg:.3f}".format(epoch + 1, tot_epochs, losses=losses))
         return loss

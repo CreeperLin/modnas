@@ -2,6 +2,7 @@ import numpy as np
 import random
 from ..base import CategoricalSpaceOptim
 
+
 class GeneticOptim(CategoricalSpaceOptim):
     def __init__(self, space, pop_size, logger=None):
         super().__init__(space, logger)
@@ -42,9 +43,16 @@ class GeneticOptim(CategoricalSpaceOptim):
 
 
 class EvolutionOptim(GeneticOptim):
-    def __init__(self, space, pop_size=20, n_parents=2, n_offsprings=1,
-                 n_select=10, n_eliminate=1, n_crossover=None,
-                 mutation_prob=0.01, logger=None):
+    def __init__(self,
+                 space,
+                 pop_size=20,
+                 n_parents=2,
+                 n_offsprings=1,
+                 n_select=10,
+                 n_eliminate=1,
+                 n_crossover=None,
+                 mutation_prob=0.01,
+                 logger=None):
         super().__init__(space, pop_size, logger)
         self.add_operator(self._survival)
         self.add_operator(self._selection)

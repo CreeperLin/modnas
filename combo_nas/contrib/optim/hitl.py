@@ -3,6 +3,7 @@ import combo_nas.optim as optim
 from combo_nas.optim.base import OptimBase
 from combo_nas.core.param_space import ParamNumeric
 
+
 @optim.register_as('HITL')
 class HITLParamOptim(OptimBase):
     '''

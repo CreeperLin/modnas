@@ -2,6 +2,7 @@ import time
 import random
 from ..base import CategoricalSpaceOptim
 
+
 class GridSearchOptim(CategoricalSpaceOptim):
     def __init__(self, space, logger=None):
         super().__init__(space, logger)

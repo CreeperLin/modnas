@@ -3,6 +3,7 @@ from combo_nas.estimator.predefined.default_estimator import DefaultEstimator
 from combo_nas.estimator import register_as
 from combo_nas.core.param_space import ArchParamSpace
 
+
 @register_as('RandomSampling')
 class RandomSamplingEstimator(DefaultEstimator):
     def __init__(self, *args, seed=1, save_best=True, **kwargs):

@@ -1,4 +1,3 @@
-import torch
 from ..base import MetricsBase
 from .. import register_as, build
 from ...arch_space.slot import Slot
@@ -8,6 +7,7 @@ try:
     import rasp.frontend as F
 except ImportError:
     rasp = None
+
 
 @register_as('RASPStatsMetrics')
 class RASPStatsMetrics(MetricsBase):
@@ -21,10 +21,20 @@ class RASPStatsMetrics(MetricsBase):
 
 @register_as('RASPTraversalMetrics')
 class RASPTraversalMetrics(MetricsBase):
-    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False,
-                device='cuda', mixed_only=False, keep_stats=True, traversal_type='tape_nodes'):
+    def __init__(self,
+                 logger,
+                 input_shape,
+                 metrics,
+                 args={},
+                 compute=True,
+                 timing=False,
+                 device='cuda',
+                 mixed_only=False,
+                 keep_stats=True,
+                 traversal_type='tape_nodes'):
         super().__init__(logger)
-        if rasp is None: raise ValueError('package RASP is not found')
+        if rasp is None:
+            raise ValueError('package RASP is not found')
         self.metrics = build(metrics, logger, **args)
         self.eval_compute = compute
         self.eval_timing = timing
@@ -53,7 +63,7 @@ class RASPTraversalMetrics(MetricsBase):
             module = cur_node.module
             if isinstance(module, Slot):
                 prim_type = module.desc
-                if not prim_type is None:
+                if prim_type is not None:
                     if isinstance(prim_type, (tuple, list)):
                         prim_type = prim_type[0]
                     ent_node = F.get_stats_node(module.ent)
@@ -101,7 +111,7 @@ class RASPTraversalMetrics(MetricsBase):
             self.excluded.add(mixop_node)
             assert mixop_node['in_shape'] is not None
             mixop_mt = 0
-            m_in, m_out = mixop_node['in_shape'], mixop_node['out_shape']
+            m_in, _ = mixop_node['in_shape'], mixop_node['out_shape']
             for p, (pn, op) in zip(m.prob(), m.named_primitives()):
                 if not p:
                     continue
@@ -117,7 +127,8 @@ class RASPTraversalMetrics(MetricsBase):
                 if subn_mt is None:
                     subn_mt = self.traverse(subn)
                 if subn_mt is None:
-                    self.logger.warning('unresolved node: {} type: {}'.format(node['name'], node['type']))
+                    self.logger.warning('unresolved node: {} type: {}'.format(
+                        subn['name'], subn['type']))
                     subn_mt = 0
                 mixop_mt = mixop_mt + subn_mt * p
             mt += mixop_mt
@@ -130,9 +141,17 @@ class RASPTraversalMetrics(MetricsBase):
 
 @register_as('RASPRootMetrics')
 class RASPRootMetrics(MetricsBase):
-    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
+    def __init__(self,
+                 logger,
+                 input_shape,
+                 metrics,
+                 args={},
+                 compute=True,
+                 timing=False,
+                 device=None):
         super().__init__(logger)
-        if rasp is None: raise ValueError('package RASP is not found')
+        if rasp is None:
+            raise ValueError('package RASP is not found')
         self.metrics = build(metrics, logger, **args)
         self.eval_compute = compute
         self.eval_timing = timing

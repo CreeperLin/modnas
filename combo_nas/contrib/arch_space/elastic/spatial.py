@@ -3,9 +3,10 @@ import torch.nn as nn
 from .modifier import modify_param, modify_buffer, modify_attr,\
     restore_module_states, get_ori_buffer
 
+
 def conv2d_fan_out_trnsf(m, idx):
     modify_param(m, 'weight', m.weight[idx, :, :, :])
-    if not m.bias is None:
+    if m.bias is not None:
         modify_param(m, 'bias', m.bias[idx])
     if m.groups != 1 and m.weight.shape[1] == 1:
         width = idx.stop - idx.start if isinstance(idx, slice) else len(idx)
@@ -23,14 +24,14 @@ def conv2d_fan_in_trnsf(m, idx):
         bias_idx = idx
     else:
         raise NotImplementedError
-    if not m.bias is None and not bias_idx is None:
+    if m.bias is not None and bias_idx is not None:
         modify_param(m, 'bias', m.bias[bias_idx])
 
 
 def batchnorm2d_fan_in_out_trnsf(m, idx):
-    if not m.weight is None:
+    if m.weight is not None:
         modify_param(m, 'weight', m.weight[idx])
-    if not m.bias is None:
+    if m.bias is not None:
         modify_param(m, 'bias', m.bias[idx])
     modify_buffer(m, 'running_mean', m.running_mean[idx])
     modify_buffer(m, 'running_var', m.running_var[idx])
@@ -95,26 +96,24 @@ def set_fan_in_post_transform(mtype, transf):
 
 
 def hook_module_in(module, inputs):
-    # print('hin', module.__class__.__name__, inputs[0].shape)
     fan_in_idx, fan_out_idx = ElasticSpatial.get_spatial_idx(module)
     mtype = type(module)
     trnsf = get_fan_in_transform(mtype)
-    if not trnsf is None and not fan_in_idx is None:
+    if trnsf is not None and fan_in_idx is not None:
         trnsf(module, fan_in_idx)
     trnsf = get_fan_out_transform(mtype)
-    if not trnsf is None and not fan_out_idx is None:
+    if trnsf is not None and fan_out_idx is not None:
         trnsf(module, fan_out_idx)
 
 
 def hook_module_out(module, inputs, outputs):
-    # print('hout', module.__class__.__name__, outputs[0].shape)
     fan_in_idx, fan_out_idx = ElasticSpatial.get_spatial_idx(module)
     mtype = type(module)
     trnsf = get_fan_in_post_transform(mtype)
-    if not trnsf is None and not fan_in_idx is None:
+    if trnsf is not None and fan_in_idx is not None:
         trnsf(module, fan_in_idx)
     trnsf = get_fan_out_post_transform(mtype)
-    if not trnsf is None and not fan_out_idx is None:
+    if trnsf is not None and fan_out_idx is not None:
         trnsf(module, fan_out_idx)
     restore_module_states(module)
 
@@ -145,7 +144,7 @@ class ElasticSpatial():
 
     @staticmethod
     def enable_spatial_transform(module):
-        if not module in ElasticSpatial._module_hooks:
+        if module not in ElasticSpatial._module_hooks:
             h_in = module.register_forward_pre_hook(hook_module_in)
             h_out = module.register_forward_hook(hook_module_out)
             ElasticSpatial._module_hooks[module] = (h_in, h_out)
@@ -258,7 +257,7 @@ class ElasticSpatialGroup():
         self.cur_rank = None
 
     def set_spatial_rank(self, rank=None):
-        if rank is None and not self.rank_fn is None:
+        if rank is None and self.rank_fn is not None:
             rank = self.rank_fn()
         self.cur_rank = rank
 

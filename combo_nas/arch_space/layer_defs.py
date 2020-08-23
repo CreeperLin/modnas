@@ -1,6 +1,7 @@
 import itertools
 import torch
 
+
 def get_merger(name):
     for sc in MergerBase.__subclasses__():
         if sc.__name__ == name:
@@ -82,7 +83,7 @@ class LastMerger(MergerBase):
 
     @staticmethod
     def merge_range(num_states):
-        return (num_states-1, )
+        return (num_states - 1, )
 
 
 def get_enumerator(name):
@@ -122,7 +123,7 @@ class LastNEnumerator(EnumeratorBase):
 
     @staticmethod
     def enum(n_states, n_inputs):
-        yield [n_states-i-1 for i in range(n_inputs)]
+        yield [n_states - i - 1 for i in range(n_inputs)]
 
     @staticmethod
     def len_enum(n_states, n_inputs):
@@ -148,7 +149,7 @@ class TreeEnumerator(EnumeratorBase):
         self.width = width
 
     def enum(self, n_states, n_inputs):
-        yield [(n_states-1+i)//self.width for i in range(n_inputs)]
+        yield [(n_states - 1 + i) // self.width for i in range(n_inputs)]
 
     def len_enum(self, n_states, n_inputs):
         return 1
@@ -159,7 +160,7 @@ class N2OneEnumerator(EnumeratorBase):
         super().__init__()
 
     def enum(self, n_states, n_inputs):
-        yield [n_states-i-1 for i in range(n_states)]
+        yield [n_states - i - 1 for i in range(n_states)]
 
     def len_enum(self, n_states, n_inputs):
         return 1
@@ -203,11 +204,12 @@ class EvenSplitAllocator(AllocatorBase):
         chn_list = []
         for (chn_s, si) in zip(chn_states, sidx):
             etot = min(self.n_states, self.tot_states - si - 1)
-            eidx = cur_state - max(self.n_inputs, si+1)
-            c_in = chn_s - (chn_s // etot) * eidx if eidx == etot-1 else chn_s // etot
+            eidx = cur_state - max(self.n_inputs, si + 1)
+            c_in = chn_s - (chn_s //
+                            etot) * eidx if eidx == etot - 1 else chn_s // etot
             chn = chn_s // etot
-            end = chn_s if eidx == etot-1 else chn*(eidx+1)
-            s_slice = slice(chn*eidx,end)
+            end = chn_s if eidx == etot - 1 else chn * (eidx + 1)
+            s_slice = slice(chn * eidx, end)
             self.slice_map[(si, cur_state)] = s_slice
             chn_list.append(c_in)
         return chn_list
@@ -233,4 +235,3 @@ class ReplicateAllocator(AllocatorBase):
 
     def chn_in(self, chn_states, sidx, cur_state):
         return chn_states
-

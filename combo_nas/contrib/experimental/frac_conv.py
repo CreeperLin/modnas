@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from combo_nas.arch_space.ops import register_as
 
+
 @register_as('MaskConv')
 class MaskedConv(nn.Conv2d):
     def __init__(self, chn_in, chn_out, kernel_size, stride, padding, dilation=1, groups=1, bias=False, mask=None):
@@ -91,8 +92,8 @@ class IndexedConv(nn.Conv2d):
 @register_as('IC3[x]')
 def cross_conv_3x3(chn_in, chn_out, stride, **kwargs):
     indices = [
-        [0,0,1,2,2],
-        [0,2,1,0,2],
+        [0, 0, 1, 2, 2],
+        [0, 2, 1, 0, 2],
     ]
     return IndexedConv(chn_in, chn_out, 3, stride, 1, **kwargs, indices=indices)
 
@@ -100,7 +101,7 @@ def cross_conv_3x3(chn_in, chn_out, stride, **kwargs):
 @register_as('IC3[+]')
 def plus_conv_3x3(chn_in, chn_out, stride, **kwargs):
     indices = [
-        [0,1,1,1,2],
-        [1,0,1,2,1],
+        [0, 1, 1, 1, 2],
+        [1, 0, 1, 2, 1],
     ]
     return IndexedConv(chn_in, chn_out, 3, stride, 1, **kwargs, indices=indices)

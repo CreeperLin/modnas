@@ -2,6 +2,7 @@ import logging
 import torch
 from . import register
 
+
 @register
 class ToDevice():
     def __init__(self, device_ids, data_parallel=True):
@@ -13,7 +14,7 @@ class ToDevice():
         device_ids = self.device_ids
         model.to(device=device_ids[0])
         if self.data_parallel and len(device_ids) > 1:
-            model = torch.nn.parallel.Data_Parallel(model, device_ids=device_ids)
+            model = torch.nn.DataParallel(model, device_ids=device_ids)
         return model
 
 

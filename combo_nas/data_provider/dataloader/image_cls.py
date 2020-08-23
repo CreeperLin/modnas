@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from . import register_as
 
+
 def get_label_class(label):
     if isinstance(label, float):
         label_cls = int(label)
@@ -22,7 +23,7 @@ def get_dataset_label(data):
         return [c for c in data.targets]
     if hasattr(data, 'samples'):
         return [c for _, c in data.samples]
-    if hasattr(data, 'train_labels'): # backward compatibility for pytorch<1.2.0
+    if hasattr(data, 'train_labels'):  # backward compatibility for pytorch<1.2.0
         return data.train_labels
     if hasattr(data, 'test_labels'):
         return data.test_labels
@@ -38,7 +39,7 @@ def train_valid_split(trn_idx, train_labels, class_size):
     train_idx, valid_idx = [], []
     for idx in trn_idx:
         label_cls = get_label_class(train_labels[idx])
-        if not label_cls in class_size:
+        if label_cls not in class_size:
             continue
         if class_size[label_cls] > 0:
             valid_idx.append(idx)
@@ -61,11 +62,20 @@ def map_data_label(data, mapping):
 
 
 @register_as('ImageCls')
-def get_torch_dataloader(trn_data, val_data, classes=None,
-                         trn_batch_size=64, val_batch_size=64,
-                         workers=2, collate_fn=None, parallel_multiplier=1,
-                         train_size=0, train_ratio=1., train_seed=1,
-                         valid_size=0, valid_ratio=0., valid_seed=1):
+def get_torch_dataloader(trn_data,
+                         val_data,
+                         classes=None,
+                         trn_batch_size=64,
+                         val_batch_size=64,
+                         workers=2,
+                         collate_fn=None,
+                         parallel_multiplier=1,
+                         train_size=0,
+                         train_ratio=1.,
+                         train_seed=1,
+                         valid_size=0,
+                         valid_ratio=0.,
+                         valid_seed=1):
     # classes
     trn_labels = get_dataset_label(trn_data)
     if hasattr(trn_data, 'classes'):
@@ -99,7 +109,7 @@ def get_torch_dataloader(trn_data, val_data, classes=None,
     if 0 < train_size < n_train_data:
         random.seed(train_seed)
         trn_idx = random.sample(trn_idx, train_size)
-    if not val_data is None:
+    if val_data is not None:
         val_labels = get_dataset_label(val_data)
         val_idx = list(range(len(val_data)))
         val_idx = filter_class(val_idx, val_labels, all_classes)
@@ -121,13 +131,12 @@ def get_torch_dataloader(trn_data, val_data, classes=None,
             trn_idx, val_idx = train_valid_split(trn_idx, trn_labels, val_class_size)
         else:
             val_idx = list()
-    logging.info('data_loader: trn: {} val: {} cls: {}'.format(
-                len(trn_idx), len(val_idx), n_classes))
+    logging.info('data_loader: trn: {} val: {} cls: {}'.format(len(trn_idx), len(val_idx), n_classes))
     # map labels
-    if not classes is None:
-        mapping = {c:i for i, c in enumerate(all_classes)}
+    if classes is not None:
+        mapping = {c: i for i, c in enumerate(all_classes)}
         map_data_label(trn_data, mapping)
-        if not val_data is None:
+        if val_data is not None:
             map_data_label(val_data, mapping)
     # dataloader
     trn_loader = val_loader = None
@@ -138,19 +147,13 @@ def get_torch_dataloader(trn_data, val_data, classes=None,
         'num_workers': workers,
         'pin_memory': True,
     }
-    if not collate_fn is None:
+    if collate_fn is not None:
         # backward compatibility for pytorch < 1.2.0
         extra_kwargs['collate_fn'] = collate_fn
     if len(trn_idx) > 0:
         trn_sampler = SubsetRandomSampler(trn_idx)
-        trn_loader = DataLoader(trn_data,
-                                batch_size=trn_batch_size,
-                                sampler=trn_sampler,
-                                **extra_kwargs)
+        trn_loader = DataLoader(trn_data, batch_size=trn_batch_size, sampler=trn_sampler, **extra_kwargs)
     if len(val_idx) > 0:
         val_sampler = SubsetRandomSampler(val_idx)
-        val_loader = DataLoader(val_data,
-                                batch_size=val_batch_size,
-                                sampler=val_sampler,
-                                **extra_kwargs)
+        val_loader = DataLoader(val_data, batch_size=val_batch_size, sampler=val_sampler, **extra_kwargs)
     return trn_loader, val_loader

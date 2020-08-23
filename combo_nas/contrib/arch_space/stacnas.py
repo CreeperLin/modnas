@@ -1,8 +1,8 @@
 from combo_nas.arch_space import build
-from combo_nas.arch_space.slot import Slot
 from combo_nas.arch_space.construct import register
 from combo_nas.arch_space.construct.default import DefaultMixedOpConstructor
-from combo_nas.arch_space.construct.arch_desc import DefaultSlotArchDescConstructor, DefaultRecursiveArchDescConstructor
+from combo_nas.arch_space.construct.arch_desc import DefaultRecursiveArchDescConstructor
+
 
 @register
 class StacNASArchDescSearchConstructor(DefaultRecursiveArchDescConstructor, DefaultMixedOpConstructor):

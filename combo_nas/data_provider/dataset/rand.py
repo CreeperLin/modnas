@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import TensorDataset
 from . import register
 
+
 def get_data_shape(shape):
     if shape in [None, 'nil', 'None']:
         return []

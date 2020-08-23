@@ -1,12 +1,14 @@
-from collections import OrderedDict
 from functools import partial
 import copy
 import logging
 import torch.nn as nn
-from . import build, register
+from . import register
+
 
 def _simplify_list(data):
-    return data[0] if isinstance(data, (list, tuple)) and len(data) == 1 else data
+    return data[0] if isinstance(data,
+                                 (list, tuple)) and len(data) == 1 else data
+
 
 class Slot(nn.Module):
     _slots = []
@@ -14,8 +16,15 @@ class Slot(nn.Module):
     _convert_fn = None
     _export_fn = None
 
-    def __init__(self, *args, _chn_in=None, _chn_out=None, _stride=None,
-                 in_shape=None, out_shape=None, name=None, **kwargs):
+    def __init__(self,
+                 *args,
+                 _chn_in=None,
+                 _chn_out=None,
+                 _stride=None,
+                 in_shape=None,
+                 out_shape=None,
+                 name=None,
+                 **kwargs):
         super().__init__()
         Slot.register(self)
         self.name = str(self.sid) if name is None else name
@@ -25,16 +34,24 @@ class Slot(nn.Module):
             in_shape = [in_shape]
         if not isinstance(out_shape, (list, tuple)):
             out_shape = [out_shape]
-        if not _chn_in is None:
-            _chn_in = [_chn_in] if not isinstance(_chn_in, (list, tuple)) else _chn_in
-            in_shape = [([None, cin, None] if in_s is None else in_s) for in_s, cin in zip(in_shape, _chn_in)]
-        if not _chn_out is None:
-            _chn_out = [_chn_out] if not isinstance(_chn_out, (list, tuple)) else _chn_out
-            out_shape = [([None, cout, None] if out_s is None else out_s) for out_s, cout in zip(out_shape, _chn_out)]
-        strides = [([(o // i if i and o else None) for i, o in zip(in_s, out_s)] if in_s and out_s else None)
-                    for in_s, out_s in zip(in_shape, out_shape)]
-        if not _stride is None:
-            strides = [([None, None, _stride] if strd is None else (strd[:1] + [(_stride if s is None else s) for s in strd[1:]])) for strd in strides]
+        if _chn_in is not None:
+            _chn_in = [_chn_in] if not isinstance(_chn_in,
+                                                  (list, tuple)) else _chn_in
+            in_shape = [([None, cin, None] if in_s is None else in_s)
+                        for in_s, cin in zip(in_shape, _chn_in)]
+        if _chn_out is not None:
+            _chn_out = [_chn_out
+                        ] if not isinstance(_chn_out,
+                                            (list, tuple)) else _chn_out
+            out_shape = [([None, cout, None] if out_s is None else out_s)
+                         for out_s, cout in zip(out_shape, _chn_out)]
+        strides = [([(o // i if i and o else None)
+                     for i, o in zip(in_s, out_s)] if in_s and out_s else None)
+                   for in_s, out_s in zip(in_shape, out_shape)]
+        if _stride is not None:
+            strides = [([None, None, _stride] if strd is None else
+                        (strd[:1] + [(_stride if s is None else s)
+                                     for s in strd[1:]])) for strd in strides]
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.strides = strides
@@ -65,15 +82,21 @@ class Slot(nn.Module):
 
     @property
     def chn_in(self):
-        return _simplify_list([(None if in_s is None else in_s[1]) for in_s in self.in_shape]) if not self.in_shape is None else None
+        return _simplify_list([
+            (None if in_s is None else in_s[1]) for in_s in self.in_shape
+        ]) if self.in_shape is not None else None
 
     @property
     def chn_out(self):
-        return _simplify_list([(None if out_s is None else out_s[1]) for out_s in self.out_shape]) if not self.out_shape is None else None
+        return _simplify_list([
+            (None if out_s is None else out_s[1]) for out_s in self.out_shape
+        ]) if self.out_shape is not None else None
 
     @property
     def stride(self):
-        return _simplify_list([(None if s is None else s[2]) for s in self.strides]) if not self.strides is None else None
+        return _simplify_list([
+            (None if s is None else s[2]) for s in self.strides
+        ]) if self.strides is not None else None
 
     @staticmethod
     def gen_slots_all():
@@ -86,23 +109,31 @@ class Slot(nn.Module):
             for m in model.modules():
                 if isinstance(m, Slot):
                     yield m
+
         return gen
 
     @staticmethod
     def call_all(funcname, gen=None, fn_kwargs=None):
-        if gen is None: gen = Slot.gen_slots_all
+        if gen is None:
+            gen = Slot.gen_slots_all
         ret = []
         for m in gen():
             if hasattr(m, funcname):
-                ret.append(getattr(m, funcname)(**({} if fn_kwargs is None else copy.deepcopy(fn_kwargs))))
+                ret.append(
+                    getattr(m, funcname)(**({} if fn_kwargs is None else copy.
+                                            deepcopy(fn_kwargs))))
         return ret
 
     @staticmethod
     def apply_all(func, gen=None, fn_kwargs=None):
-        if gen is None: gen = Slot.gen_slots_all
+        if gen is None:
+            gen = Slot.gen_slots_all
         ret = []
         for m in gen():
-            ret.append(func(m, **({} if fn_kwargs is None else copy.deepcopy(fn_kwargs))))
+            ret.append(
+                func(
+                    m,
+                    **({} if fn_kwargs is None else copy.deepcopy(fn_kwargs))))
         return ret
 
     @staticmethod
@@ -120,7 +151,8 @@ class Slot(nn.Module):
         if self.fixed:
             return
         self.ent = ent
-        logging.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
+        logging.debug('slot {} {}: set to {}'.format(self.sid, self.name,
+                                                     ent.__class__.__name__))
 
     def del_entity(self):
         if self.fixed:
@@ -148,8 +180,9 @@ class Slot(nn.Module):
             logging.warning('slot {} already built'.format(self.sid))
 
     def extra_repr(self):
-        return '{}, {}, {}, '.format(self.chn_in, self.chn_out, self.stride)+\
-                ', '.join(['{}={}'.format(k, v) for k, v in self.kwargs.items()])
+        return '{}, {}, {}, '.format(
+            self.chn_in, self.chn_out, self.stride) + ', '.join(
+                ['{}={}'.format(k, v) for k, v in self.kwargs.items()])
 
 
 def get_slot_builder(builder, args_fmt=None, kwargs_fmt=None):
@@ -188,15 +221,23 @@ def get_slot_builder(builder, args_fmt=None, kwargs_fmt=None):
                 else:
                     raise ValueError('invalid fmt')
                 args.append(arg)
-        kwargs = slot.kwargs if kwargs_fmt == '*' else {k: slot.kwargs[k] for k in (kwargs_fmt or [])}
+        kwargs = slot.kwargs if kwargs_fmt == '*' else {
+            k: slot.kwargs[k]
+            for k in (kwargs_fmt or [])
+        }
         return args, kwargs
+
     def bld(s, *args, **kwargs):
         s_args, s_kwargs = get_slot_args(s, args_fmt, kwargs_fmt)
         return builder(*s_args, *args, **s_kwargs, **kwargs)
+
     return bld
 
 
-def register_slot_builder(builder, _reg_id=None, args_fmt=None, kwargs_fmt=None):
+def register_slot_builder(builder,
+                          _reg_id=None,
+                          args_fmt=None,
+                          kwargs_fmt=None):
     _reg_id = _reg_id or builder.__qualname__
     register(get_slot_builder(builder, args_fmt, kwargs_fmt), _reg_id)
     return builder

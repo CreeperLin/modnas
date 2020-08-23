@@ -5,6 +5,7 @@ from combo_nas.estimator.predefined.regression_estimator import RegressionEstima
 import combo_nas.arch_space
 import combo_nas.estimator
 
+
 @combo_nas.arch_space.register_as('FakeData')
 class FakeDataNet(nn.Module):
     def __init__(self, n_nodes=2**10, dim=2**1):
@@ -32,13 +33,12 @@ class FakeDataPredictor(ArchPredictor):
             p = ArchParamSpace.get_param(pn)
             idx = p.get_index(v)
             dim = len(p)
-            if not pn in self.scores:
+            if pn not in self.scores:
                 if self.random_score:
                     p_score = self.rng.rand(dim)
                     p_score = p_score / np.max(p_score)
                 else:
                     p_score = list(range(dim))
-                # p_score = np.exp(p_score) / np.sum(np.exp(p_score))
                 self.scores[pn] = p_score
             score += self.scores[pn][idx]
         score /= len(params)
@@ -48,13 +48,11 @@ class FakeDataPredictor(ArchPredictor):
 
 @combo_nas.estimator.register_as('FakeData')
 class FakeDataEstimator(RegressionEstimator):
-
     def run(self, optim):
-        config = self.config
         self.predictor = FakeDataPredictor()
         self.model = None
         ret = super().run(optim)
         scores = np.array(list(self.predictor.scores.values()))
-        self.logger.info('global optimum arch_desc: {}, score: {}'.format(
-                         scores.argmax(1), sum(np.max(scores, 1)) / scores.shape[0]))
+        self.logger.info('global optimum arch_desc: {}, score: {}'.format(scores.argmax(1),
+                                                                          sum(np.max(scores, 1)) / scores.shape[0]))
         return ret

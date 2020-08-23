@@ -2,6 +2,7 @@ from ..base import MetricsBase
 from .. import register_as, build
 from ...arch_space.mixed_ops import MixedOp
 
+
 @register_as('ModuleMetrics')
 class ModuleMetrics(MetricsBase):
     def __init__(self, logger, metrics, args={}):

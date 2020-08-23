@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import random
 
+
 class ParamSpace():
     def __init__(self):
         self.reset()
@@ -151,7 +152,7 @@ class Param():
 
     def on_update(self):
         handler = self.on_update_handler
-        if not handler is None:
+        if handler is not None:
             return handler(self)
         return None
 
@@ -313,14 +314,10 @@ class ArchParam():
         logging.debug('param: {} add module: {}'.format(self.pid, type(m)))
 
     def param_module_call(self, func, *args, **kwargs):
-        return [
-            getattr(m, func)(self.value(), *args, **kwargs)
-            for m in self.modules()]
+        return [getattr(m, func)(self.value(), *args, **kwargs) for m in self.modules()]
 
     def module_call(self, func, *args, **kwargs):
-        return [
-            getattr(m, func)(*args, **kwargs)
-            for m in self.modules()]
+        return [getattr(m, func)(*args, **kwargs) for m in self.modules()]
 
     def modules(self):
         for m in self._modules:

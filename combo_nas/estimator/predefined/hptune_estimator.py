@@ -6,9 +6,17 @@ from ... import utils
 from ...utils.config import Config
 from ...utils.wrapper import build as build_runner
 
+
 class HPTuneEstimator(EstimatorBase):
-    def __init__(self, measure_fn=None, batch_size=1, early_stopping=None,
-                 trial_proc=None, trial_config=None, trial_args=None, *args, **kwargs):
+    def __init__(self,
+                 measure_fn=None,
+                 batch_size=1,
+                 early_stopping=None,
+                 trial_proc=None,
+                 trial_config=None,
+                 trial_args=None,
+                 *args,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.measure_fn = measure_fn or self.default_measure_fn
         self.batch_size = batch_size
@@ -41,7 +49,7 @@ class HPTuneEstimator(EstimatorBase):
         try:
             score = self.measure_fn(hp, **fn_args)
             error_no = 0
-        except:
+        except RuntimeError:
             score = 0
             error_no = 1
             logger.info('trial {} failed with error: {}'.format(self.trial_index, traceback.format_exc()))
@@ -62,8 +70,9 @@ class HPTuneEstimator(EstimatorBase):
             eta_m.start()
         else:
             eta_m = None
-        for epoch in itertools.count(self.cur_epoch+1):
-            if epoch == tot_epochs: break
+        for epoch in itertools.count(self.cur_epoch + 1):
+            if epoch == tot_epochs:
+                break
             if not optim.has_next():
                 logger.info('HPTune: all finished')
                 break
@@ -78,15 +87,15 @@ class HPTuneEstimator(EstimatorBase):
                     self.best_iter = epoch
                 self.results.append(score)
                 self.results_all.append((hp, score))
-            if not eta_m is None:
+            if eta_m is not None:
                 eta_m.step()
                 eta = eta_m.eta_fmt()
             else:
                 eta = 'N/A'
             logger.info('HPTune: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-                epoch+1, tot_epochs, score, self.best_score or 0, eta))
+                epoch + 1, tot_epochs, score, self.best_score or 0, eta))
             optim.step(self)
-            if not early_stopping is None and epoch >= self.best_iter + early_stopping:
+            if early_stopping is not None and epoch >= self.best_iter + early_stopping:
                 logger.info('HPTune: early stopped: {}'.format(epoch))
                 break
         return {

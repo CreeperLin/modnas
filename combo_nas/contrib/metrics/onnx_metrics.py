@@ -4,6 +4,7 @@ import torch
 from combo_nas.metrics import build, register_as
 from combo_nas.metrics.base import MetricsBase
 
+
 @register_as('OnnxExportMetrics')
 class OnnxExportMetrics(MetricsBase):
     def __init__(self, logger, metrics, head=None, export_dir=None, verbose=False, args={}):
@@ -22,7 +23,7 @@ class OnnxExportMetrics(MetricsBase):
     def compute(self, node):
         key = '#'.join([str(node[k]) for k in self.head if node[k] is not None])
         onnx_info = self.exported.get(key, None)
-        if not onnx_info is None:
+        if onnx_info is not None:
             return self.metrics.compute(onnx_info)
         in_shape = node['in_shape']
         module = node.module
@@ -37,8 +38,12 @@ class OnnxExportMetrics(MetricsBase):
         output_names = ['output']
         output_shapes = [tuple()]
         with torch.no_grad():
-            torch.onnx.export(module, dummy_input, model_path, verbose=self.verbose,
-                              input_names=input_names, output_names=output_names)
+            torch.onnx.export(module,
+                              dummy_input,
+                              model_path,
+                              verbose=self.verbose,
+                              input_names=input_names,
+                              output_names=output_names)
         onnx_info = {
             'model_path': model_path,
             'input_names': input_names,

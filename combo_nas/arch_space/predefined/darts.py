@@ -1,11 +1,11 @@
 from functools import partial
 import torch.nn as nn
-from .. import build
 from ..ops import FactorizedReduce, StdConv
 from ..slot import Slot
 from ..construct.default import DefaultMixedOpConstructor
 from ..layers import DAGLayer
 from .. import register
+
 
 class PreprocLayer(StdConv):
     def __init__(self, C_in, C_out):
@@ -20,26 +20,25 @@ class AuxiliaryHead(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.ReLU(inplace=True),
-            nn.AvgPool2d(5, stride=input_size-5, padding=0, count_include_pad=False), # 2x2 out
+            nn.AvgPool2d(5, stride=input_size - 5, padding=0, count_include_pad=False),  # 2x2 out
             nn.Conv2d(C, 128, kernel_size=1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 768, kernel_size=2, bias=False), # 1x1 out
+            nn.Conv2d(128, 768, kernel_size=2, bias=False),  # 1x1 out
             nn.BatchNorm2d(768),
-            nn.ReLU(inplace=True)
-        )
+            nn.ReLU(inplace=True))
         self.linear = nn.Linear(768, n_classes)
 
     def forward(self, x):
         out = self.net(x)
-        out = out.view(out.size(0), -1) # flatten
+        out = out.view(out.size(0), -1)  # flatten
         logits = self.linear(out)
         return logits
 
 
 class DARTSLikeNet(nn.Module):
-    def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node,
-                layers, shared_a, channel_multiplier, auxiliary, cell_cls, cell_kwargs):
+    def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node, layers, shared_a,
+                 channel_multiplier, auxiliary, cell_cls, cell_kwargs):
         super().__init__()
         self.chn_in = chn_in
         self.chn = chn
@@ -49,7 +48,7 @@ class DARTSLikeNet(nn.Module):
         self.n_inputs_model = n_inputs_model
         self.n_inputs_layer = n_inputs_layer
         self.n_inputs_node = n_inputs_node
-        self.aux_pos = 2*layers//3 if auxiliary else -1
+        self.aux_pos = 2 * layers // 3 if auxiliary else -1
         self.shared_a = shared_a
 
         chn_cur = self.chn * channel_multiplier
@@ -58,11 +57,11 @@ class DARTSLikeNet(nn.Module):
         chn_pp, chn_p, chn_cur = chn_cur, chn_cur, self.chn
 
         self.cells = nn.ModuleList()
-        self.cell_group = [[],[] if shared_a else []]
+        self.cell_group = [[], [] if shared_a else []]
         for i in range(layers):
             stride = 1
             cell_kwargs['preproc'] = (PreprocLayer, PreprocLayer)
-            if i in [layers//3, 2*layers//3]:
+            if i in [layers // 3, 2 * layers // 3]:
                 reduction = True
                 stride = 2
                 chn_cur *= 2
@@ -82,11 +81,9 @@ class DARTSLikeNet(nn.Module):
             reduction_p = reduction
             if i == self.aux_pos:
                 fm_size = 32
-                self.aux_head = AuxiliaryHead(fm_size//4, chn_p, n_classes)
+                self.aux_head = AuxiliaryHead(fm_size // 4, chn_p, n_classes)
 
-        self.conv_last = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-        )
+        self.conv_last = nn.Sequential(nn.AdaptiveAvgPool2d(1), )
         self.fc = nn.Linear(chn_p, n_classes)
 
     def get_stem(self, chn_in, chn_cur):
@@ -104,7 +101,7 @@ class DARTSLikeNet(nn.Module):
             if i == self.aux_pos:
                 self.aux_out = self.aux_head(s1)
         y = self.conv_last(s1)
-        y = y.view(y.size(0), -1) # flatten
+        y = y.view(y.size(0), -1)  # flatten
         return self.fc(y)
 
     def forward_aux(self, x):
@@ -137,11 +134,11 @@ class DARTSSearchConstructor(DefaultMixedOpConstructor):
     def convert(self, slot):
         arch_params = self.param_map.get(slot.name, None)
         mixed_args = self.mixed_args
-        if not arch_params is None:
+        if arch_params is not None:
             mixed_args['arch_param_map'] = arch_params
         ent = super.__call__(slot)
         del mixed_args['arch_param_map']
-        if not slot.name in self.param_map:
+        if slot.name not in self.param_map:
             self.param_map[slot.name] = ent.arch_param_map
         return ent
 

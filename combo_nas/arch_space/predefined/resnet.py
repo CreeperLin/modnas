@@ -6,23 +6,23 @@ from .. import register
 from ..ops import Identity
 from ..construct import register as register_constructor
 
+
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
     """3x3 convolution with padding"""
     return Slot(_chn_in=in_planes, _chn_out=out_planes, _stride=stride, groups=groups)
 
+
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
-    return nn.Sequential(
-        nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False),
-        nn.BatchNorm2d(out_planes)
-    )
+    return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False),
+                         nn.BatchNorm2d(out_planes))
+
 
 class BasicBlock(nn.Module):
     expansion = 1
     chn_init = 16
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=None, norm_layer=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=None, norm_layer=None):
         super(BasicBlock, self).__init__()
         del base_width
         self.conv1 = conv3x3(inplanes, planes, stride, groups)
@@ -56,8 +56,7 @@ class Bottleneck(nn.Module):
     expansion = 4
     chn_init = 16
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=None, norm_layer=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=None, norm_layer=None):
         super(Bottleneck, self).__init__()
         width = int(planes * (1. * base_width / self.chn_init)) * groups
         self.conv1 = conv1x1(inplanes, width)
@@ -90,16 +89,24 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-
-    def __init__(self, chn_in, chn, block, layers, n_classes, zero_init_residual=False,
-                 groups=1, width_per_group=None, use_bn=False, expansion=None):
+    def __init__(self,
+                 chn_in,
+                 chn,
+                 block,
+                 layers,
+                 n_classes,
+                 zero_init_residual=False,
+                 groups=1,
+                 width_per_group=None,
+                 use_bn=False,
+                 expansion=None):
         super(ResNet, self).__init__()
         if use_bn:
             norm_layer = nn.BatchNorm2d
         else:
             norm_layer = Identity
         self.use_bn = use_bn
-        if not expansion is None:
+        if expansion is not None:
             block.expansion = expansion
         block.chn_init = chn
 
@@ -109,9 +116,9 @@ class ResNet(nn.Module):
         self.conv1 = self.get_stem(chn_in, chn, nn.BatchNorm2d)
 
         self.layers = nn.Sequential(*[
-            self._make_layer(block, (2 ** i) * chn, layers[i],
-                             stride=(1 if i == 0 else 2), norm_layer=norm_layer)
-            for i in range(len(layers))])
+            self._make_layer(block, (2**i) * chn, layers[i], stride=(1 if i == 0 else 2), norm_layer=norm_layer)
+            for i in range(len(layers))
+        ])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(self.chn, n_classes)
         self.zero_init_residual = zero_init_residual
@@ -119,17 +126,17 @@ class ResNet(nn.Module):
     def _make_layer(self, block, planes, blocks, stride=1, norm_layer=None):
         downsample = None
         if stride != 1 or self.chn != planes * block.expansion:
-            downsample = nn.Sequential(
-                conv1x1(self.chn, planes * block.expansion, stride,),
-            )
+            downsample = nn.Sequential(conv1x1(
+                self.chn,
+                planes * block.expansion,
+                stride,
+            ), )
 
         layers = []
-        layers.append(block(self.chn, planes, stride, downsample, self.groups,
-                            self.base_width, norm_layer=norm_layer))
+        layers.append(block(self.chn, planes, stride, downsample, self.groups, self.base_width, norm_layer=norm_layer))
         self.chn = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.chn, planes, groups=self.groups,
-                                base_width=self.base_width, norm_layer=norm_layer))
+            layers.append(block(self.chn, planes, groups=self.groups, base_width=self.base_width, norm_layer=norm_layer))
 
         return nn.Sequential(*layers)
 
@@ -152,8 +159,7 @@ class ResNetPredefinedConstructor(DefaultSlotTraversalConstructor):
 
     def convert(self, slot):
         return nn.Sequential(
-            nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1,
-                                      stride=slot.stride, bias=False, **slot.kwargs),
+            nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1, stride=slot.stride, bias=False, **slot.kwargs),
             nn.BatchNorm2d(slot.chn_out) if self.use_bn else Identity(),
         )
 
@@ -241,13 +247,11 @@ def resnet152(resnet_cls, **kwargs):
 
 
 def resnext50_32x4d(resnet_cls, **kwargs):
-    return resnet_cls(block=Bottleneck, layers=[3, 4, 6, 3],
-                      groups=32, width_per_group=4, **kwargs)
+    return resnet_cls(block=Bottleneck, layers=[3, 4, 6, 3], groups=32, width_per_group=4, **kwargs)
 
 
 def resnext101_32x8d(resnet_cls, **kwargs):
-    return resnet_cls(block=Bottleneck, layers=[3, 4, 23, 3],
-                      groups=32, width_per_group=8, **kwargs)
+    return resnet_cls(block=Bottleneck, layers=[3, 4, 23, 3], groups=32, width_per_group=8, **kwargs)
 
 
 def resnet(resnet_cls, bottleneck=False, **kwargs):
@@ -257,14 +261,14 @@ def resnet(resnet_cls, bottleneck=False, **kwargs):
 
 for net_cls in [CIFARResNet, ImageNetResNet]:
     name = 'CIFAR-' if net_cls == CIFARResNet else 'ImageNet-'
-    register(partial(resnet10, net_cls), name+'ResNet-10')
-    register(partial(resnet18, net_cls), name+'ResNet-18')
-    register(partial(resnet32, net_cls), name+'ResNet-32')
-    register(partial(resnet34, net_cls), name+'ResNet-34')
-    register(partial(resnet50, net_cls), name+'ResNet-50')
-    register(partial(resnet56, net_cls), name+'ResNet-56')
-    register(partial(resnet101, net_cls), name+'ResNet-101')
-    register(partial(resnet152, net_cls), name+'ResNet-152')
-    register(partial(resnext50_32x4d, net_cls), name+'ResNeXt-50')
-    register(partial(resnext101_32x8d, net_cls), name+'ResNeXt-101')
-    register(partial(resnet, net_cls), name+'ResNet')
+    register(partial(resnet10, net_cls), name + 'ResNet-10')
+    register(partial(resnet18, net_cls), name + 'ResNet-18')
+    register(partial(resnet32, net_cls), name + 'ResNet-32')
+    register(partial(resnet34, net_cls), name + 'ResNet-34')
+    register(partial(resnet50, net_cls), name + 'ResNet-50')
+    register(partial(resnet56, net_cls), name + 'ResNet-56')
+    register(partial(resnet101, net_cls), name + 'ResNet-101')
+    register(partial(resnet152, net_cls), name + 'ResNet-152')
+    register(partial(resnext50_32x4d, net_cls), name + 'ResNeXt-50')
+    register(partial(resnext101_32x8d, net_cls), name + 'ResNeXt-101')
+    register(partial(resnet, net_cls), name + 'ResNet')

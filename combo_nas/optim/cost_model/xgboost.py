@@ -27,6 +27,7 @@ xgb_params_rank = {
     'objective': 'rank:pairwise',
 }
 
+
 class XGBoostCostModel(CostModel):
     def __init__(self, space, loss_type='reg', xgb_kwargs={}):
         super().__init__(space)
@@ -42,7 +43,11 @@ class XGBoostCostModel(CostModel):
         y_train = self.to_target(results)
         index = np.random.permutation(len(x_train))
         dtrain = xgb.DMatrix(x_train[index], y_train[index])
-        self.model = xgb.train(self.xgb_params, dtrain, num_boost_round=400,)
+        self.model = xgb.train(
+            self.xgb_params,
+            dtrain,
+            num_boost_round=400,
+        )
 
     def predict(self, inputs):
         feats = self.to_feature(inputs)

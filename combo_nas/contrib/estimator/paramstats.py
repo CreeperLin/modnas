@@ -1,12 +1,13 @@
 import numpy as np
 import pickle
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt 
 import torch.nn.functional as F
 from combo_nas.estimator import register_as
 from combo_nas.estimator.predefined.supernet_estimator import SuperNetEstimator
 from combo_nas.core.param_space import ArchParamSpace
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
 
 @register_as('ParamStatsSuperNet')
 class ParamStatsEstimator(SuperNetEstimator):

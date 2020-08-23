@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from combo_nas.arch_space.ops import register
 
+
 class HardSigmoid(nn.Module):
     def __init__(self, inplace=True):
         super(HardSigmoid, self).__init__()

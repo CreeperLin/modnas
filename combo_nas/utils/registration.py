@@ -1,6 +1,6 @@
-import importlib
 import logging
 from functools import partial
+
 
 class Registry():
     def __init__(self, name='root'):
@@ -24,7 +24,8 @@ class Registry():
 
     def get(self, _reg_id):
         _reg_id = self.get_reg_name(_reg_id)
-        if not _reg_id in self._reg_class: raise ValueError('id \'{}\' not found in registry {}'.format(_reg_id, self.name))
+        if _reg_id not in self._reg_class:
+            raise ValueError('id \'{}\' not found in registry {}'.format(_reg_id, self.name))
         return self._reg_class[_reg_id]
 
 
@@ -56,6 +57,7 @@ def register_as(_reg_path, _reg_id=None):
     def reg_builder(func):
         register(_reg_path, func, _reg_id)
         return func
+
     return reg_builder
 
 

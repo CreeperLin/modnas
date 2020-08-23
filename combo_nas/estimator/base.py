@@ -7,22 +7,25 @@ from ..utils.criterion import get_criterion
 from ..utils.profiling import TimeProfiler
 from ..arch_space.export import build as build_exporter
 
+
 class EstimatorBase():
-    def __init__(self, config=None, expman=None, trainer=None,
-                 model_builder=None, model_exporter=None, model=None,
-                 writer=None, logger=None,
-                 name=None, profiling=False):
+    def __init__(self,
+                 config=None,
+                 expman=None,
+                 trainer=None,
+                 model_builder=None,
+                 model_exporter=None,
+                 model=None,
+                 writer=None,
+                 logger=None,
+                 name=None,
+                 profiling=False):
         self.name = '' if name is None else name
         self.config = config
         self.expman = expman
         self.model_builder = model_builder
         self.model_exporter = model_exporter
         self.model = model
-        if self.model is None and not model_builder is None:
-            try:
-                self.model = model_builder()
-            except RuntimeError as e:
-                logger.info('Model build failed: {}'.format(e))
         self.writer = writer
         self.logger = logger
         self.cur_epoch = -1
@@ -110,27 +113,30 @@ class EstimatorBase():
 
     def print_model_info(self):
         model = self.model
-        if not model is None:
-            self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(
-                utils.param_count(model, factor=2), utils.param_size(model, factor=2)))
+        if model is not None:
+            self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model, factor=2),
+                                                                                    utils.param_size(model, factor=2)))
 
     def get_last_results(self):
         return self.inputs, self.results
 
     def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
         fmt_key = lambda n, k: '{}.{}'.format(n, k)
+
         def flatten_dict(n, r):
             if isinstance(r, dict):
                 return {fmt_key(n, k): flatten_dict(fmt_key(n, k), v) for k, v in r.items()}
             return r
+
         def merge_results(dct, n, r):
             if not isinstance(r, dict):
                 r = {n: r}
             r = {k: None if v is None else (float(v) if to_scalar else v) for k, v in r.items()}
             dct.update(r)
+
         ret = {}
         model = self.model if model is None else model
-        names = [name] if not name is None else self.metrics.keys()
+        names = [name] if name is not None else self.metrics.keys()
         for mt_name in names:
             res = self.metrics[mt_name].compute(model, *args, **kwargs)
             merge_results(ret, mt_name, flatten_dict(mt_name, res))
@@ -149,7 +155,8 @@ class EstimatorBase():
         pass
 
     def get_score(self, res):
-        if not isinstance(res, dict): return res
+        if not isinstance(res, dict):
+            return res
         score = res.get('default', None)
         if score is None:
             score = 0 if len(res) == 0 else list(res.values())[0]
@@ -158,40 +165,64 @@ class EstimatorBase():
     def train_epoch(self, epoch, tot_epochs, model=None):
         model = self.model if model is None else model
         tprof = self.tprof
-        ret = self.trainer.train_epoch(estim=self, model=model,
+        ret = self.trainer.train_epoch(estim=self,
+                                       model=model,
                                        tot_steps=self.get_num_train_batch(epoch),
-                                       epoch=epoch, tot_epochs=tot_epochs)
+                                       epoch=epoch,
+                                       tot_epochs=tot_epochs)
         tprof.stat('data')
         tprof.stat('train')
         return ret
 
     def train_step(self, epoch, tot_epochs, step, tot_steps, model=None):
         model = self.model if model is None else model
-        return self.trainer.train_step(estim=self, model=model,
-                                       epoch=epoch, tot_epochs=tot_epochs,
-                                       step=step, tot_steps=tot_steps)
+        return self.trainer.train_step(estim=self,
+                                       model=model,
+                                       epoch=epoch,
+                                       tot_epochs=tot_epochs,
+                                       step=step,
+                                       tot_steps=tot_steps)
 
     def validate_epoch(self, epoch=0, tot_epochs=1, model=None):
         model = self.model if model is None else model
-        return self.trainer.validate_epoch(estim=self, model=model, 
+        return self.trainer.validate_epoch(estim=self,
+                                           model=model,
                                            tot_steps=self.get_num_valid_batch(epoch),
-                                           epoch=epoch, tot_epochs=tot_epochs)
+                                           epoch=epoch,
+                                           tot_epochs=tot_epochs)
 
-    def validate_step(self, epoch, tot_epochs, step, tot_steps, model=None, ):
+    def validate_step(
+        self,
+        epoch,
+        tot_epochs,
+        step,
+        tot_steps,
+        model=None,
+    ):
         model = self.model if model is None else model
-        return self.trainer.validate_step(estim=self, model=model,
-                                          epoch=epoch, tot_epochs=tot_epochs,
-                                          step=step, tot_steps=tot_steps)
+        return self.trainer.validate_step(estim=self,
+                                          model=model,
+                                          epoch=epoch,
+                                          tot_epochs=tot_epochs,
+                                          step=step,
+                                          tot_steps=tot_steps)
 
-    def reset_training_states(self, tot_epochs=None, config=None, device=None,
-                              optimizer_config=None, lr_scheduler_config=None,
-                              model=None, scale_lr=True):
+    def reset_training_states(self,
+                              tot_epochs=None,
+                              config=None,
+                              device=None,
+                              optimizer_config=None,
+                              lr_scheduler_config=None,
+                              model=None,
+                              scale_lr=True):
         model = self.model if model is None else model
         config = self.config if config is None else config
         tot_epochs = config.epochs if tot_epochs is None else tot_epochs
-        if not self.trainer is None:
-            self.trainer.init(model, optimizer_config=optimizer_config,
-                              tot_epochs=tot_epochs, scale_lr=scale_lr,
+        if self.trainer is not None:
+            self.trainer.init(model,
+                              optimizer_config=optimizer_config,
+                              tot_epochs=tot_epochs,
+                              scale_lr=scale_lr,
                               lr_scheduler_config=lr_scheduler_config,
                               device=device)
         self.cur_epoch = -1
@@ -228,9 +259,7 @@ class EstimatorBase():
         pass
 
     def state_dict(self):
-        return {
-            'cur_epoch': self.cur_epoch
-        }
+        return {'cur_epoch': self.cur_epoch}
 
     def save_model(self, save_name=None, exporter='DefaultTorchCheckpointExporter'):
         expman = self.expman
@@ -253,18 +282,18 @@ class EstimatorBase():
 
     def save_checkpoint(self, epoch=None, save_name=None):
         epoch = epoch or self.cur_epoch
-        save_name = save_name or 'ep{:03d}'.format(epoch+1)
+        save_name = save_name or 'ep{:03d}'.format(epoch + 1)
         self.save_model(save_name)
         self.save(epoch, save_name)
 
     def save_arch_desc(self, epoch=None, arch_desc=None, save_name=None, exporter='DefaultToFileExporter'):
         expman = self.expman
         logger = self.logger
-        if not save_name is None:
+        if save_name is not None:
             fname = 'arch_{}_{}'.format(self.name, save_name)
         else:
             epoch = epoch or self.cur_epoch
-            fname = 'arch_{}_ep{:03d}'.format(self.name, epoch+1)
+            fname = 'arch_{}_ep{:03d}'.format(self.name, epoch + 1)
         save_path = expman.join('output', fname)
         try:
             build_exporter(exporter, path=save_path)(arch_desc)
@@ -277,7 +306,7 @@ class EstimatorBase():
         self.logger.info("Resuming from checkpoint: {}".format(chkpt_path))
         with open(chkpt_path, 'rb') as f:
             chkpt = pickle.load(f)
-        if 'model' in chkpt and not self.model is None:
-            self.model.load(chkpt['model']) # legacy
+        if 'model' in chkpt and self.model is not None:
+            self.model.load(chkpt['model'])  # legacy
         if 'states' in chkpt:
             self.load_state_dict(chkpt['states'])

@@ -8,6 +8,7 @@ from .registration import get_registry_utils
 
 registry, register, get_builder, build, register_as = get_registry_utils('criterion')
 
+
 def get_criterion(config, device_ids=None):
     crit_type = config['type']
     crit_args = config.get('args', {})
@@ -23,6 +24,7 @@ def torch_criterion_wrapper(cls):
         if y_pred is None:
             y_pred = model(X)
         return cls.__call__(self, y_pred, y_true)
+
     new_cls = type('Wrapped{}'.format(cls.__name__), (cls, ), {'__call__': call_fn})
     return new_cls
 
@@ -74,7 +76,7 @@ class MixUp():
         mixed_y_pred = model(mixed_x)
         loss = loss or 0
         return lam * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, y_true)
-        + (1 - lam) * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, alt_y_true)
+        +(1 - lam) * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, alt_y_true)
 
 
 @register_as('Auxiliary')
@@ -98,10 +100,9 @@ class Auxiliary():
 
 @register_as('KnowledgeDistill')
 class KnowledgeDistill():
-    def __init__(self, kd_model_constructor=None, kd_model=None,
-                 kd_ratio=0.5, loss_scale=1., loss_type='ce'):
+    def __init__(self, kd_model_constructor=None, kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
-        if not kd_model_constructor is None:
+        if kd_model_constructor is not None:
             kd_model = self.load_model(kd_model, kd_model_constructor)
         self.kd_model = kd_model
         self.kd_ratio = kd_ratio
@@ -133,7 +134,7 @@ class KnowledgeDistill():
 class AggMetricsCriterion():
     def __init__(self, metrics, target_val=None, target_decay=0.1):
         super().__init__()
-        if not target_val is None:
+        if target_val is not None:
             target_val = float(target_val)
         self.target_val = target_val
         self.target_decay = target_decay
@@ -142,7 +143,7 @@ class AggMetricsCriterion():
     def get_metrics(self, estim):
         mt = estim.compute_metrics(name=self.metrics, to_scalar=False)[self.metrics]
         mt_val = mt.detach().item()
-        target_val = self.target_val 
+        target_val = self.target_val
         if target_val is None:
             target_val = mt_val
         target_val += self.target_decay * (mt_val - target_val)
@@ -152,7 +153,13 @@ class AggMetricsCriterion():
 
 @register_as('AddMetrics')
 class AddMetrics(AggMetricsCriterion):
-    def __init__(self, metrics, target_val=None, target_decay=0.1, lamd=0.01,):
+    def __init__(
+        self,
+        metrics,
+        target_val=None,
+        target_decay=0.1,
+        lamd=0.01,
+    ):
         super().__init__(metrics, target_val, target_decay)
         self.lamd = lamd
 
@@ -170,7 +177,7 @@ class MultMetrics(AggMetricsCriterion):
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
         mt = self.get_metrics(estim)
-        return self.alpha * loss * (mt.to(device=loss.device) / self.target_val) ** self.beta
+        return self.alpha * loss * (mt.to(device=loss.device) / self.target_val)**self.beta
 
 
 @register_as('MultLogMetrics')
@@ -182,7 +189,7 @@ class MultLogMetrics(AggMetricsCriterion):
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
         mt = self.get_metrics(estim)
-        return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val)) ** self.beta
+        return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val))**self.beta
 
 
 register(torch_criterion_wrapper(nn.CrossEntropyLoss), 'CE')

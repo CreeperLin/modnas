@@ -1,1 +1,1 @@
-from . import image_cls
+from . import default, image_cls

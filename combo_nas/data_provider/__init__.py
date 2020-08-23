@@ -5,6 +5,7 @@ from . import dataloader
 from . import dataset
 from . import default
 
+
 def get_data_provider(config, logger):
     data_conf = config.get('data', {})
     data_type = data_conf.get('type')
@@ -23,8 +24,10 @@ def get_data_provider(config, logger):
     if val_data_conf:
         val_data = dataset.build(val_data_conf.get('type', data_type), **val_data_args)
     data_provd_args = data_prov_conf.get('args', {})
-    if not dloader_conf is None:
-        trn_loader, val_loader = dataloader.build(dloader_conf.type, trn_data=trn_data, val_data=val_data,
+    if dloader_conf is not None:
+        trn_loader, val_loader = dataloader.build(dloader_conf.type,
+                                                  trn_data=trn_data,
+                                                  val_data=val_data,
                                                   **dloader_conf.get('args', {}))
         data_provd_args['train_loader'] = trn_loader
         data_provd_args['valid_loader'] = val_loader

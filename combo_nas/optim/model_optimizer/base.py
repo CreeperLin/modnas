@@ -1,5 +1,6 @@
 import random
 
+
 class ModelOptimizer():
     def __init__(self, space):
         self.space = space

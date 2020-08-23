@@ -7,6 +7,7 @@ from ..mixed_ops import MixedOp
 from ...core.param_space import ArchParamSpace
 from . import register, build
 
+
 @register
 class DefaultToFileExporter():
     def __init__(self, path, ext='yaml'):
@@ -47,16 +48,17 @@ class DefaultRecursiveExporter():
         self.visited = set()
 
     def export(self, slot, *args, **kwargs):
-        if slot in self.visited: return None
+        if slot in self.visited:
+            return None
         self.visited.add(slot)
         export_fn = getattr(slot.ent, self.export_fn, None)
         return None if export_fn is None else export_fn(*args, **kwargs)
 
     def visit(self, module):
         export_fn = getattr(module, self.export_fn, None)
-        if not export_fn is None:
+        if export_fn is not None:
             return export_fn(**copy.deepcopy(self.fn_args))
-        return {n: self.visit(m) for n, m in model.named_children()}
+        return {n: self.visit(m) for n, m in module.named_children()}
 
     def __call__(self, model):
         Slot.set_export_fn(self.export)
@@ -92,7 +94,8 @@ class DefaultSlotTraversalExporter():
         self.visited = set()
 
     def export(self, slot, *args, **kwargs):
-        if slot in self.visited: return None
+        if slot in self.visited:
+            return None
         self.visited.add(slot)
         export_fn = getattr(slot.ent, self.export_fn, None)
         return None if export_fn is None else export_fn(*args, **kwargs)

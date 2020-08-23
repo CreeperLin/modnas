@@ -4,6 +4,7 @@ import copy
 import logging
 logger = logging.getLogger('config')
 
+
 def load_config(filename):
     stream = open(filename, 'r')
     docs = yaml.load_all(stream, Loader=yaml.Loader)
@@ -15,20 +16,13 @@ def load_config(filename):
 
 
 class Config(dict):
-    """
-    a dictionary that supports dot notation 
-    as well as dictionary access notation 
-    usage: d = DotDict() or d = DotDict({'val1':'first'})
-    set attributes: d.val2 = 'second' or d['val2'] = 'second'
-    get attributes: d.val2 or d['val2']
-    """
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
     def __init__(self, file=None, dct={}):
         super().__init__()
-        if not file is None:
+        if file is not None:
             dct = load_config(file)
         for key, value in dct.items():
             if hasattr(value, 'keys'):
@@ -50,19 +44,20 @@ class Config(dict):
     def get_value(config, key):
         keywords = key.split('.')
         val = config[keywords[0]]
-        if len(keywords) == 1: return val
-        elif val is None: raise ValueError('invalid key: {}'.format(keywords[0]))
+        if len(keywords) == 1:
+            return val
+        elif val is None:
+            raise ValueError('invalid key: {}'.format(keywords[0]))
         return Config.get_value(val, '.'.join(keywords[1:]))
 
     @staticmethod
     def set_value(config, key, value):
         keywords = key.split('.')
-        if len(keywords) == 1: 
+        if len(keywords) == 1:
             config[keywords[0]] = value
             return
         val = config.get(keywords[0], None)
         if val is None:
-            # raise ValueError('invalid key: {}'.format(keywords[0]))
             val = Config()
             config[keywords[0]] = val
         Config.set_value(val, '.'.join(keywords[1:]), value)

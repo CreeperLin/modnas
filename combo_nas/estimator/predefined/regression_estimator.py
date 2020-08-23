@@ -2,6 +2,7 @@ import itertools
 from ..base import EstimatorBase
 from ...core.param_space import ArchParamSpace
 
+
 class ArchPredictor():
     def __init__(self):
         pass
@@ -42,8 +43,9 @@ class RegressionEstimator(EstimatorBase):
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
         arch_batch_size = config.arch_update_batch
-        for epoch in itertools.count(self.cur_epoch+1):
-            if epoch == tot_epochs: break
+        for epoch in itertools.count(self.cur_epoch + 1):
+            if epoch == tot_epochs:
+                break
             # arch step
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
@@ -62,8 +64,8 @@ class RegressionEstimator(EstimatorBase):
             if config.save_gt:
                 self.save_arch_desc(epoch, arch_desc=best_gt_batch)
             self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-            logger.info('Search: [{:3d}/{}] Prec@1: {:.4f} Best: {:.4f}'.format(
-                epoch+1, tot_epochs, best_score_batch or 0, self.best_score or 0))
+            logger.info('Search: [{:3d}/{}] Prec@1: {:.4f} Best: {:.4f}'.format(epoch + 1, tot_epochs, best_score_batch or 0,
+                                                                                self.best_score or 0))
         return {
             'best_score': self.best_score,
             'best_arch': self.best_arch_desc,

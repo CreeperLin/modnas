@@ -4,9 +4,17 @@ import random
 import numpy as np
 from .base import ModelOptimizer
 
+
 class SimulatedAnnealingModelOptimizer(ModelOptimizer):
-    def __init__(self, space, temp_init=1e4, temp_end=1e-4, cool=0.95, cool_type='exp',
-                 batch_size=128, n_iter=1, keep_history=True):
+    def __init__(self,
+                 space,
+                 temp_init=1e4,
+                 temp_end=1e-4,
+                 cool=0.95,
+                 cool_type='exp',
+                 batch_size=128,
+                 n_iter=1,
+                 keep_history=True):
         super().__init__(space)
         self.temp_init = temp_init
         self.temp_end = temp_end
@@ -57,7 +65,8 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
 
             for r, p in zip(next_results, next_params):
                 pi = self.space.get_categorical_index(p)
-                if pi in excludes: continue
+                if pi in excludes:
+                    continue
                 if len(topq) < size:
                     heapq.heappush(topq, (r, pi))
                 elif r > topq[0][0]:

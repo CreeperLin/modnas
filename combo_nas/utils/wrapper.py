@@ -3,6 +3,7 @@ import sys
 import queue
 import importlib
 from collections import OrderedDict
+from functools import partial
 from ..utils.registration import get_registry_utils
 registry, register, get_builder, build, register_as = get_registry_utils('runner')
 from ..utils.exp_manager import ExpManager
@@ -10,7 +11,6 @@ from ..data_provider import get_data_provider
 from ..arch_space.construct import build as build_con
 from ..arch_space.export import build as build_exp
 from ..arch_space.ops import configure_ops
-from ..arch_space import build as build_arch_space
 from ..arch_space.slot import Slot
 from ..core.param_space import ArchParamSpace
 from ..optim import build as build_optim
@@ -19,6 +19,7 @@ from ..trainer import build as build_trainer
 from .. import utils
 from ..utils.config import Config
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
+
 
 def import_modules(modules):
     if modules is None:
@@ -174,7 +175,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
     con_config.update(config.get('construct', {}))
     if 'mixed_op' in config:
         con_config['mixed_op'] = get_mixed_op_constructor(config.mixed_op)
-    if not arch_desc is None:
+    if arch_desc is not None:
         default_con = con_config.get('arch_desc', {'type': 'DefaultSlotArchDescConstructor'})
         args = default_con.get('args', {})
         args['arch_desc'] = arch_desc
@@ -182,13 +183,13 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
         con_config['arch_desc'] = default_con
     if device_ids and len(con_config):
         con_config['device'] = {'type': 'ToDevice', 'args': {'device_ids': device_ids}}
-    if not chkpt is None:
+    if chkpt is not None:
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
     construct_fn.update(build_constructor_all(con_config))
     # model
     model = model_builder = None
     if construct_fn:
-        model_builder = lambda: default_model_builder(logger, construct_fn)
+        model_builder = partial(default_model_builder, logger, construct_fn)
         model = model_builder()
     # export
     model_exporter = build_exporter_all(config.get('export', {}))
@@ -215,11 +216,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
     }
     estims = build_estim_all(config.get('estimator', {}), estim_comp)
     bind_trainer(estims, trners)
-    return {
-        'logger': logger,
-        'optim': optim,
-        'estims': estims
-    }
+    return {'logger': logger, 'optim': optim, 'estims': estims}
 
 
 def init_all_search(config, name, exp='exp', chkpt=None, device=None, arch_desc=None, construct_fn=None, config_override=None):
@@ -230,7 +227,14 @@ def init_all_search(config, name, exp='exp', chkpt=None, device=None, arch_desc=
     return init_all(config, name, exp, chkpt, device, arch_desc, construct_fn)
 
 
-def init_all_augment(config, name, exp='exp', chkpt=None, device=None, arch_desc=None, construct_fn=None, config_override=None):
+def init_all_augment(config,
+                     name,
+                     exp='exp',
+                     chkpt=None,
+                     device=None,
+                     arch_desc=None,
+                     construct_fn=None,
+                     config_override=None):
     config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.pop('augment', {}))
@@ -272,9 +276,8 @@ def run_pipeline(config, name, exp='exp', config_override=None):
     Config.apply(config, config_override or {})
     utils.check_config(config, top_keys=['log'])
     # dir
-    expman = ExpManager(exp, name, **config.log.get('expman', {}))
-    logger = utils.get_logger(expman.logs_path, name, config.log)
-    writer = utils.get_writer(expman.writer_path, config.log.writer)
+    expman = ExpManager(exp, name, **config.get('expman', {}))
+    logger = utils.get_logger(expman.logs_path, name, **config.get('logger', {}))
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
@@ -291,7 +294,7 @@ def run_pipeline(config, name, exp='exp', config_override=None):
         pconf = pipeconf.get(pname)
         dep_sat = True
         for dep in pconf.get('depends', []):
-            if not dep in finished:
+            if dep not in finished:
                 dep_sat = False
                 break
         if not dep_sat:

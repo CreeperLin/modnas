@@ -1,6 +1,7 @@
 from ..utils import DummyWriter
 import logging
 
+
 class TrainerBase():
     def __init__(self, logger=None, writer=None):
         if logger is None:

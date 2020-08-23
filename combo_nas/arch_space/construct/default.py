@@ -6,6 +6,7 @@ from .. import build as build_module
 from ..slot import Slot
 from . import register, build
 
+
 def get_convert_fn(convert_fn, **kwargs):
     if isinstance(convert_fn, str):
         convert_fn = build(convert_fn, **kwargs)
@@ -36,13 +37,13 @@ class ExternalModelConstructor():
         self.args = args or {}
 
     def __call__(self, model):
-        if not self.src_path is None:
+        if self.src_path is not None:
             logging.info('Importing model from path: {}'.format(self.src_path))
             name = ''
             spec = importlib.util.spec_from_file_location(name, self.src_path)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-        elif not self.import_path is None:
+        elif self.import_path is not None:
             logging.info('Importing model from lib: {}'.format(self.import_path))
             mod = importlib.import_module(self.import_path)
         model = mod.__dict__[self.model_type](**self.args)
@@ -62,7 +63,8 @@ class DefaultSlotTraversalConstructor():
     def __call__(self, model):
         all_slots = list(self.gen())
         for m in all_slots:
-            if m.fixed: continue
+            if m.fixed:
+                continue
             ent = self.convert(m)
             m.set_entity(ent)
             m.fixed = True
@@ -83,9 +85,7 @@ class DefaultMixedOpConstructor(DefaultSlotTraversalConstructor):
         self.primitive_args = primitive_args or {}
 
     def convert(self, slot):
-        prims = OrderedDict([
-            (prim, build_module(prim, slot, **self.primitive_args)) for prim in self.primitives
-        ])
+        prims = OrderedDict([(prim, build_module(prim, slot, **self.primitive_args)) for prim in self.primitives])
         return build_module(self.mixed_type, primitives=prims, **self.mixed_args)
 
 

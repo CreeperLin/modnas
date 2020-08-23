@@ -7,6 +7,7 @@ from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
 from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
 
+
 @register_exporter
 class MobileNetV2ElasticArchDescExporter():
     def __init__(self, fix_first=True, max_stage_depth=4):
@@ -87,21 +88,21 @@ class MobileNetV2ElasticSpatialConverter(MobileNetV2PredefinedConstructor):
         if self.rank_fn is None or self.rank_fn == 'none':
             rank_fn = None
         elif self.rank_fn == 'l1_fan_in':
-            rank_fn = lambda m=pw_conv: conv2d_rank_weight_l1norm_fan_in(m)
+            rank_fn = partial(conv2d_rank_weight_l1norm_fan_in, pw_conv)
         elif self.rank_fn == 'l1_fan_out':
-            rank_fn = lambda m=pw_conv: conv2d_rank_weight_l1norm_fan_out(m)
+            rank_fn = partial(conv2d_rank_weight_l1norm_fan_out, pw_conv)
         elif self.rank_fn == 'bn_l1':
-            rank_fn = lambda m=pw_bn: batchnorm2d_rank_weight_l1norm(m)
+            rank_fn = partial(batchnorm2d_rank_weight_l1norm, pw_bn)
         else:
             raise ValueError('unsupported rank function')
-        g = ElasticSpatialGroup([last_conv, last_bn, dw_conv, dw_bn], [pw_conv],
-                                max_width=max_width,
-                                rank_fn=rank_fn)
+        g = ElasticSpatialGroup([last_conv, last_bn, dw_conv, dw_bn], [pw_conv], max_width=max_width, rank_fn=rank_fn)
         if self.is_search:
+
             def on_update_handler(chn_in, param):
                 g.set_width(chn_in * param.value())
+
             param_choice = [e for e in expansion_range]
-            p = ArchParamCategorical(param_choice, name='spa', on_update=partial(on_update_handler, slot.chn_in))
+            _ = ArchParamCategorical(param_choice, name='spa', on_update=partial(on_update_handler, slot.chn_in))
         self.last_conv = pw_conv
         self.last_bn = pw_bn
         self.spa_group_cnt += 1
@@ -136,9 +137,11 @@ class MobileNetV2ElasticSequentialConverter(MobileNetV2PredefinedConstructor):
         if any([r > max_stage_depth for r in repeat_range]):
             raise ValueError('invalid repeat_range: {} max: {}'.format(repeat_range, max_stage_depth))
         if self.is_search:
+
             def on_update_handler(group, param):
                 group.set_depth(param.value())
-            p = ArchParamCategorical(repeat_range, name='seq', on_update=partial(on_update_handler, g))
+
+            _ = ArchParamCategorical(repeat_range, name='seq', on_update=partial(on_update_handler, g))
 
 
 @register_constructor
@@ -149,4 +152,3 @@ class MobileNetV2ElasticConverter(MobileNetV2ElasticSpatialConverter, MobileNetV
     def __init__(self, search=True, spatial_kwargs=None, sequential_kwargs=None):
         MobileNetV2ElasticSpatialConverter.__init__(self, search=search, **(spatial_kwargs or {}))
         MobileNetV2ElasticSequentialConverter.__init__(self, search=search, **(sequential_kwargs or {}))
-

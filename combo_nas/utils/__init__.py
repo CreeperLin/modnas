@@ -22,7 +22,8 @@ def env_info():
 
 
 def get_current_device():
-    if not torch.cuda.is_available(): return 'cpu'
+    if not torch.cuda.is_available():
+        return 'cpu'
     return torch.cuda.current_device()
 
 
@@ -39,7 +40,7 @@ def parse_device(device):
 
 def check_config(config, top_keys=[]):
     for k in top_keys:
-        if not k in config:
+        if k not in config:
             config[k] = Config()
 
     def check_field(config, field, default, required=False):
@@ -105,10 +106,10 @@ def check_config(config, top_keys=[]):
     return False
 
 
-def init_device(gpus='all', seed=11235):
+def init_device(device='all', seed=11235):
     np.random.seed(seed)
     torch.manual_seed(seed)
-    device_ids = parse_device(gpus)
+    device_ids = parse_device(device)
     if not len(device_ids):
         device = torch.device('cpu')
     else:
@@ -124,14 +125,9 @@ def get_logger(log_dir, name, debug=False):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     log_path = os.path.join(log_dir, '%s-%d.log' % (name, time.time()))
-    logging.basicConfig(
-        level=level,
-        format='%(asctime)s - %(name)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_path),
-            logging.StreamHandler()
-        ]
-    )
+    logging.basicConfig(level=level,
+                        format='%(asctime)s - %(name)s - %(message)s',
+                        handlers=[logging.FileHandler(log_path), logging.StreamHandler()])
     return logging.getLogger(name)
 
 
@@ -159,18 +155,17 @@ def get_same_padding(kernel_size):
         p1 = get_same_padding(kernel_size[0])
         p2 = get_same_padding(kernel_size[1])
         return p1, p2
-    assert isinstance(
-        kernel_size, int), 'kernel size should be either `int` or `tuple`'
+    assert isinstance(kernel_size, int), 'kernel size should be either `int` or `tuple`'
     assert kernel_size % 2 > 0, 'kernel size should be odd number'
     return kernel_size // 2
 
 
 def param_count(model, factor=0, divisor=1000):
-    return sum(p.data.nelement() for p in model.parameters()) / divisor ** factor
+    return sum(p.data.nelement() for p in model.parameters()) / divisor**factor
 
 
 def param_size(model, factor=0, divisor=1024):
-    return 4 * param_count(model) / divisor ** factor
+    return 4 * param_count(model) / divisor**factor
 
 
 class AverageMeter():
@@ -193,7 +188,7 @@ class AverageMeter():
         self.avg = self.sum / self.count
 
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, topk=(1, )):
     """ Computes the precision@k for the specified values of k """
     maxk = max(topk)
     batch_size = target.size(0)
@@ -240,7 +235,7 @@ def recompute_bn_running_statistics(model, trainer, num_batch=100, clear=True):
 def format_time(sec):
     m, s = divmod(sec, 60)
     h, m = divmod(m, 60)
-    return "%d h %d m %d s" % (h,m,s)
+    return "%d h %d m %d s" % (h, m, s)
 
 
 class ETAMeter():

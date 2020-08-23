@@ -1,6 +1,7 @@
 from .base import DataProviderBase
 from . import register
 
+
 class DefaultDataProvider(DataProviderBase):
     def __init__(self, train_loader, valid_loader, logger=None):
         super().__init__(logger)

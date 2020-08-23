@@ -6,8 +6,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from queue import Queue
-from ...utils import param_count
 from ...arch_space.slot import Slot
+
 
 def list_sum(x):
     if len(x) == 1:
@@ -16,6 +16,7 @@ def list_sum(x):
         return x[0] + x[1]
     else:
         return x[0] + list_sum(x[1:])
+
 
 class TransitionBlock(nn.Module):
     def __init__(self, layers):
@@ -28,12 +29,7 @@ class TransitionBlock(nn.Module):
         return x
 
     def get_config(self):
-        return {
-            'name': TransitionBlock.__name__,
-            'layers': [
-                layer.get_config() for layer in self.layers
-            ]
-        }
+        return {'name': TransitionBlock.__name__, 'layers': [layer.get_config() for layer in self.layers]}
 
     @staticmethod
     def set_from_config(config):
@@ -104,6 +100,7 @@ class BasicBlockWiseConvNet(nn.Module):
                 if m.bias is not None:
                     m.bias.data.zero_()
 
+
 def get_block_by_name(name):
     if name == TransitionBlock.__name__:
         return TransitionBlock
@@ -111,6 +108,7 @@ def get_block_by_name(name):
         return ResidualBlock
     else:
         raise NotImplementedError
+
 
 def get_layer_by_name(name):
     if name == ConvLayer.__name__:
@@ -158,8 +156,14 @@ def apply_noise(weights, noise=None):
 
 
 class BasicLayer(nn.Module):
-    def __init__(self, in_channels, out_channels,
-                 use_bn=True, act_func='relu', dropout_rate=0, ops_order='weight_bn_act', layer_ready=True):
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 use_bn=True,
+                 act_func='relu',
+                 dropout_rate=0,
+                 ops_order='weight_bn_act',
+                 layer_ready=True):
         super(BasicLayer, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -253,7 +257,8 @@ class BasicLayer(nn.Module):
         }
 
     def copy_bn(self, copy_layer, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         if self.use_bn:
             copy_layer.bn.weight.data = self.bn.weight.data.clone()
             copy_layer.bn.bias.data = self.bn.bias.data.clone()
@@ -306,10 +311,20 @@ class BasicLayer(nn.Module):
 
 
 class ConvLayer(BasicLayer):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, dilation=1, groups=1, bias=False,
-                 use_bn=True, act_func='relu', dropout_rate=0, ops_order='weight_bn_act', layer_ready=True):
-        super(ConvLayer, self).__init__(in_channels, out_channels,
-                                        use_bn, act_func, dropout_rate, ops_order, layer_ready)
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=False,
+                 use_bn=True,
+                 act_func='relu',
+                 dropout_rate=0,
+                 ops_order='weight_bn_act',
+                 layer_ready=True):
+        super(ConvLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
         self.kernel_size = kernel_size
         self.stride = stride
         self.dilation = dilation
@@ -317,8 +332,14 @@ class ConvLayer(BasicLayer):
         self.bias = bias
 
         padding = self.get_same_padding(self.kernel_size)
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=self.kernel_size, stride=self.stride,
-                              padding=padding, dilation=self.dilation, groups=self.groups, bias=self.bias)
+        self.conv = nn.Conv2d(in_channels,
+                              out_channels,
+                              kernel_size=self.kernel_size,
+                              stride=self.stride,
+                              padding=padding,
+                              dilation=self.dilation,
+                              groups=self.groups,
+                              bias=self.bias)
 
     def weight_call(self, x):
         x = self.conv(x)
@@ -337,7 +358,8 @@ class ConvLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         conv_copy = set_layer_from_config(self.get_config())
         # copy weights
         conv_copy.conv.weight.data = apply_noise(self.conv.weight.data.clone(), noise.get('wider'))
@@ -348,7 +370,8 @@ class ConvLayer(BasicLayer):
 
     def split(self, split_list, noise=None):
         assert np.sum(split_list) == self.out_channels
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
 
         seg_layers = []
         if self.groups == 1:
@@ -426,7 +449,8 @@ class ConvLayer(BasicLayer):
         return super(ConvLayer, self).virtual_forward(x, init)
 
     def claim_ready(self, nBatch, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         if not self.layer_ready:
             super(ConvLayer, self).claim_ready(nBatch)
             if self.bias:
@@ -434,19 +458,27 @@ class ConvLayer(BasicLayer):
 
             mid = self.kernel_size // 2
             self.conv.weight.data.zero_()
-            weight_init = torch.cat([
-                torch.eye(self.conv.weight.size(1)) for _ in range(self.conv.groups)
-            ], dim=0)
+            weight_init = torch.cat([torch.eye(self.conv.weight.size(1)) for _ in range(self.conv.groups)], dim=0)
             self.conv.weight.data[:, :, mid, mid] = apply_noise(weight_init, noise.get('deeper'))
 
         assert self.layer_ready
 
 
 class DepthConvLayer(BasicLayer):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, dilation=1, groups=1, bias=False,
-                 use_bn=True, act_func='relu', dropout_rate=0, ops_order='weight_bn_act', layer_ready=True):
-        super(DepthConvLayer, self).__init__(in_channels, out_channels,
-                                             use_bn, act_func, dropout_rate, ops_order, layer_ready)
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=3,
+                 stride=1,
+                 dilation=1,
+                 groups=1,
+                 bias=False,
+                 use_bn=True,
+                 act_func='relu',
+                 dropout_rate=0,
+                 ops_order='weight_bn_act',
+                 layer_ready=True):
+        super(DepthConvLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
         self.kernel_size = kernel_size
         self.stride = stride
         self.dilation = dilation
@@ -454,8 +486,14 @@ class DepthConvLayer(BasicLayer):
         self.bias = bias
 
         padding = self.get_same_padding(self.kernel_size)
-        self.depth_conv = nn.Conv2d(in_channels, in_channels, kernel_size=self.kernel_size, stride=self.stride,
-                                    padding=padding, dilation=self.dilation, groups=in_channels, bias=False)
+        self.depth_conv = nn.Conv2d(in_channels,
+                                    in_channels,
+                                    kernel_size=self.kernel_size,
+                                    stride=self.stride,
+                                    padding=padding,
+                                    dilation=self.dilation,
+                                    groups=in_channels,
+                                    bias=False)
         self.point_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, groups=self.groups, bias=self.bias)
 
     def weight_call(self, x):
@@ -476,7 +514,8 @@ class DepthConvLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         depth_conv_copy = set_layer_from_config(self.get_config())
         # copy weights
         depth_conv_copy.depth_conv.weight.data = apply_noise(self.depth_conv.weight.data.clone(), noise.get('wider'))
@@ -487,7 +526,8 @@ class DepthConvLayer(BasicLayer):
         return depth_conv_copy
 
     def split(self, split_list, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         assert np.sum(split_list) == self.out_channels
 
         seg_layers = []
@@ -531,7 +571,8 @@ class DepthConvLayer(BasicLayer):
         return super(DepthConvLayer, self).virtual_forward(x, init)
 
     def claim_ready(self, nBatch, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         if not self.layer_ready:
             super(DepthConvLayer, self).claim_ready(nBatch)
             if self.bias:
@@ -550,10 +591,18 @@ class DepthConvLayer(BasicLayer):
 
 
 class PoolingLayer(BasicLayer):
-    def __init__(self, in_channels, out_channels, pool_type, kernel_size=2, stride=2,
-                 use_bn=False, act_func=None, dropout_rate=0, ops_order='weight_bn_act', layer_ready=True):
-        super(PoolingLayer, self).__init__(in_channels, out_channels,
-                                           use_bn, act_func, dropout_rate, ops_order, layer_ready)
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 pool_type,
+                 kernel_size=2,
+                 stride=2,
+                 use_bn=False,
+                 act_func=None,
+                 dropout_rate=0,
+                 ops_order='weight_bn_act',
+                 layer_ready=True):
+        super(PoolingLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
 
         self.pool_type = pool_type
         self.kernel_size = kernel_size
@@ -586,13 +635,15 @@ class PoolingLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         copy_layer = set_layer_from_config(self.get_config())
         self.copy_bn(copy_layer, noise.get('bn'))
         return copy_layer
 
     def split(self, split_list, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         assert np.sum(split_list) == self.out_channels
 
         seg_layers = []
@@ -626,10 +677,15 @@ class PoolingLayer(BasicLayer):
 
 
 class IdentityLayer(BasicLayer):
-    def __init__(self, in_channels, out_channels,
-                 use_bn=False, act_func=None, dropout_rate=0, ops_order='weight_bn_act', layer_ready=True):
-        super(IdentityLayer, self).__init__(in_channels, out_channels,
-                                            use_bn, act_func, dropout_rate, ops_order, layer_ready)
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 use_bn=False,
+                 act_func=None,
+                 dropout_rate=0,
+                 ops_order='weight_bn_act',
+                 layer_ready=True):
+        super(IdentityLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
 
     def weight_call(self, x):
         return x
@@ -642,13 +698,15 @@ class IdentityLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         copy_layer = set_layer_from_config(self.get_config())
         self.copy_bn(copy_layer, noise.get('bn'))
         return copy_layer
 
     def split(self, split_list, noise=None):
-        if noise is None: noise = {}
+        if noise is None:
+            noise = {}
         assert np.sum(split_list) == self.out_channels
 
         seg_layers = []
@@ -702,15 +760,26 @@ class LinearLayer(nn.Module):
             'bias': self.bias,
         }
 
+
 class TreeNode(nn.Module):
 
     SET_MERGE_TYPE = 'set_merge_type'
     INSERT_NODE = 'insert_node'
     REPLACE_IDENTITY_EDGE = 'replace_identity_edge'
 
-    def __init__(self, child_nodes, edges, in_channels, out_channels,
-                 split_type='copy', merge_type='add', use_avg=True, bn_before_add=False,
-                 path_drop_rate=0, use_zero_drop=True, drop_only_add=False, cell_drop_rate=0):
+    def __init__(self,
+                 child_nodes,
+                 edges,
+                 in_channels,
+                 out_channels,
+                 split_type='copy',
+                 merge_type='add',
+                 use_avg=True,
+                 bn_before_add=False,
+                 path_drop_rate=0,
+                 use_zero_drop=True,
+                 drop_only_add=False,
+                 cell_drop_rate=0):
         super(TreeNode, self).__init__()
 
         self.edges = nn.ModuleList(edges)
@@ -781,7 +850,8 @@ class TreeNode(nn.Module):
         if branch_bn is not None:
             x = branch_bn(x)
             x += edge_x
-            if use_avg: x /= 2
+            if use_avg:
+                x /= 2
         return x
 
     def path_drop_forward(self, x, branch_idx):
@@ -791,8 +861,8 @@ class TreeNode(nn.Module):
             apply_drop = False
         else:
             apply_drop = True
-        if ((hasattr(edge, 'in_channels') and edge.in_channels != edge.out_channels)
-                or (hasattr(edge, 'chn_in') and edge.chn_in != edge.chn_out)
+        if ((hasattr(edge, 'in_channels') and edge.in_channels != edge.out_channels) or
+            (hasattr(edge, 'chn_in') and edge.chn_in != edge.chn_out)
                 or edge.__dict__.get('stride', 1) > 1) and not self.use_zero_drop:
             apply_drop = False
         if apply_drop and self.path_drop_rate > 0:
@@ -806,8 +876,8 @@ class TreeNode(nn.Module):
                         feature_map_size = x.size()[2:4]
                         stride = edge.__dict__.get('stride', 1)
                         out_channels = self.out_dim_list[branch_idx]
-                        padding = torch.zeros(batch_size, out_channels,
-                                              feature_map_size[0] // stride, feature_map_size[1] // stride)
+                        padding = torch.zeros(batch_size, out_channels, feature_map_size[0] // stride,
+                                              feature_map_size[1] // stride)
                         if x.is_cuda:
                             padding = padding.cuda()
                         path_out = torch.autograd.Variable(padding)
@@ -836,8 +906,8 @@ class TreeNode(nn.Module):
                         batch_size = x.size()[0]
                         feature_map_size = x.size()[2:4]
                         stride = self.edges[0].__dict__.get('stride', 1)
-                        padding = torch.zeros(batch_size, self.out_channels,
-                                              feature_map_size[0] // stride, feature_map_size[1] // stride)
+                        padding = torch.zeros(batch_size, self.out_channels, feature_map_size[0] // stride,
+                                              feature_map_size[1] // stride)
                         if x.is_cuda:
                             padding = padding.cuda()
                         return torch.autograd.Variable(padding)
@@ -862,7 +932,7 @@ class TreeNode(nn.Module):
         elif self.split_type == 'split':
             child_inputs, _pt = [], 0
             for seg_size in self.in_dim_list:
-                seg_x = x[:, _pt:_pt+seg_size, :, :].contiguous()
+                seg_x = x[:, _pt:_pt + seg_size, :, :].contiguous()
                 child_inputs.append(seg_x)
                 _pt += seg_size
         else:
@@ -1030,12 +1100,22 @@ class TreeNode(nn.Module):
         assert branch_idx < self.child_num, 'index out of range: %d' % branch_idx
         branch_edge = self.edges[branch_idx]
         branch_node = self.child_nodes[branch_idx]
-        identity_edge = IdentityLayer(branch_edge.out_channels, branch_edge.out_channels, use_bn=False, act_func=None,
-                                      dropout_rate=0, ops_order=branch_edge.ops_order)
-        inserted_node = TreeNode(child_nodes=[branch_node], edges=[identity_edge], in_channels=branch_edge.out_channels,
-                                 out_channels=branch_edge.out_channels, split_type=None, merge_type=None,
-                                 use_avg=self.use_avg, bn_before_add=self.bn_before_add,
-                                 path_drop_rate=self.path_drop_rate, use_zero_drop=self.use_zero_drop,
+        identity_edge = IdentityLayer(branch_edge.out_channels,
+                                      branch_edge.out_channels,
+                                      use_bn=False,
+                                      act_func=None,
+                                      dropout_rate=0,
+                                      ops_order=branch_edge.ops_order)
+        inserted_node = TreeNode(child_nodes=[branch_node],
+                                 edges=[identity_edge],
+                                 in_channels=branch_edge.out_channels,
+                                 out_channels=branch_edge.out_channels,
+                                 split_type=None,
+                                 merge_type=None,
+                                 use_avg=self.use_avg,
+                                 bn_before_add=self.bn_before_add,
+                                 path_drop_rate=self.path_drop_rate,
+                                 use_zero_drop=self.use_zero_drop,
                                  drop_only_add=self.drop_only_add)
         self.child_nodes[branch_idx] = inserted_node
 
@@ -1056,7 +1136,6 @@ class TreeNode(nn.Module):
             edge_config['groups'] = groups
         new_edge = set_layer_from_config(edge_config)
         self.edges[idx] = new_edge
-
 
 
 class ResidualBlock(nn.Module):
@@ -1167,40 +1246,61 @@ class ResidualBlock(nn.Module):
 
 
 class FixedTreeCell(nn.Module):
-    def __init__(self, C_in, C_out, conv1, conv2,
-                 edge_cls, edge_kwargs, tree_node_config):
+    def __init__(self, C_in, C_out, conv1, conv2, edge_cls, edge_kwargs, tree_node_config):
         super().__init__()
         tree_bn = tree_node_config['bn_before_add']
         tree_node_config['bn_before_add'] = False
         subsubtree11 = TreeNode(child_nodes=[None, None],
                                 edges=[edge_cls(**edge_kwargs), edge_cls(**edge_kwargs)],
                                 in_channels=C_in,
-                                out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                                out_channels=C_in,
+                                split_type='copy',
+                                merge_type='add',
+                                **tree_node_config)
         subsubtree12 = TreeNode(child_nodes=[None, None],
                                 edges=[edge_cls(**edge_kwargs), edge_cls(**edge_kwargs)],
                                 in_channels=C_in,
-                                out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                                out_channels=C_in,
+                                split_type='copy',
+                                merge_type='add',
+                                **tree_node_config)
         subsubtree21 = TreeNode(child_nodes=[None, None],
                                 edges=[edge_cls(**edge_kwargs), edge_cls(**edge_kwargs)],
                                 in_channels=C_in,
-                                out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                                out_channels=C_in,
+                                split_type='copy',
+                                merge_type='add',
+                                **tree_node_config)
         subsubtree22 = TreeNode(child_nodes=[None, None],
                                 edges=[edge_cls(**edge_kwargs), edge_cls(**edge_kwargs)],
                                 in_channels=C_in,
-                                out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                                out_channels=C_in,
+                                split_type='copy',
+                                merge_type='add',
+                                **tree_node_config)
         subtree1 = TreeNode(child_nodes=[subsubtree11, subsubtree12],
                             edges=[edge_cls(**edge_kwargs), edge_cls(**edge_kwargs)],
                             in_channels=C_in,
-                            out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                            out_channels=C_in,
+                            split_type='copy',
+                            merge_type='add',
+                            **tree_node_config)
         subtree2 = TreeNode(child_nodes=[subsubtree21, subsubtree22],
                             edges=[edge_cls(**edge_kwargs), edge_cls(**edge_kwargs)],
                             in_channels=C_in,
-                            out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                            out_channels=C_in,
+                            split_type='copy',
+                            merge_type='add',
+                            **tree_node_config)
 
-        tree_node_config['bn_before_add'] = True
+        tree_node_config['bn_before_add'] = tree_bn
         self.root = TreeNode(child_nodes=[subtree1, subtree2],
-                             edges=[conv1, conv2], in_channels=C_in,
-                             out_channels=C_in, split_type='copy', merge_type='add', **tree_node_config)
+                             edges=[conv1, conv2],
+                             in_channels=C_in,
+                             out_channels=C_in,
+                             split_type='copy',
+                             merge_type='add',
+                             **tree_node_config)
         # print('FixedTreeCell: chn_in:{} #p:{:.3f}'.format(C_in, param_count(self)))
 
     def forward(self, x):
@@ -1230,9 +1330,7 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
             'ops_order': self.ops_order,
             'tree_node_config': self.tree_node_config,
             'groups_3x3': self.groups_3x3,
-            'blocks': [
-                block.get_config() for block in self.blocks
-            ],
+            'blocks': [block.get_config() for block in self.blocks],
             'classifier': self.classifier.get_config(),
         }
 
@@ -1267,10 +1365,23 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
         return ProxylessNASNet(blocks, classifier, ops_order, config.get('tree_node_config'), groups_3x3)
 
     @staticmethod
-    def set_standard_net(data_shape, n_classes, start_planes, alpha, block_per_group, total_groups, downsample_type,
-                         bottleneck=4, ops_order='bn_act_weight', dropout_rate=0,
-                         final_bn=True, no_first_relu=True, use_depth_sep_conv=False, groups_3x3=1,
-                         edge_cls=None, edge_kwargs={}, tree_node_config={}):
+    def set_standard_net(data_shape,
+                         n_classes,
+                         start_planes,
+                         alpha,
+                         block_per_group,
+                         total_groups,
+                         downsample_type,
+                         bottleneck=4,
+                         ops_order='bn_act_weight',
+                         dropout_rate=0,
+                         final_bn=True,
+                         no_first_relu=True,
+                         use_depth_sep_conv=False,
+                         groups_3x3=1,
+                         edge_cls=None,
+                         edge_kwargs={},
+                         tree_node_config={}):
         image_channel, image_size = data_shape[0:2]
 
         addrate = alpha / (block_per_group * total_groups)  # add pyramid_net
@@ -1278,19 +1389,38 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
         # initial conv
         features_dim = start_planes
         if ops_order == 'weight_bn_act':
-            init_conv_layer = ConvLayer(image_channel, features_dim, kernel_size=3, use_bn=True, act_func='relu',
-                                        dropout_rate=0, ops_order=ops_order)
+            init_conv_layer = ConvLayer(image_channel,
+                                        features_dim,
+                                        kernel_size=3,
+                                        use_bn=True,
+                                        act_func='relu',
+                                        dropout_rate=0,
+                                        ops_order=ops_order)
         elif ops_order == 'act_weight_bn':
-            init_conv_layer = ConvLayer(image_channel, features_dim, kernel_size=3, use_bn=True, act_func=None,
-                                        dropout_rate=0, ops_order=ops_order)
+            init_conv_layer = ConvLayer(image_channel,
+                                        features_dim,
+                                        kernel_size=3,
+                                        use_bn=True,
+                                        act_func=None,
+                                        dropout_rate=0,
+                                        ops_order=ops_order)
         elif ops_order == 'bn_act_weight':
-            init_conv_layer = ConvLayer(image_channel, features_dim, kernel_size=3, use_bn=False, act_func=None,
-                                        dropout_rate=0, ops_order=ops_order)
+            init_conv_layer = ConvLayer(image_channel,
+                                        features_dim,
+                                        kernel_size=3,
+                                        use_bn=False,
+                                        act_func=None,
+                                        dropout_rate=0,
+                                        ops_order=ops_order)
         else:
             raise NotImplementedError
         if final_bn:
-            init_bn_layer = IdentityLayer(features_dim, features_dim, use_bn=True, act_func=None,
-                                          dropout_rate=0, ops_order=ops_order)
+            init_bn_layer = IdentityLayer(features_dim,
+                                          features_dim,
+                                          use_bn=True,
+                                          act_func=None,
+                                          dropout_rate=0,
+                                          ops_order=ops_order)
             transition2blocks = TransitionBlock([init_conv_layer, init_bn_layer])
         else:
             transition2blocks = TransitionBlock([init_conv_layer])
@@ -1307,15 +1437,33 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
                 # prepare the residual block
                 planes += addrate
                 if stride == 1:
-                    shortcut = IdentityLayer(features_dim, features_dim, use_bn=False, act_func=None,
-                                             dropout_rate=0, ops_order=ops_order)
+                    shortcut = IdentityLayer(features_dim,
+                                             features_dim,
+                                             use_bn=False,
+                                             act_func=None,
+                                             dropout_rate=0,
+                                             ops_order=ops_order)
                 else:
                     if downsample_type == 'avg_pool':
-                        shortcut = PoolingLayer(features_dim, features_dim, 'avg', kernel_size=2, stride=2,
-                                                use_bn=False, act_func=None, dropout_rate=0, ops_order=ops_order)
+                        shortcut = PoolingLayer(features_dim,
+                                                features_dim,
+                                                'avg',
+                                                kernel_size=2,
+                                                stride=2,
+                                                use_bn=False,
+                                                act_func=None,
+                                                dropout_rate=0,
+                                                ops_order=ops_order)
                     elif downsample_type == 'max_pool':
-                        shortcut = PoolingLayer(features_dim, features_dim, 'max', kernel_size=2, stride=2,
-                                                use_bn=False, act_func=None, dropout_rate=0, ops_order=ops_order)
+                        shortcut = PoolingLayer(features_dim,
+                                                features_dim,
+                                                'max',
+                                                kernel_size=2,
+                                                stride=2,
+                                                use_bn=False,
+                                                act_func=None,
+                                                dropout_rate=0,
+                                                ops_order=ops_order)
                     else:
                         raise NotImplementedError
 
@@ -1323,40 +1471,102 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
                 if out_plane % groups_3x3 != 0:
                     out_plane -= out_plane % groups_3x3  # may change to +=
                 if no_first_relu:
-                    in_bottle = ConvLayer(features_dim, out_plane, kernel_size=1, use_bn=True, act_func=None,
-                                          dropout_rate=dropout_rate, ops_order=ops_order)
+                    in_bottle = ConvLayer(features_dim,
+                                          out_plane,
+                                          kernel_size=1,
+                                          use_bn=True,
+                                          act_func=None,
+                                          dropout_rate=dropout_rate,
+                                          ops_order=ops_order)
                 else:
-                    in_bottle = ConvLayer(features_dim, out_plane, kernel_size=1, use_bn=True, act_func='relu',
-                                          dropout_rate=dropout_rate, ops_order=ops_order)
+                    in_bottle = ConvLayer(features_dim,
+                                          out_plane,
+                                          kernel_size=1,
+                                          use_bn=True,
+                                          act_func='relu',
+                                          dropout_rate=dropout_rate,
+                                          ops_order=ops_order)
 
                 if use_depth_sep_conv:
-                    cell_edge1 = DepthConvLayer(out_plane, out_plane, kernel_size=3, stride=stride, use_bn=True,
-                                                act_func='relu', dropout_rate=dropout_rate, ops_order=ops_order)
-                    cell_edge2 = DepthConvLayer(out_plane, out_plane, kernel_size=3, stride=stride, use_bn=True,
-                                                act_func='relu', dropout_rate=dropout_rate, ops_order=ops_order)
+                    cell_edge1 = DepthConvLayer(out_plane,
+                                                out_plane,
+                                                kernel_size=3,
+                                                stride=stride,
+                                                use_bn=True,
+                                                act_func='relu',
+                                                dropout_rate=dropout_rate,
+                                                ops_order=ops_order)
+                    cell_edge2 = DepthConvLayer(out_plane,
+                                                out_plane,
+                                                kernel_size=3,
+                                                stride=stride,
+                                                use_bn=True,
+                                                act_func='relu',
+                                                dropout_rate=dropout_rate,
+                                                ops_order=ops_order)
                 else:
-                    cell_edge1 = ConvLayer(out_plane, out_plane, kernel_size=3, stride=stride, groups=groups_3x3,
-                                           use_bn=True, act_func='relu', dropout_rate=dropout_rate, ops_order=ops_order)
-                    cell_edge2 = ConvLayer(out_plane, out_plane, kernel_size=3, stride=stride, groups=groups_3x3,
-                                           use_bn=True, act_func='relu', dropout_rate=dropout_rate, ops_order=ops_order)
+                    cell_edge1 = ConvLayer(out_plane,
+                                           out_plane,
+                                           kernel_size=3,
+                                           stride=stride,
+                                           groups=groups_3x3,
+                                           use_bn=True,
+                                           act_func='relu',
+                                           dropout_rate=dropout_rate,
+                                           ops_order=ops_order)
+                    cell_edge2 = ConvLayer(out_plane,
+                                           out_plane,
+                                           kernel_size=3,
+                                           stride=stride,
+                                           groups=groups_3x3,
+                                           use_bn=True,
+                                           act_func='relu',
+                                           dropout_rate=dropout_rate,
+                                           ops_order=ops_order)
 
                 edge_kwargs['_chn_in'] = (out_plane, )
                 cell = FixedTreeCell(out_plane, out_plane, cell_edge1, cell_edge2, edge_cls, edge_kwargs, tree_node_config)
 
-                out_bottle = ConvLayer(out_plane, out_plane * bottleneck, kernel_size=1, use_bn=True,
-                                       act_func='relu', dropout_rate=dropout_rate, ops_order=ops_order)
+                out_bottle = ConvLayer(out_plane,
+                                       out_plane * bottleneck,
+                                       kernel_size=1,
+                                       use_bn=True,
+                                       act_func='relu',
+                                       dropout_rate=dropout_rate,
+                                       ops_order=ops_order)
                 residual_block = ResidualBlock(cell, in_bottle, out_bottle, shortcut, final_bn=final_bn)
                 blocks.append(residual_block)
                 features_dim = out_plane * bottleneck
         if ops_order == 'weight_bn_act':
-            global_avg_pool = PoolingLayer(features_dim, features_dim, 'avg', kernel_size=image_size, stride=image_size,
-                                           use_bn=False, act_func=None, dropout_rate=0, ops_order=ops_order)
+            global_avg_pool = PoolingLayer(features_dim,
+                                           features_dim,
+                                           'avg',
+                                           kernel_size=image_size,
+                                           stride=image_size,
+                                           use_bn=False,
+                                           act_func=None,
+                                           dropout_rate=0,
+                                           ops_order=ops_order)
         elif ops_order == 'act_weight_bn':
-            global_avg_pool = PoolingLayer(features_dim, features_dim, 'avg', kernel_size=image_size, stride=image_size,
-                                           use_bn=False, act_func='relu', dropout_rate=0, ops_order=ops_order)
+            global_avg_pool = PoolingLayer(features_dim,
+                                           features_dim,
+                                           'avg',
+                                           kernel_size=image_size,
+                                           stride=image_size,
+                                           use_bn=False,
+                                           act_func='relu',
+                                           dropout_rate=0,
+                                           ops_order=ops_order)
         elif ops_order == 'bn_act_weight':
-            global_avg_pool = PoolingLayer(features_dim, features_dim, 'avg', kernel_size=image_size, stride=image_size,
-                                           use_bn=True, act_func='relu', dropout_rate=0, ops_order=ops_order)
+            global_avg_pool = PoolingLayer(features_dim,
+                                           features_dim,
+                                           'avg',
+                                           kernel_size=image_size,
+                                           stride=image_size,
+                                           use_bn=True,
+                                           act_func='relu',
+                                           dropout_rate=0,
+                                           ops_order=ops_order)
         else:
             raise NotImplementedError
         transition2classes = TransitionBlock([global_avg_pool])
@@ -1367,9 +1577,8 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
         return ProxylessNASNet(blocks, classifier, ops_order, tree_node_config, groups_3x3)
 
 
-def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks,
-                      conv_groups, alpha, bottleneck_ratio, path_drop_rate, ops_order,
-                      use_avg, bn_before_add, dropout_rate, **kwargs):
+def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks, conv_groups, alpha, bottleneck_ratio,
+                      path_drop_rate, ops_order, use_avg, bn_before_add, dropout_rate, **kwargs):
     chn_cur = chn * channel_multiplier
     model_config = {
         'start_planes': chn_cur,
@@ -1402,8 +1611,8 @@ def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks
         }
     }
     model_config.update(kwargs)
-    return ProxylessNASNet.set_standard_net(data_shape=(chn_in, 32, 32),
-                                            n_classes=n_classes, **model_config)
+    return ProxylessNASNet.set_standard_net(data_shape=(chn_in, 32, 32), n_classes=n_classes, **model_config)
+
 
 def build_eas_net(net_config_path):
     net_config_json = json.load(open(net_config_path, 'r'))

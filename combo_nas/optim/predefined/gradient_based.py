@@ -7,6 +7,7 @@ from ...utils import accuracy
 from ...core.param_space import ArchParamSpace
 from ...arch_space.mixed_ops import MixedOp
 
+
 class DARTSOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, w_momentum, w_weight_decay, logger=None):
         super().__init__(space, a_optim, logger)
@@ -17,14 +18,14 @@ class DARTSOptim(GradientBasedOptim):
     def virtual_step(self, trn_X, trn_y, lr, optimizer, estim):
         # forward & calc loss
         model = estim.model
-        loss = estim.loss(trn_X, trn_y, mode='train') # L_trn(w)
+        loss = estim.loss(trn_X, trn_y, mode='train')  # L_trn(w)
         # compute gradient
         gradients = torch.autograd.grad(loss, model.parameters())
         # do virtual step (update gradient)
         with torch.no_grad():
             for w, vw, g in zip(model.parameters(), self.v_net.parameters(), gradients):
                 m = optimizer.state[w].get('momentum_buffer', 0.) * self.w_momentum
-                vw.copy_(w - lr * (m + g + self.w_weight_decay*w))
+                vw.copy_(w - lr * (m + g + self.w_weight_decay * w))
             # synchronize alphas
             # (no need, same reference to alphas)
             # for a, va in zip(model.alphas(), self.v_net.alphas()):
@@ -37,11 +38,12 @@ class DARTSOptim(GradientBasedOptim):
         lr = estim.trainer.get_lr()
         optimizer = estim.trainer.get_optimizer()
         model = estim.model
-        if self.v_net is None: self.v_net = copy.deepcopy(model)
+        if self.v_net is None:
+            self.v_net = copy.deepcopy(model)
         # do virtual step (calc w`)
         self.virtual_step(trn_X, trn_y, lr, optimizer, estim)
         # calc unrolled loss
-        loss = estim.loss(val_X, val_y, model=self.v_net, mode='valid') # L_val(w`)
+        loss = estim.loss(val_X, val_y, model=self.v_net, mode='valid')  # L_val(w`)
         # compute gradient
         alphas = ArchParamSpace.tensor_values()
         v_alphas = tuple(alphas)
@@ -53,7 +55,7 @@ class DARTSOptim(GradientBasedOptim):
         # update final gradient = dalpha - lr*hessian
         with torch.no_grad():
             for a, da, h in zip(alphas, dalpha, hessian):
-                a.grad = da - lr*h
+                a.grad = da - lr * h
         self.optim_step()
 
     def compute_hessian(self, dw, trn_X, trn_y, estim):
@@ -73,18 +75,18 @@ class DARTSOptim(GradientBasedOptim):
             for p, d in zip(model.parameters(), dw):
                 p += eps * d
         loss = estim.loss(trn_X, trn_y, mode='train')
-        dalpha_pos = torch.autograd.grad(loss, alphas) # dalpha { L_trn(w+) }
+        dalpha_pos = torch.autograd.grad(loss, alphas)  # dalpha { L_trn(w+) }
         # w- = w - eps*dw`
         with torch.no_grad():
             for p, d in zip(model.parameters(), dw):
                 p -= 2. * eps * d
         loss = estim.loss(trn_X, trn_y, mode='train')
-        dalpha_neg = torch.autograd.grad(loss, alphas) # dalpha { L_trn(w-) }
+        dalpha_neg = torch.autograd.grad(loss, alphas)  # dalpha { L_trn(w-) }
         # recover w
         with torch.no_grad():
             for p, d in zip(model.parameters(), dw):
                 p += eps * d
-        hessian = [(p-n) / 2.*eps.item() for p, n in zip(dalpha_pos, dalpha_neg)]
+        hessian = [(p - n) / 2. * eps.item() for p, n in zip(dalpha_pos, dalpha_neg)]
         return hessian
 
 
@@ -92,7 +94,7 @@ class BinaryGateOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, n_samples, renorm, logger=None):
         super().__init__(space, a_optim, logger)
         self.n_samples = n_samples
-        self.sample = (self.n_samples!=0)
+        self.sample = (self.n_samples != 0)
         self.renorm = renorm and self.sample
 
     def step(self, estim):
@@ -119,7 +121,8 @@ class BinaryGateOptim(GradientBasedOptim):
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
-                    if pp.size() == pdt.size(): continue
+                    if pp.size() == pdt.size():
+                        continue
                     k = torch.sum(torch.exp(pdt)) / torch.sum(torch.exp(pp)) - 1
                     prev_pw.append(k)
 
@@ -217,8 +220,14 @@ class REINFORCEOptim(GradientBasedOptim):
 
 
 class GumbelAnnealingOptim(GradientBasedOptim):
-    def __init__(self, space, a_optim, init_temp=1e4, exp_anneal_rate=0.0015,
-                 anneal_interval=1, restart_period=None, logger=None):
+    def __init__(self,
+                 space,
+                 a_optim,
+                 init_temp=1e4,
+                 exp_anneal_rate=0.0015,
+                 anneal_interval=1,
+                 restart_period=None,
+                 logger=None):
         super().__init__(space, a_optim, logger)
         self.init_temp = init_temp
         self.exp_anneal_rate = exp_anneal_rate

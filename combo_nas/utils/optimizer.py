@@ -2,6 +2,7 @@ import torch
 from .registration import get_registry_utils
 registry, register, get_builder, build, register_as = get_registry_utils('optimizer')
 
+
 def get_optimizer(params, config, device_ids=None, scale_lr=True):
     optim_type = config.type
     optim_args = config.get('args', {})

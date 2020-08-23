@@ -3,6 +3,7 @@ import torch
 from combo_nas import metrics
 from combo_nas.metrics.base import MetricsBase
 
+
 @metrics.register_as('LocalProfilerMetrics')
 class LocalProfilerMetrics(MetricsBase):
     def __init__(self, logger, device=None, rep=50, warmup=10):

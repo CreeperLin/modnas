@@ -8,11 +8,21 @@ from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
 from combo_nas.utils import recompute_bn_running_statistics
 
+
 @register_as('ProgressiveShrinking')
 class ProgressiveShrinkingEstimator(EstimatorBase):
-    def __init__(self, *args, stages, use_ratio=False, n_subnet_batch=1,
-                 stage_rerank_spatial=True, num_bn_batch=100, clear_subnet_bn=True,
-                 save_stage=False, reset_stage_training=True, subnet_valid_freq=25, **kwargs):
+    def __init__(self,
+                 *args,
+                 stages,
+                 use_ratio=False,
+                 n_subnet_batch=1,
+                 stage_rerank_spatial=True,
+                 num_bn_batch=100,
+                 clear_subnet_bn=True,
+                 save_stage=False,
+                 reset_stage_training=True,
+                 subnet_valid_freq=25,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.stages = stages
         self.n_subnet_batch = n_subnet_batch
@@ -100,9 +110,9 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
 
     def sample_config(self, seed=None):
         config = dict()
-        if not self.spatial_candidates is None:
+        if self.spatial_candidates is not None:
             config.update(self.sample_spatial_config(seed=seed))
-        if not self.sequential_candidates is None:
+        if self.sequential_candidates is not None:
             config.update(self.sample_sequential_config(seed=seed))
         return config
 
@@ -117,7 +127,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                 key = str(config)
                 if key in visited:
                     continue
-                if not loss is None:
+                if loss is not None:
                     loss.backward()
                 self.apply_subnet_config(config)
                 logits = model(X)
@@ -136,8 +146,9 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         tot_epochs = config.epochs
         if self.reset_stage_training:
             self.reset_training_states()
-        for epoch in itertools.count(self.cur_epoch+1):
-            if epoch == tot_epochs: break
+        for epoch in itertools.count(self.cur_epoch + 1):
+            if epoch == tot_epochs:
+                break
             # train
             self.train_epoch(epoch, tot_epochs)
             # validate subnets
@@ -156,9 +167,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
             self.subnet_results[k] = max(val, v)
 
     def state_dict(self):
-        return {
-            'cur_stage': self.cur_stage
-        }
+        return {'cur_stage': self.cur_stage}
 
     def load_state_dict(self, state_dict):
         if 'cur_stage' in state_dict:
@@ -166,7 +175,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
 
     def train(self):
         self.reset_training_states()
-        for self.cur_stage in itertools.count(self.cur_stage+1):
+        for self.cur_stage in itertools.count(self.cur_stage + 1):
             if self.cur_stage >= len(self.stages):
                 break
             self.logger.info('running stage {}'.format(self.cur_stage))
@@ -213,8 +222,8 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         results = dict()
         for name, conf in configs.items():
             self.apply_subnet_config(conf)
-            recompute_bn_running_statistics(self.model, self.data_provider.get_train_iter(),
-                                            self.num_bn_batch, self.clear_subnet_bn)
+            recompute_bn_running_statistics(self.model, self.data_provider.get_train_iter(), self.num_bn_batch,
+                                            self.clear_subnet_bn)
             val_top1 = self.validate_epoch(*args, **kwargs)
             results[name] = val_top1
         return results

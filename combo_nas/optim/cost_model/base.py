@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class CostModel():
     def __init__(self, space):
         self.space = space
@@ -32,4 +33,5 @@ class CostModel():
             if isinstance(res, (tuple, list)):
                 return res[0]
             return res
+
         return np.array([to_metrics(r) for r in results])

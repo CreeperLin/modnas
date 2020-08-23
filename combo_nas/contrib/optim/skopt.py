@@ -11,6 +11,7 @@ try:
 except ImportError:
     skopt = None
 
+
 @optim.register_as('Skopt')
 class SkoptParamOptim(OptimBase):
     def __init__(self, space, skopt_args={}, logger=None):
@@ -71,6 +72,7 @@ class SkoptParamOptim(OptimBase):
             if isinstance(res, (tuple, list)):
                 return res[0]
             return res
+
         inputs, results = estim.get_last_results()
         skinputs = [list(inp.values()) for inp in inputs]
         skresults = [-to_metrics(r) for r in results]

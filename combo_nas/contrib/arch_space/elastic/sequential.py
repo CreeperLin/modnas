@@ -1,6 +1,7 @@
 import torch.nn as nn
 from .modifier import modify_attr, restore_module_attrs
 
+
 def hook_module_in(module, inputs):
     if ElasticSequential.get_sequential_state(module):
         modify_attr(module, 'forward', lambda x: x)
@@ -36,7 +37,7 @@ class ElasticSequential():
 
     @staticmethod
     def enable_sequential_transform(module):
-        if not module in ElasticSequential._module_hooks:
+        if module not in ElasticSequential._module_hooks:
             h_in = module.register_forward_pre_hook(hook_module_in)
             h_out = module.register_forward_hook(hook_module_out)
             ElasticSequential._module_hooks[module] = (h_in, h_out)

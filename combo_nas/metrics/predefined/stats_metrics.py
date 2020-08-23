@@ -4,6 +4,7 @@ import numpy as np
 from ..base import MetricsBase
 from .. import register_as, build
 
+
 @register_as('StatsLUTMetrics')
 class StatsLUTMetrics(MetricsBase):
     def __init__(self, logger, lut_path, head=None):
@@ -19,7 +20,7 @@ class StatsLUTMetrics(MetricsBase):
         key = '#'.join([str(stats[k]) for k in self.head if not stats.get(k, None) is None])
         val = self.lut.get(key, None)
         if val is None:
-            if not key in self.warned:
+            if key not in self.warned:
                 self.logger.warning('StatsLUTMetrics: missing key in LUT: {}'.format(key))
                 self.warned.add(key)
         elif isinstance(val, dict):
@@ -38,17 +39,17 @@ class StatsRecordMetrics(MetricsBase):
         self.record = dict()
         self.save_path = save_path
         self.save_file = None
-        if not save_path is None:
+        if save_path is not None:
             self.save_file = open(save_path, 'w')
 
     def compute(self, stats):
-        key = '#'.join([str(stats[k]) for k in self.head if not stats[k] is None])
+        key = '#'.join([str(stats[k]) for k in self.head if stats[k] is not None])
         if key in self.record:
             return self.record[key]
         val = self.metrics.compute(stats)
         self.record[key] = val
         self.logger.info('StatsRecord:\t{}: {}'.format(key, val))
-        if not self.save_file is None:
+        if self.save_file is not None:
             self.save_file.write('{}: {}\n'.format(key, val))
         return val
 

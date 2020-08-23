@@ -15,6 +15,7 @@ CONV1X1 = 'conv1x1-bn-relu'
 CONV3X3 = 'conv3x3-bn-relu'
 MAXPOOL3X3 = 'maxpool3x3'
 
+
 @combo_nas.arch_space.register_as('NASBench')
 class NASBenchNet(nn.Module):
     def __init__(self, n_nodes=7):
@@ -22,7 +23,7 @@ class NASBenchNet(nn.Module):
         matrix = []
         ops = []
         n_states = n_nodes - 2
-        n_edges = n_nodes * (n_nodes-1) // 2
+        n_edges = n_nodes * (n_nodes - 1) // 2
         for _ in range(n_edges):
             matrix.append(ArchParamCategorical(['0', '1']))
         for _ in range(n_states):
@@ -33,10 +34,8 @@ class NASBenchNet(nn.Module):
     def to_arch_desc(self):
         matrix = [p.value() for p in self.matrix_params]
         ops = [p.value() for p in self.ops_params]
-        return (
-            matrix,
-            ops
-        )
+        return (matrix, ops)
+
 
 class NASBenchPredictor(ArchPredictor):
     def __init__(self, record_path):
@@ -51,13 +50,13 @@ class NASBenchPredictor(ArchPredictor):
 
     def predict(self, arch_desc):
         max_nodes = self.max_nodes
-        matrix = [[0]*max_nodes for i in range(max_nodes)]
+        matrix = [[0] * max_nodes for i in range(max_nodes)]
         g_matrix = arch_desc[0]
         k = 0
         for i in range(max_nodes):
-            for j in range(i+1, max_nodes):
+            for j in range(i + 1, max_nodes):
                 matrix[i][j] = int(g_matrix[k])
-                k+=1
+                k += 1
         ops = [INPUT] + arch_desc[1] + [OUTPUT]
         model_spec = api.ModelSpec(matrix=matrix, ops=ops)
         try:
@@ -67,9 +66,9 @@ class NASBenchPredictor(ArchPredictor):
             val_acc = 0
         return val_acc
 
+
 @combo_nas.estimator.register_as('NASBench')
 class NASBenchEstimator(RegressionEstimator):
-
     def run(self, optim):
         config = self.config
         self.logger.info('loading NASBench data')

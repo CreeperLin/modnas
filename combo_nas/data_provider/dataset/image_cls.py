@@ -1,9 +1,9 @@
-from functools import partial
 import os
 import numpy as np
 import torch
 from torchvision import transforms, datasets
 from . import register
+
 
 def get_metadata(dataset):
     if dataset == 'cifar10':
@@ -31,31 +31,27 @@ def get_metadata(dataset):
 
 
 _train_transforms = {
-    'cifar10': lambda: [
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip()
-    ],
-    'cifar100': lambda: [
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip()
-    ],
-    'mnist': lambda: [
-        transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0.1)
-    ],
-    'fashionmnist': lambda: [
-        transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0.1),
-        transforms.RandomVerticalFlip()
-    ],
-    'imagenet': lambda resize_scale=0.08: [
+    'cifar10':
+    lambda: [transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip()],
+    'cifar100':
+    lambda: [transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip()],
+    'mnist':
+    lambda: [transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0.1)],
+    'fashionmnist':
+    lambda:
+    [transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0.1),
+     transforms.RandomVerticalFlip()],
+    'imagenet':
+    lambda resize_scale=0.08: [
         transforms.RandomResizedCrop(224, scale=(resize_scale, 1.0)),
         transforms.RandomHorizontalFlip(),
     ],
-    'image': lambda resize_scale=0.08: [
+    'image':
+    lambda resize_scale=0.08: [
         transforms.RandomResizedCrop(224, scale=(resize_scale, 1.0)),
         transforms.RandomHorizontalFlip(),
     ],
 }
-
 
 _valid_transforms = {
     'imagenet': lambda: [
@@ -84,7 +80,7 @@ class Cutout(object):
         x1 = np.clip(x - self.length // 2, 0, w)
         x2 = np.clip(x + self.length // 2, 0, w)
 
-        mask[y1: y2, x1: x2] = 0.
+        mask[y1:y2, x1:x2] = 0.
         mask = torch.from_numpy(mask)
         mask = mask.expand_as(img)
         img *= mask
@@ -92,8 +88,15 @@ class Cutout(object):
         return img
 
 
-def get_dataset(dataset, root, valid=False, mean=None, stddev=None,
-                cutout=0, jitter=False, transform_args=None, to_tensor=True):
+def get_dataset(dataset,
+                root,
+                valid=False,
+                mean=None,
+                stddev=None,
+                cutout=0,
+                jitter=False,
+                transform_args=None,
+                to_tensor=True):
     dataset = dataset.lower()
     meta = get_metadata(dataset)
     mean = meta['mean'] if mean is None else mean

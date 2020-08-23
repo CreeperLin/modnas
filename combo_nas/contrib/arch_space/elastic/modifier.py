@@ -1,4 +1,3 @@
-
 def get_ori_param(module, name):
     return module._params_ori[name]
 
@@ -41,7 +40,7 @@ def backup_attr(module, name):
 def update_param(module, name, val):
     if not hasattr(module, '_params_ori'):
         return
-    if not name in module._params_ori:
+    if name not in module._params_ori:
         return
     module._params_ori[name] = val
 
@@ -49,7 +48,7 @@ def update_param(module, name, val):
 def update_buffer(module, name, val):
     if not hasattr(module, '_buffers_ori'):
         return
-    if not name in module._buffers_ori:
+    if name not in module._buffers_ori:
         return
     module._buffers_ori[name] = val
 
@@ -57,7 +56,7 @@ def update_buffer(module, name, val):
 def update_attr(module, name, val):
     if not hasattr(module, '_attrs_ori'):
         return
-    if not name in module._attrs_ori:
+    if name not in module._attrs_ori:
         return
     module._attrs_ori[name] = val
 
@@ -65,7 +64,7 @@ def update_attr(module, name, val):
 def restore_param(module, name):
     if not hasattr(module, '_params_ori'):
         return
-    if not name in module._params_ori:
+    if name not in module._params_ori:
         return
     val = module._params_ori.pop(name)
     module._parameters[name] = val
@@ -74,7 +73,7 @@ def restore_param(module, name):
 def restore_buffer(module, name):
     if not hasattr(module, '_buffers_ori'):
         return
-    if not name in module._buffers_ori:
+    if name not in module._buffers_ori:
         return
     val = module._buffers_ori.pop(name)
     module._buffers[name] = val
@@ -83,7 +82,7 @@ def restore_buffer(module, name):
 def restore_attr(module, name):
     if not hasattr(module, '_attrs_ori'):
         return
-    if not name in module._attrs_ori:
+    if name not in module._attrs_ori:
         return
     val = module._attrs_ori.pop(name)
     object.__setattr__(module, name, val)

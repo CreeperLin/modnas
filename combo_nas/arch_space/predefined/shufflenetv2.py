@@ -8,8 +8,12 @@ from ..slot import register_slot_ccs
 
 kernel_sizes = [3, 5, 7, 9]
 for k in kernel_sizes:
-    register_slot_ccs(lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnit(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid), 'SHU{}'.format(k))
-    register_slot_ccs(lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnitXception(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid), 'SHX{}'.format(k))
+    register_slot_ccs(
+        lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnit(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid),
+        'SHU{}'.format(k))
+    register_slot_ccs(
+        lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnitXception(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid),
+        'SHX{}'.format(k))
 
 
 def channel_split(x, split):
@@ -28,7 +32,6 @@ def shuffle_channels(x, groups=2):
 
 
 class ShuffleUnit(nn.Module):
-
     def __init__(self, chn_in, chn_out, stride, ksize, chn_mid=None):
         super(ShuffleUnit, self).__init__()
         chn_in = chn_in // 2 if stride == 1 else chn_in
@@ -46,8 +49,7 @@ class ShuffleUnit(nn.Module):
             nn.BatchNorm2d(chn_mid, affine=ops.AFFINE),
             nn.ReLU(inplace=True),
             # dw
-            nn.Conv2d(chn_mid, chn_mid, ksize,
-                      stride, pad, groups=chn_mid, bias=False),
+            nn.Conv2d(chn_mid, chn_mid, ksize, stride, pad, groups=chn_mid, bias=False),
             nn.BatchNorm2d(chn_mid, affine=ops.AFFINE),
             # pw-linear
             nn.Conv2d(chn_mid, outputs, 1, 1, 0, bias=False),
@@ -59,8 +61,7 @@ class ShuffleUnit(nn.Module):
         if stride == 2:
             branch_proj = [
                 # dw
-                nn.Conv2d(
-                    chn_in, chn_in, ksize, stride, pad, groups=chn_in, bias=False),
+                nn.Conv2d(chn_in, chn_in, ksize, stride, pad, groups=chn_in, bias=False),
                 nn.BatchNorm2d(chn_in, affine=ops.AFFINE),
                 # pw-linear
                 nn.Conv2d(chn_in, chn_in, 1, 1, 0, bias=False),
@@ -82,7 +83,6 @@ class ShuffleUnit(nn.Module):
 
 
 class ShuffleUnitXception(nn.Module):
-
     def __init__(self, chn_in, chn_out, stride, ksize=3, chn_mid=None):
         super(ShuffleUnitXception, self).__init__()
         chn_in = chn_in // 2 if stride == 1 else chn_in
@@ -102,16 +102,14 @@ class ShuffleUnitXception(nn.Module):
             nn.BatchNorm2d(chn_mid, affine=ops.AFFINE),
             nn.ReLU(inplace=True),
             # dw
-            nn.Conv2d(chn_mid, chn_mid, ksize,
-                      1, pad, groups=chn_mid, bias=False),
+            nn.Conv2d(chn_mid, chn_mid, ksize, 1, pad, groups=chn_mid, bias=False),
             nn.BatchNorm2d(chn_mid, affine=ops.AFFINE),
             # pw
             nn.Conv2d(chn_mid, chn_mid, 1, 1, 0, bias=False),
             nn.BatchNorm2d(chn_mid, affine=ops.AFFINE),
             nn.ReLU(inplace=True),
             # dw
-            nn.Conv2d(chn_mid, chn_mid, ksize,
-                      1, pad, groups=chn_mid, bias=False),
+            nn.Conv2d(chn_mid, chn_mid, ksize, 1, pad, groups=chn_mid, bias=False),
             nn.BatchNorm2d(chn_mid, affine=ops.AFFINE),
             # pw
             nn.Conv2d(chn_mid, outputs, 1, 1, 0, bias=False),
@@ -146,7 +144,6 @@ class ShuffleUnitXception(nn.Module):
 
 
 class ShuffleNetV2(nn.Module):
-
     def __init__(self, cfgs, chn_in=3, n_classes=1000, dropout_rate=0.1):
         super(ShuffleNetV2, self).__init__()
         self.out_channels = [cfg[0] for cfg in cfgs]
@@ -158,11 +155,12 @@ class ShuffleNetV2(nn.Module):
             if i == 0:
                 features.append(self.get_stem(chn_in, c, s))
             elif i == len(cfgs) - 1:
-                features.append(nn.Sequential(
-                    nn.Conv2d(chn_in, c, 1, 1, 0, bias=False),
-                    nn.BatchNorm2d(c, affine=True),
-                    nn.ReLU(inplace=True),
-                ))
+                features.append(
+                    nn.Sequential(
+                        nn.Conv2d(chn_in, c, 1, 1, 0, bias=False),
+                        nn.BatchNorm2d(c, affine=True),
+                        nn.ReLU(inplace=True),
+                    ))
             else:
                 for j in range(n):
                     block_stride = s if j == 0 else 1
@@ -250,11 +248,11 @@ class ShuffleNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
 @register_as('ShuffleNetV2_OneShot')
 def shufflenetv2_oneshot(cfgs=None, **kwargs):
     cfgs = [
-        [  16, 1, 2, 1.0],
-        [  64, 4, 2, 1.0],
-        [ 160, 4, 2, 1.0],
-        [ 320, 8, 2, 1.0],
-        [ 640, 4, 2, 1.0],
+        [16, 1, 2, 1.0],
+        [64, 4, 2, 1.0],
+        [160, 4, 2, 1.0],
+        [320, 8, 2, 1.0],
+        [640, 4, 2, 1.0],
         [1024, 1, 1, 1.0],
     ] if cfgs is None else cfgs
     return ShuffleNetV2(cfgs=cfgs, **kwargs)
@@ -263,11 +261,11 @@ def shufflenetv2_oneshot(cfgs=None, **kwargs):
 @register_as('CIFAR-ShuffleNetV2_OneShot')
 def cifar_shufflenetv2_oneshot(cfgs=None, **kwargs):
     cfgs = [
-        [  24, 1, 1, 1.0],
-        [  64, 4, 2, 1.0],
-        [ 160, 4, 2, 1.0],
-        [ 320, 8, 2, 1.0],
-        [ 640, 4, 1, 1.0],
+        [24, 1, 1, 1.0],
+        [64, 4, 2, 1.0],
+        [160, 4, 2, 1.0],
+        [320, 8, 2, 1.0],
+        [640, 4, 1, 1.0],
         [1024, 1, 1, 1.0],
     ] if cfgs is None else cfgs
     return ShuffleNetV2(cfgs=cfgs, **kwargs)
@@ -276,10 +274,10 @@ def cifar_shufflenetv2_oneshot(cfgs=None, **kwargs):
 @register_as('ShuffleNetV2')
 def shufflenetv2(cfgs=None, **kwargs):
     cfgs = [
-        [  24, 1, 4, 1.0],
-        [ 116, 4, 2, 1.0],
-        [ 232, 8, 2, 1.0],
-        [ 464, 4, 2, 1.0],
+        [24, 1, 4, 1.0],
+        [116, 4, 2, 1.0],
+        [232, 8, 2, 1.0],
+        [464, 4, 2, 1.0],
         [1024, 1, 1, 1.0],
     ] if cfgs is None else cfgs
     return ShuffleNetV2(cfgs=cfgs, **kwargs)
@@ -288,10 +286,10 @@ def shufflenetv2(cfgs=None, **kwargs):
 @register_as('CIFAR-ShuffleNetV2')
 def cifar_shufflenetv2(cfgs=None, **kwargs):
     cfgs = [
-        [  24, 1, 1, 1.0],
-        [ 116, 4, 2, 1.0],
-        [ 232, 8, 2, 1.0],
-        [ 464, 4, 2, 1.0],
+        [24, 1, 1, 1.0],
+        [116, 4, 2, 1.0],
+        [232, 8, 2, 1.0],
+        [464, 4, 2, 1.0],
         [1024, 1, 1, 1.0],
     ] if cfgs is None else cfgs
     return ShuffleNetV2(cfgs=cfgs, **kwargs)

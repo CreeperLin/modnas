@@ -1,11 +1,3 @@
-# modified from https://github.com/d-li14/mobilenetv3.pytorch/blob/master/mobilenetv3.py
-"""
-Creates a MobileNetV3 Model as defined in:
-Andrew Howard, Mark Sandler, Grace Chu, Liang-Chieh Chen, Bo Chen, Mingxing Tan, Weijun Wang, Yukun Zhu, Ruoming Pang, Vijay Vasudevan, Quoc V. Le, Hartwig Adam. (2019).
-Searching for MobileNetV3
-arXiv preprint arXiv:1905.02244.
-"""
-import math
 import torch.nn as nn
 import torch.nn.functional as F
 from ..slot import Slot
@@ -16,11 +8,15 @@ from ..construct import register as register_constructor
 
 for ksize in [3, 5, 7, 9]:
     for exp in [1, 3, 6, 9]:
-        register_slot_ccs(lambda C_in, C_out, S, use_se=0, use_hs=0, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, use_se, use_hs),
-                     'M3B{}E{}'.format(ksize, exp))
-        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 0, 1), 'M3B{}E{}H'.format(ksize, exp))
-        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 0), 'M3B{}E{}S'.format(ksize, exp))
-        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in*e, k, 1, 1), 'M3B{}E{}SH'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, use_se=0, use_hs=0, k=ksize, e=exp: MobileInvertedConvV3(
+            C_in, C_out, S, C_in * e, k, use_se, use_hs),
+                          'M3B{}E{}'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 0, 1),
+                          'M3B{}E{}H'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 0),
+                          'M3B{}E{}S'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 1),
+                          'M3B{}E{}SH'.format(ksize, exp))
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -65,13 +61,8 @@ class SELayer(nn.Module):
     def __init__(self, channel, reduction=4):
         super(SELayer, self).__init__()
         chn = _make_divisible(channel // reduction, divisor=8)
-        self.net = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(channel, chn, 1, 1, 0),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(chn, channel, 1, 1, 0),
-            HardSigmoid()
-        )
+        self.net = nn.Sequential(nn.AdaptiveAvgPool2d(1), nn.Conv2d(channel, chn, 1, 1, 0), nn.ReLU(inplace=True),
+                                 nn.Conv2d(chn, channel, 1, 1, 0), HardSigmoid())
 
     def forward(self, x):
         return x * self.net(x)
@@ -80,7 +71,7 @@ class SELayer(nn.Module):
 def conv_3x3_bn(chn_in, chn_out, stride, kernel_size, use_se, use_hs):
     del use_se
     return nn.Sequential(
-        nn.Conv2d(chn_in, chn_out, kernel_size, stride, kernel_size//2, bias=False),
+        nn.Conv2d(chn_in, chn_out, kernel_size, stride, kernel_size // 2, bias=False),
         nn.BatchNorm2d(chn_out),
         HardSwish() if use_hs else nn.ReLU(inplace=True),
     )
@@ -114,12 +105,13 @@ class MobileInvertedResidualBlock(nn.Module):
         super(MobileInvertedResidualBlock, self).__init__()
         assert stride in [1, 2]
         self.identity = stride == 1 and chn_in == chn_out
-        self.conv = Slot(_chn_in=chn_in, _chn_out=chn_out, _stride=stride,
+        self.conv = Slot(_chn_in=chn_in,
+                         _chn_out=chn_out,
+                         _stride=stride,
                          chn=chn,
                          kernel_size=kernel_size,
                          use_se=use_se,
-                         use_hs=use_hs
-                         )
+                         use_hs=use_hs)
 
     def forward(self, x):
         if self.identity:
@@ -150,12 +142,8 @@ class MobileNetV3(nn.Module):
         self.features = nn.Sequential(*layers)
         # building last several layers
         last_chn = _make_divisible(last_chn * width_mult, 8)
-        self.conv = nn.Sequential(
-            nn.Conv2d(chn_in, last_chn, 1, 1, 0, bias=False),
-            nn.BatchNorm2d(last_chn),
-            HardSwish(),
-            SELayer(last_chn) if mode == 'small' else nn.Sequential()
-        )
+        self.conv = nn.Sequential(nn.Conv2d(chn_in, last_chn, 1, 1, 0, bias=False), nn.BatchNorm2d(last_chn), HardSwish(),
+                                  SELayer(last_chn) if mode == 'small' else nn.Sequential())
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         chn_out = 1024 if mode == 'small' else 1280
         chn_out = _make_divisible(chn_out * width_mult, 8)
@@ -175,7 +163,9 @@ class MobileNetV3(nn.Module):
         return x
 
 
-mbv3_predefined_converter = lambda slot: MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
+def mbv3_predefined_converter(slot):
+    return MobileInvertedConvV3(slot.chn_in, slot.chn_out, slot.stride, **slot.kwargs)
+
 
 @register_constructor
 class MobileNetV3PredefinedConstructor(DefaultSlotTraversalConstructor):
@@ -240,18 +230,18 @@ def mobilenetv3_large(cfgs=None, **kwargs):
     Constructs a MobileNetV3-Large model
     """
     cfgs = [
-        # k, t, c, SE, NL, s 
-        [3,   0,  16, 0, 1, 2],
-        [3,  16,  16, 0, 0, 1],
-        [3,  64,  24, 0, 0, 2],
-        [3,  72,  24, 0, 0, 1],
-        [5,  72,  40, 1, 0, 2],
-        [5, 120,  40, 1, 0, 1],
-        [5, 120,  40, 1, 0, 1],
-        [3, 240,  80, 0, 1, 2],
-        [3, 200,  80, 0, 1, 1],
-        [3, 184,  80, 0, 1, 1],
-        [3, 184,  80, 0, 1, 1],
+        # k, t, c, SE, NL, s
+        [3, 0, 16, 0, 1, 2],
+        [3, 16, 16, 0, 0, 1],
+        [3, 64, 24, 0, 0, 2],
+        [3, 72, 24, 0, 0, 1],
+        [5, 72, 40, 1, 0, 2],
+        [5, 120, 40, 1, 0, 1],
+        [5, 120, 40, 1, 0, 1],
+        [3, 240, 80, 0, 1, 2],
+        [3, 200, 80, 0, 1, 1],
+        [3, 184, 80, 0, 1, 1],
+        [3, 184, 80, 0, 1, 1],
         [3, 480, 112, 1, 1, 1],
         [3, 672, 112, 1, 1, 1],
         [5, 672, 160, 1, 1, 2],
@@ -266,19 +256,19 @@ def mobilenetv3_small(cfgs=None, **kwargs):
     Constructs a MobileNetV3-Small model
     """
     cfgs = [
-        # k, t, c, SE, NL, s 
-        [3,   0,  16, 0, 1, 2],
-        [3,  16,  16, 1, 0, 2],
-        [3,  72,  24, 0, 0, 2],
-        [3,  88,  24, 0, 0, 1],
-        [5,  96,  40, 1, 1, 2],
-        [5, 240,  40, 1, 1, 1],
-        [5, 240,  40, 1, 1, 1],
-        [5, 120,  48, 1, 1, 1],
-        [5, 144,  48, 1, 1, 1],
-        [5, 288,  96, 1, 1, 2],
-        [5, 576,  96, 1, 1, 1],
-        [5, 576,  96, 1, 1, 1],
+        # k, t, c, SE, NL, s
+        [3, 0, 16, 0, 1, 2],
+        [3, 16, 16, 1, 0, 2],
+        [3, 72, 24, 0, 0, 2],
+        [3, 88, 24, 0, 0, 1],
+        [5, 96, 40, 1, 1, 2],
+        [5, 240, 40, 1, 1, 1],
+        [5, 240, 40, 1, 1, 1],
+        [5, 120, 48, 1, 1, 1],
+        [5, 144, 48, 1, 1, 1],
+        [5, 288, 96, 1, 1, 2],
+        [5, 576, 96, 1, 1, 1],
+        [5, 576, 96, 1, 1, 1],
     ] if cfgs is None else cfgs
 
     return MobileNetV3(cfgs, mode='small', **kwargs)

@@ -1,6 +1,7 @@
 from ..base import MetricsBase
 from .. import register_as
 
+
 @register_as('Validate')
 class ValidateMetrics(MetricsBase):
     def __init__(self, logger, field=None):

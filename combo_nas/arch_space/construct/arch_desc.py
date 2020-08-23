@@ -3,7 +3,6 @@ import yaml
 import json
 import logging
 import copy
-from collections import OrderedDict
 from .default import DefaultSlotTraversalConstructor
 from ..slot import Slot
 from .. import build as build_module
@@ -44,8 +43,7 @@ class DefaultArchDescConstructor():
 
 @register
 class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
-    def __init__(self, arch_desc, parse_args=None, 
-                 construct_fn='build_from_arch_desc', fn_args=None, substitute=False):
+    def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None, substitute=False):
         super().__init__(arch_desc, parse_args)
         self.construct_fn = construct_fn
         self.fn_args = fn_args or {}
@@ -53,12 +51,12 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
 
     def visit(self, module):
         construct_fn = getattr(module, self.construct_fn, None)
-        if not construct_fn is None:
+        if construct_fn is not None:
             ret = construct_fn(self.arch_desc, **copy.deepcopy(self.fn_args))
             return module if ret is None else ret
         for n, m in module.named_children():
             m = self.visit(m)
-            if not m is None and self.substitute:
+            if m is not None and self.substitute:
                 module.add_module(n, m)
         return module
 
@@ -83,7 +81,8 @@ class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArc
     def get_next_desc(self):
         self.idx += 1
         desc = self.arch_desc[self.idx]
-        if isinstance(desc, list) and len(desc) == 1: desc = desc[0]
+        if isinstance(desc, list) and len(desc) == 1:
+            desc = desc[0]
         return desc
 
     def convert(self, slot):

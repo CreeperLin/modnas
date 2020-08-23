@@ -2,6 +2,7 @@
 import random
 from ..utils.optimizer import get_optimizer
 
+
 class OptimBase():
     def __init__(self, space, logger=None):
         self.space = space
@@ -40,9 +41,7 @@ class GradientBasedOptim(OptimBase):
         self.a_optim = get_optimizer(self.space.tensor_values(), a_optim)
 
     def state_dict(self):
-        return {
-            'a_optim': self.a_optim.state_dict()
-        }
+        return {'a_optim': self.a_optim.state_dict()}
 
     def load_state_dict(self, sd):
         self.a_optim.load_state_dict(sd['a_optim'])

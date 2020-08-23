@@ -1,10 +1,11 @@
 import pickle
 import itertools
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
 from combo_nas.estimator import register_as
 from combo_nas.estimator.predefined.subnet_estimator import SubNetEstimator
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
 
 @register_as('SubNetStats')
 class SubNetStatsEstimator(SubNetEstimator):

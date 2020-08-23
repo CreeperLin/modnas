@@ -4,6 +4,7 @@ from ..slot import Slot
 from ..construct.default import DefaultSlotTraversalConstructor
 from ..construct import register as register_constructor
 
+
 class GroupConv(nn.Module):
     def __init__(self, chn_in, chn_out, kernel_size, stride=1, padding=0, groups=1, relu=True, affine=True):
         super().__init__()
@@ -15,16 +16,16 @@ class GroupConv(nn.Module):
             nn.BatchNorm2d(chn_in, affine=affine),
             nn.Conv2d(chn_in, chn_out, kernel_size, stride, padding, groups=groups, bias=True),
         ]
-        if relu: 
+        if relu:
             net.insert(1, nn.ReLU(inplace=True))
         self.net = nn.Sequential(*net)
 
     def forward(self, x):
         return self.net(x)
 
+
 class BottleneckBlock(nn.Module):
-    def __init__(self, C_in, C, stride=1, groups=1, bottleneck_ratio=4,
-                 downsample=None):
+    def __init__(self, C_in, C, stride=1, groups=1, bottleneck_ratio=4, downsample=None):
         super(BottleneckBlock, self).__init__()
         self.bottle_in = GroupConv(C_in, C, 1, 1, 0, relu=False)
         self.cell = Slot(_chn_in=C, _chn_out=C, _stride=stride, groups=groups)
@@ -52,16 +53,15 @@ class BottleneckBlock(nn.Module):
         shortcut_channel = shortcut.size()[1]
 
         if residual_channel != shortcut_channel:
-            padding = torch.zeros(batch_size, residual_channel - shortcut_channel,
-                                 featuremap_size[0], featuremap_size[1]).to(device=x.device)
+            padding = torch.zeros(batch_size, residual_channel - shortcut_channel, featuremap_size[0],
+                                  featuremap_size[1]).to(device=x.device)
             out += torch.cat((shortcut, padding), 1)
         else:
-            out += shortcut 
+            out += shortcut
         return out
 
 
 class PyramidNet(nn.Module):
-
     def __init__(self, chn_in, chn, n_classes, groups, blocks, conv_groups, bottleneck_ratio, alpha):
         super(PyramidNet, self).__init__()
         self.chn_in = chn_in
@@ -71,17 +71,17 @@ class PyramidNet(nn.Module):
         self.n_blocks = blocks
         self.conv_groups = conv_groups
         self.bottleneck_ratio = bottleneck_ratio
-        self.addrate = alpha / (self.n_groups*self.n_blocks*1.0)
+        self.addrate = alpha / (self.n_groups * self.n_blocks * 1.0)
 
         block = BottleneckBlock
         self.chn_cur = self.chn
-        self.conv1 = nn.Conv2d(self.chn_in, self.chn_cur, kernel_size=3, stride=1, padding=1,bias=False)
+        self.conv1 = nn.Conv2d(self.chn_in, self.chn_cur, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(self.chn_cur)
         self.chn_in = self.chn_cur
 
         groups = []
         for i in range(0, self.n_groups):
-            stride = 1 if i==0 else 2
+            stride = 1 if i == 0 else 2
             groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride))
         self.pyramid = nn.Sequential(*groups)
 
@@ -93,16 +93,17 @@ class PyramidNet(nn.Module):
 
     def pyramidal_make_layer(self, block, n_blocks, stride):
         downsample = None
-        if stride != 1: # or self.chn_cur != int(round(featuremap_dim_1st)) * block.outchannel_ratio:
-            downsample = nn.AvgPool2d((2,2), stride = (2, 2), ceil_mode=True)
+        if stride != 1:  # or self.chn_cur != int(round(featuremap_dim_1st)) * block.outchannel_ratio:
+            downsample = nn.AvgPool2d((2, 2), stride=(2, 2), ceil_mode=True)
 
         layers = []
         for i in range(0, n_blocks):
-            b_stride = stride if i==0 else 1
+            b_stride = stride if i == 0 else 1
             chn_prev = int(round(self.chn_in))
             chn_next = int(round(self.chn_cur + self.addrate))
             chn_next -= chn_next % self.conv_groups
-            blk = block(chn_prev, chn_next,
+            blk = block(chn_prev,
+                        chn_next,
                         stride=b_stride,
                         groups=self.conv_groups,
                         bottleneck_ratio=self.bottleneck_ratio,

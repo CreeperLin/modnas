@@ -3,9 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..core.param_space import ArchParamCategorical, ArchParamTensor
-from ..utils.registration import get_registry_utils
-
 from . import register
+
 
 class MixedOp(nn.Module):
     def __init__(self, primitives, arch_param_map):
@@ -72,7 +71,8 @@ class WeightedSumMixedOp(MixedOp):
         w = F.softmax(self.alpha().detach(), dim=-1)
         _, prim_idx = torch.topk(w, k)
         desc = [pname[i] for i in prim_idx]
-        if desc == []: return [None]
+        if desc == []:
+            return [None]
         return desc
 
 
@@ -93,8 +93,12 @@ class BinGateMixedOp(MixedOp):
     def sample_path(self):
         p = self.arch_param_value('p')
         s_op = self.s_op
-        self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
-        samples = self.w_path_f.multinomial(1 if self.a_grad_enabled else self.n_samples)
+        self.w_path_f = F.softmax(p.index_select(
+            -1,
+            torch.tensor(s_op).to(p.device)),
+                                  dim=-1)
+        samples = self.w_path_f.multinomial(
+            1 if self.a_grad_enabled else self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
 
     def sample_ops(self, n_samples):
@@ -110,7 +114,7 @@ class BinGateMixedOp(MixedOp):
         self.sample_path()
         s_path_f = self.s_path_f
         primitives = self.primitives()
-        if self.training: 
+        if self.training:
             self.swap_ops(s_path_f)
         if self.a_grad_enabled:
             p = self.arch_param_value('p')
@@ -133,13 +137,13 @@ class BinGateMixedOp(MixedOp):
             if i in samples:
                 continue
             for p in prims[i].parameters():
-                if not p.grad_fn is None:
+                if p.grad_fn is not None:
                     continue
                 p.requires_grad = False
                 p.grad = None
         for i in samples:
             for p in prims[i].parameters():
-                if not p.grad_fn is None:
+                if p.grad_fn is not None:
                     continue
                 p.requires_grad_(True)
 
@@ -148,7 +152,8 @@ class BinGateMixedOp(MixedOp):
         w = F.softmax(self.alpha().detach(), dim=-1)
         _, prim_idx = torch.topk(w, k)
         desc = [pname[i] for i in prim_idx]
-        if desc == []: return [None]
+        if desc == []:
+            return [None]
         return desc
 
 
@@ -161,8 +166,10 @@ class BinGateFunction(torch.autograd.function.Function):
         primitives = ctx.primitives
         s_path_f = ctx.s_path_f
         with torch.enable_grad():
-            if len(s_path_f) == 1: m_out = primitives[s_path_f[0]](*args, **kwargs)
-            else: m_out = sum(primitives[i](*args, **kwargs) for i in s_path_f)
+            if len(s_path_f) == 1:
+                m_out = primitives[s_path_f[0]](*args, **kwargs)
+            else:
+                m_out = sum(primitives[i](*args, **kwargs) for i in s_path_f)
         ctx.save_for_backward(*args, m_out)
         return m_out.data
 
@@ -171,7 +178,11 @@ class BinGateFunction(torch.autograd.function.Function):
         args_f = ctx.saved_tensors[:-1]
         m_out = ctx.saved_tensors[-1]
         retain = True if len(args_f) > 1 else False
-        grad_args = torch.autograd.grad(m_out, args_f, m_grad, only_inputs=True, retain_graph=retain)
+        grad_args = torch.autograd.grad(m_out,
+                                        args_f,
+                                        m_grad,
+                                        only_inputs=True,
+                                        retain_graph=retain)
         with torch.no_grad():
             a_grad = torch.zeros(ctx.param_shape)
             s_op = ctx.s_op
@@ -187,8 +198,9 @@ class BinGateFunction(torch.autograd.function.Function):
                     op_out = op(*args_f, **kwargs)
                 g_grad = torch.sum(m_grad * op_out)
                 for i, oi in enumerate(s_op):
-                    kron = 1 if i==j else 0
-                    a_grad[oi] = a_grad[oi] + g_grad * w_path_f[j] * (kron - w_path_f[i])
+                    kron = 1 if i == j else 0
+                    a_grad[oi] = a_grad[oi] + g_grad * w_path_f[j] * (
+                        kron - w_path_f[i])
         return (None, a_grad, None) + grad_args
 
 
@@ -197,16 +209,21 @@ class BinGateUniformMixedOp(BinGateMixedOp):
     def sample_path(self):
         p = self.arch_param_value('p')
         s_op = self.s_op
-        self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
+        self.w_path_f = F.softmax(p.index_select(
+            -1,
+            torch.tensor(s_op).to(p.device)),
+                                  dim=-1)
         # sample uniformly
-        samples = F.softmax(torch.ones(len(s_op)), dim=-1).multinomial(self.n_samples)
+        samples = F.softmax(torch.ones(len(s_op)),
+                            dim=-1).multinomial(self.n_samples)
         s_path_f = [s_op[i] for i in samples]
         self.s_path_f = s_path_f
 
     def sample_ops(self, n_samples):
         p = self.arch_param_value('p')
         # sample uniformly
-        samples = F.softmax(torch.ones(p.shape), dim=-1).multinomial(n_samples).detach()
+        samples = F.softmax(torch.ones(p.shape),
+                            dim=-1).multinomial(n_samples).detach()
         # sample according to p
         # samples = F.softmax(p, dim=-1).multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
@@ -224,7 +241,7 @@ class GumbelSumMixedOp(MixedOp):
     def prob(self):
         p = self.alpha()
         eps = 1e-7
-        uniforms = torch.rand(p.shape, device=p.device).clamp(eps, 1-eps)
+        uniforms = torch.rand(p.shape, device=p.device).clamp(eps, 1 - eps)
         gumbels = -((-(uniforms.log())).log())
         scores = (p + gumbels) / self.temp
         return F.softmax(scores, dim=-1)
@@ -236,10 +253,11 @@ class GumbelSumMixedOp(MixedOp):
 
     def to_arch_desc(self, k=1):
         pname = self.primitive_names()
-        w = F.softmax(self.alpha().detach(), dim=-1) # use alpha softmax
+        w = F.softmax(self.alpha().detach(), dim=-1)  # use alpha softmax
         _, prim_idx = torch.topk(w, k)
         desc = [pname[i] for i in prim_idx]
-        if desc == []: return [None]
+        if desc == []:
+            return [None]
         return desc
 
 
@@ -265,7 +283,8 @@ class IndexMixedOp(MixedOp):
     def forward(self, *args, **kwargs):
         prims = self.primitives()
         smp = self.arch_param('prims').index()
-        if self.training: self.swap_ops([smp])
+        if self.training:
+            self.swap_ops([smp])
         self.last_samples = [smp]
         return prims[smp](*args, **kwargs)
 
@@ -279,13 +298,13 @@ class IndexMixedOp(MixedOp):
             if i in samples:
                 continue
             for p in prims[i].parameters():
-                if not p.grad_fn is None:
+                if p.grad_fn is not None:
                     continue
                 p.requires_grad = False
                 p.grad = None
         for i in samples:
             for p in prims[i].parameters():
-                if not p.grad_fn is None:
+                if p.grad_fn is not None:
                     continue
                 p.requires_grad_(True)
 

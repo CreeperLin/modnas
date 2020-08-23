@@ -1,6 +1,7 @@
 import os
 import time
 
+
 class ExpManager():
     def __init__(self, root_dir, name, subdir_timefmt='%Y-%m-%d_%H-%M'):
         if subdir_timefmt is None:

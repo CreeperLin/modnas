@@ -6,7 +6,6 @@ from ..construct import register as register_constructor
 from ..construct.default import DefaultSlotTraversalConstructor, DefaultMixedOpConstructor
 from ..construct.arch_desc import DefaultSlotArchDescConstructor
 from ..ops import get_same_padding
-from .. import register as register_ops
 from ..slot import register_slot_builder
 
 kernel_sizes = [3, 5, 7, 9]
@@ -14,8 +13,7 @@ expand_ratios = [1, 3, 6, 9]
 for k in kernel_sizes:
     for e in expand_ratios:
         p = get_same_padding(k)
-        builder = lambda C_in, C_out, stride, ks=k, exp=e, pd=p: MobileInvertedConv(C_in, C_out, C_in*exp, stride, ks, pd)
-        # register_ops(builder, 'MB{}E{}'.format(k, e))
+        builder = lambda C_in, C_out, stride, ks=k, exp=e, pd=p: MobileInvertedConv(C_in, C_out, C_in * exp, stride, ks, pd)
         register_slot_builder(builder, 'MB{}E{}'.format(k, e), 'i1o1s2')
 
 
@@ -74,9 +72,15 @@ class MobileInvertedResidualBlock(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-
-    def __init__(self, chn_in, n_classes, cfgs, width_coeff=1.0, depth_coeff=1.0,
-                 resolution=None, dropout_rate=0.2, activation=nn.ReLU6):
+    def __init__(self,
+                 chn_in,
+                 n_classes,
+                 cfgs,
+                 width_coeff=1.0,
+                 depth_coeff=1.0,
+                 resolution=None,
+                 dropout_rate=0.2,
+                 activation=nn.ReLU6):
         del resolution
         super(MobileNetV2, self).__init__()
         self.activation = activation
@@ -109,10 +113,9 @@ class MobileNetV2(nn.Module):
         stage_name = "MobileInvertedResidualBlock_{}".format(stage)
         for i in range(n):
             # First module is the only one utilizing stride
-            s = stride if i==0 else 1
+            s = stride if i == 0 else 1
             name = stage_name + "_{}".format(i)
-            module = MobileInvertedResidualBlock(chn_in=chn_in, chn_out=chn_out, stride=s, t=t,
-                                      activation=self.activation)
+            module = MobileInvertedResidualBlock(chn_in=chn_in, chn_out=chn_out, stride=s, t=t, activation=self.activation)
             modules[name] = module
             chn_in = chn_out
         return nn.Sequential(modules)
@@ -122,9 +125,12 @@ class MobileNetV2(nn.Module):
         stage_name = "Bottlenecks"
         for i in range(0, len(self.c) - 1):
             name = stage_name + "_{}".format(i)
-            module = self._make_stage(chn_in=self.c[i], chn_out=self.c[i + 1], n=self.n[i + 1],
+            module = self._make_stage(chn_in=self.c[i],
+                                      chn_out=self.c[i + 1],
+                                      n=self.n[i + 1],
                                       stride=self.s[i + 1],
-                                      t=self.t[i + 1], stage=i)
+                                      t=self.t[i + 1],
+                                      stage=i)
             modules[name] = module
         return nn.Sequential(modules)
 
@@ -143,7 +149,9 @@ class MobileNetV2(nn.Module):
         return x
 
 
-mbv2_predefined_convert_fn = lambda slot: MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+def mbv2_predefined_convert_fn(slot):
+    return MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
+
 
 @register_constructor
 class MobileNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
@@ -211,13 +219,13 @@ def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
 def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     default_cfgs = [
         # t, c, n, s,
-        [0, 32, 1, 1], # stride = 1
+        [0, 32, 1, 1],  # stride = 1
         [1, 16, 1, 1],
         [6, 24, 2, 2],
         [6, 32, 3, 2],
         [6, 64, 4, 2],
         [6, 96, 3, 1],
-        [6, 160, 3, 1], # stride = 1
+        [6, 160, 3, 1],  # stride = 1
         [6, 320, 1, 1]
     ]
     if cfgs is None:
