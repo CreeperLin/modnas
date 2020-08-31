@@ -1,6 +1,6 @@
 import random
-from combo_nas.estimator.predefined.default_estimator import DefaultEstimator
-from combo_nas.estimator import register_as
+from combo_nas.estim.predefined.default import DefaultEstimator
+from combo_nas.estim import register_as
 from combo_nas.core.param_space import ArchParamSpace
 
 

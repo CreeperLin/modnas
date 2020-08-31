@@ -2,8 +2,8 @@ import itertools
 import time
 import random
 import torch
-from combo_nas.estimator.base import EstimatorBase
-from combo_nas.estimator import register_as
+from combo_nas.estim.base import EstimatorBase
+from combo_nas.estim import register_as
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
 from combo_nas.utils import recompute_bn_running_statistics

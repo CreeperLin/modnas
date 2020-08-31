@@ -88,7 +88,7 @@ class DefaultParamsExporter():
 @register
 class DefaultSlotTraversalExporter():
     def __init__(self, export_fn='to_arch_desc', fn_args=None, gen=None):
-        self.gen = gen or Slot.gen_slots_all
+        self.gen = gen
         self.export_fn = export_fn
         self.fn_args = fn_args or {}
         self.visited = set()
@@ -103,7 +103,8 @@ class DefaultSlotTraversalExporter():
     def __call__(self, model):
         Slot.set_export_fn(self.export)
         arch_desc = []
-        for m in self.gen():
+        gen = self.gen or Slot.gen_slots_model(model)
+        for m in gen():
             if m in self.visited:
                 continue
             arch_desc.append(m.to_arch_desc(**copy.deepcopy(self.fn_args)))

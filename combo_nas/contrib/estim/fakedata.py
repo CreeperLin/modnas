@@ -1,9 +1,9 @@
 import numpy as np
 import torch.nn as nn
 from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
-from combo_nas.estimator.predefined.regression_estimator import RegressionEstimator, ArchPredictor
+from combo_nas.estim.predefined.regression import RegressionEstimator, ArchPredictor
 import combo_nas.arch_space
-import combo_nas.estimator
+import combo_nas.estim
 
 
 @combo_nas.arch_space.register_as('FakeData')
@@ -46,7 +46,7 @@ class FakeDataPredictor(ArchPredictor):
         return score
 
 
-@combo_nas.estimator.register_as('FakeData')
+@combo_nas.estim.register_as('FakeData')
 class FakeDataEstimator(RegressionEstimator):
     def run(self, optim):
         self.predictor = FakeDataPredictor()

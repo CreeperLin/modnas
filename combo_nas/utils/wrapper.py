@@ -14,7 +14,7 @@ from ..arch_space.ops import configure_ops
 from ..arch_space.slot import Slot
 from ..core.param_space import ArchParamSpace
 from ..optim import build as build_optim
-from ..estimator import build as build_estimator
+from ..estim import build as build_estim
 from ..trainer import build as build_trainer
 from .. import utils
 from ..utils.config import Config
@@ -108,7 +108,7 @@ def build_estim_all(estim_config, estim_comp=None):
         estim_args.update(estim_comp or {})
         estim_args['name'] = estim_name
         estim_args['config'] = estim_conf
-        estim = build_estimator(estim_type, **estim_args)
+        estim = build_estim(estim_type, **estim_args)
         estim.load(estim_conf.get('chkpt', None))
         estims[estim_name] = estim
     return estims

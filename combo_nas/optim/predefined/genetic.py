@@ -45,7 +45,7 @@ class GeneticOptim(CategoricalSpaceOptim):
 class EvolutionOptim(GeneticOptim):
     def __init__(self,
                  space,
-                 pop_size=20,
+                 pop_size=100,
                  n_parents=2,
                  n_offsprings=1,
                  n_select=10,

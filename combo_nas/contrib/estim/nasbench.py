@@ -1,8 +1,8 @@
 import torch.nn as nn
 from combo_nas.core.param_space import ArchParamCategorical
-from combo_nas.estimator.predefined.regression_estimator import RegressionEstimator, ArchPredictor
+from combo_nas.estim.predefined.regression import RegressionEstimator, ArchPredictor
 import combo_nas.arch_space
-import combo_nas.estimator
+import combo_nas.estim
 try:
     from nasbench import api
 except ImportError:
@@ -67,7 +67,7 @@ class NASBenchPredictor(ArchPredictor):
         return val_acc
 
 
-@combo_nas.estimator.register_as('NASBench')
+@combo_nas.estim.register_as('NASBench')
 class NASBenchEstimator(RegressionEstimator):
     def run(self, optim):
         config = self.config

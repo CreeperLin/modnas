@@ -1,8 +1,8 @@
 import pickle
 import itertools
 import matplotlib
-from combo_nas.estimator import register_as
-from combo_nas.estimator.predefined.subnet_estimator import SubNetEstimator
+from combo_nas.estim import register_as
+from combo_nas.estim.predefined.subnet import SubNetEstimator
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 

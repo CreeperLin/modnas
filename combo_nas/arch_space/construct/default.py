@@ -53,7 +53,7 @@ class ExternalModelConstructor():
 @register
 class DefaultSlotTraversalConstructor():
     def __init__(self, gen=None, convert_fn=None, args=None):
-        self.gen = gen or Slot.gen_slots_all
+        self.gen = gen
         if convert_fn:
             self.convert = get_convert_fn(convert_fn, **(args or {}))
 
@@ -61,7 +61,8 @@ class DefaultSlotTraversalConstructor():
         raise NotImplementedError
 
     def __call__(self, model):
-        all_slots = list(self.gen())
+        gen = self.gen or Slot.gen_slots_model(model)
+        all_slots = list(gen())
         for m in all_slots:
             if m.fixed:
                 continue
