@@ -15,22 +15,17 @@ class ArchPredictor():
 
 
 class RegressionEstimator(EstimatorBase):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, predictor=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.predictor = None
+        self.predictor = predictor
         self.best_score = 0.
         self.best_arch_desc = None
 
     def step(self, params):
         ArchParamSpace.update_params(params)
         predictor = self.predictor
-        model = self.model
-        if model is None:
-            arch_desc = list(params.values())
-            score = predictor.predict(params)
-        else:
-            arch_desc = model.to_arch_desc()
-            score = predictor.predict(arch_desc)
+        arch_desc = self.exporter(self.model)
+        score = predictor.predict(arch_desc)
         if score > self.best_score:
             self.best_score = score
             self.best_arch_desc = arch_desc

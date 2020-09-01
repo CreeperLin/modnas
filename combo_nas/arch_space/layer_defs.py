@@ -205,8 +205,7 @@ class EvenSplitAllocator(AllocatorBase):
         for (chn_s, si) in zip(chn_states, sidx):
             etot = min(self.n_states, self.tot_states - si - 1)
             eidx = cur_state - max(self.n_inputs, si + 1)
-            c_in = chn_s - (chn_s //
-                            etot) * eidx if eidx == etot - 1 else chn_s // etot
+            c_in = chn_s - (chn_s // etot) * eidx if eidx == etot - 1 else chn_s // etot
             chn = chn_s // etot
             end = chn_s if eidx == etot - 1 else chn * (eidx + 1)
             s_slice = slice(chn * eidx, end)

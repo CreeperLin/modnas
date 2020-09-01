@@ -13,8 +13,8 @@ class EstimatorBase():
                  config=None,
                  expman=None,
                  trainer=None,
-                 model_builder=None,
-                 model_exporter=None,
+                 constructor=None,
+                 exporter=None,
                  model=None,
                  writer=None,
                  logger=None,
@@ -23,8 +23,8 @@ class EstimatorBase():
         self.name = '' if name is None else name
         self.config = config
         self.expman = expman
-        self.model_builder = model_builder
-        self.model_exporter = model_exporter
+        self.constructor = constructor
+        self.exporter = exporter
         self.model = model
         self.writer = writer
         self.logger = logger

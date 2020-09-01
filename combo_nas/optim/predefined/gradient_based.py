@@ -3,7 +3,6 @@ import math
 import copy
 import torch
 from ..base import GradientBasedOptim
-from ...utils import accuracy
 from ...core.param_space import ArchParamSpace
 from ...arch_space.mixed_ops import MixedOp
 
@@ -117,7 +116,8 @@ class BinaryGateOptim(GradientBasedOptim):
         else:
             with torch.no_grad():
                 prev_pw = []
-                for p, m in self.space.tensor_param_modules():
+                for m in MixedOp.gen(model):
+                    p = m.alpha()
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
@@ -129,7 +129,8 @@ class BinaryGateOptim(GradientBasedOptim):
             self.optim_step()
 
             with torch.no_grad():
-                for kprev, (p, m) in zip(prev_pw, self.space.tensor_param_modules()):
+                for kprev, m in zip(prev_pw, MixedOp.gen(model)):
+                    p = m.alpha()
                     s_op = m.s_op
                     pdt = p.detach()
                     pp = pdt.index_select(-1, torch.tensor(s_op).to(p.device))
@@ -177,10 +178,8 @@ class REINFORCEOptim(GradientBasedOptim):
         reward_batch = []
         val_X, val_y = estim.get_next_valid_batch()
         for _ in range(self.batch_size):
-            acc_top1, _ = accuracy(estim.model(val_X), val_y, topk=(1, 5))
             # calculate reward according to net_info
-            # reward = estim.get_score(estim.compute_metrics()) + acc_top1.item()
-            reward = acc_top1.item()
+            reward = estim.get_score(estim.compute_metrics())
             # loss term
             obj_term = 0
             for m in MixedOp.gen(model):

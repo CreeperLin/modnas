@@ -151,15 +151,8 @@ class ImageClsTrainer(TrainerBase):
         top1.update(prec1.item(), N)
         top5.update(prec5.item(), N)
         if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
-            logger.info("Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {losses.avg:.3f} "
-                        "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(epoch + 1,
-                                                                             tot_epochs,
-                                                                             step + 1,
-                                                                             tot_steps,
-                                                                             lr,
-                                                                             losses=losses,
-                                                                             top1=top1,
-                                                                             top5=top5))
+            logger.info('Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {:.3f} Prec@(1,5) ({:.1%}, {:.1%})'.format(
+                epoch + 1, tot_epochs, step + 1, tot_steps, lr, losses.avg, top1.avg, top5.avg))
         writer.add_scalar('train/loss', loss.item(), cur_step)
         writer.add_scalar('train/top1', prec1.item(), cur_step)
         writer.add_scalar('train/top5', prec5.item(), cur_step)
@@ -203,14 +196,8 @@ class ImageClsTrainer(TrainerBase):
         top1.update(prec1.item(), N)
         top5.update(prec5.item(), N)
         if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
-            logger.info("Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {losses.avg:.3f} "
-                        "Prec@(1,5) ({top1.avg:.1%}, {top5.avg:.1%})".format(epoch + 1,
-                                                                             tot_epochs,
-                                                                             step + 1,
-                                                                             tot_steps,
-                                                                             losses=losses,
-                                                                             top1=top1,
-                                                                             top5=top5))
+            logger.info('Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {:.3f} Prec@(1,5) ({:.1%}, {:.1%})'.format(
+                epoch + 1, tot_epochs, step + 1, tot_steps, losses.avg, top1.avg, top5.avg))
         if step + 1 == tot_steps:
             writer.add_scalar('val/loss', losses.avg, cur_step)
             writer.add_scalar('val/top1', top1.avg, cur_step)

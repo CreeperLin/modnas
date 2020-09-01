@@ -30,8 +30,7 @@ class DAGLayer(nn.Module):
         self.n_states = self.n_input + self.n_nodes
         edge_kwargs = edge_kwargs or {}
         e_chn_in = edge_kwargs.get('_chn_in')
-        self.n_input_e = 1 if e_chn_in is None or isinstance(
-            e_chn_in, int) else len(e_chn_in)
+        self.n_input_e = 1 if e_chn_in is None or isinstance(e_chn_in, int) else len(e_chn_in)
         self.allocator = get_allocator(allocator)(self.n_input, self.n_nodes)
         self.merger_state = get_merger(merger_state)()
         self.merger_out = get_merger(merger_out)(start=self.n_input)
@@ -58,11 +57,9 @@ class DAGLayer(nn.Module):
             cur_state = self.n_input + i
             self.dag.append(nn.ModuleList())
             for sidx in self.enumerator.enum(cur_state, self.n_input_e):
-                e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx],
-                                                 sidx, cur_state)
+                e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
                 edge_kwargs['_chn_in'] = e_chn_in
-                edge_kwargs['_stride'] = stride if all(s < self.n_input
-                                                       for s in sidx) else 1
+                edge_kwargs['_stride'] = stride if all(s < self.n_input for s in sidx) else 1
                 if chn_out is not None:
                     edge_kwargs['_chn_out'] = chn_out
                 if name is not None:
@@ -70,12 +67,11 @@ class DAGLayer(nn.Module):
                 e = edge_cls(**edge_kwargs)
                 self.dag[i].append(e)
                 self.num_edges += 1
-            chn_states.append(
-                self.merger_state.chn_out([ei.chn_out for ei in self.dag[i]]))
+            chn_states.append(self.merger_state.chn_out([ei.chn_out for ei in self.dag[i]]))
             self.chn_out = self.merger_out.chn_out(chn_states)
-        logging.debug('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(
-            str(edge_cls), self.chn_in, edge_kwargs['_chn_in'][0],
-            self.n_nodes, self.num_edges))
+        logging.debug('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in,
+                                                                               edge_kwargs['_chn_in'][0], self.n_nodes,
+                                                                               self.num_edges))
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.chn_states = chn_states
 
@@ -88,14 +84,11 @@ class DAGLayer(nn.Module):
             res = []
             n_states = self.n_input + nidx
             topo = self.topology[nidx] if self.fixed else None
-            for eidx, sidx in enumerate(
-                    self.enumerator.enum(n_states, self.n_input_e)):
+            for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if topo is not None and eidx not in topo:
                     continue
-                e_in = self.allocator.alloc([states[i] for i in sidx], sidx,
-                                            n_states)
-                e_in = e_in[0] if isinstance(e_in,
-                                             list) and len(e_in) == 1 else e_in
+                e_in = self.allocator.alloc([states[i] for i in sidx], sidx, n_states)
+                e_in = e_in[0] if isinstance(e_in, list) and len(e_in) == 1 else e_in
                 res.append(edges[eidx](e_in))
             s_cur = self.merger_state.merge(res)
             states.append(s_cur)
@@ -112,8 +105,7 @@ class DAGLayer(nn.Module):
             topk_edges = []
             n_states = self.n_input + nidx
             topo = self.topology[nidx] if self.fixed else None
-            for eidx, sidx in enumerate(
-                    self.enumerator.enum(n_states, self.n_input_e)):
+            for eidx, sidx in enumerate(self.enumerator.enum(n_states, self.n_input_e)):
                 if topo is not None and eidx not in topo:
                     continue
                 g_edge_child = edges[eidx].to_arch_desc(k=edge_k + 1)
@@ -147,8 +139,7 @@ class DAGLayer(nn.Module):
             cur_state = self.n_input + nidx
             e_chn_out = []
             topo = []
-            dag_topology = list(self.enumerator.enum(cur_state,
-                                                     self.n_input_e))
+            dag_topology = list(self.enumerator.enum(cur_state, self.n_input_e))
             for g_child, sidx, _ in edges:
                 eidx = dag_topology.index(tuple(sidx))
                 topo.append(eidx)
@@ -162,8 +153,7 @@ class DAGLayer(nn.Module):
         self.chn_states = chn_states
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.fixed = True
-        logging.debug('DAGLayer: chn_in:{} #n:{} #e:{}'.format(
-            self.chn_in, self.n_nodes, self.num_edges))
+        logging.debug('DAGLayer: chn_in:{} #n:{} #e:{}'.format(self.chn_in, self.n_nodes, self.num_edges))
 
 
 @register_slot_ccs
@@ -217,16 +207,12 @@ class MultiChainLayer(nn.Module):
         for cidx in range(self.n_chain):
             edges = []
             cur_state = self.n_input + cidx
-            e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx],
-                                             sidx, cur_state)
+            e_chn_in = self.allocator.chn_in([chn_states[s] for s in sidx], sidx, cur_state)
             for nidx in range(self.n_chain_nodes[cidx]):
                 edge_kwargs['_chn_in'] = e_chn_in
                 edge_kwargs['_stride'] = stride if nidx == 0 else 1
                 if nidx == 0:
-                    edge_kwargs['_chn_out'] = sum([
-                        chn_out * e // s
-                        for e, s in zip(e_chn_in, self.chn_in)
-                    ])
+                    edge_kwargs['_chn_out'] = sum([chn_out * e // s for e, s in zip(e_chn_in, self.chn_in)])
                 if name is not None:
                     edge_kwargs['name'] = '{}_{}_{}'.format(name, cidx, nidx)
                 e = edge_cls(**edge_kwargs)
@@ -245,8 +231,7 @@ class MultiChainLayer(nn.Module):
         sidx = range(self.n_input)
         for cidx, chain in enumerate(self.chains):
             cur_state = self.n_input + cidx
-            out = self.allocator.alloc([states[i] for i in sidx], sidx,
-                                       cur_state)
+            out = self.allocator.alloc([states[i] for i in sidx], sidx, cur_state)
             out = out[0] if isinstance(out, list) and len(out) == 1 else out
             out = chain(out)
             states.append(out)

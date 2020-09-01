@@ -5,13 +5,7 @@ from ...core.param_space import ArchParamSpace
 
 
 class UnifiedEstimator(EstimatorBase):
-    def __init__(self,
-                 train_epochs=1,
-                 train_steps=-1,
-                 reset_training=False,
-                 eval_steps=1,
-                 *args,
-                 **kwargs):
+    def __init__(self, train_epochs=1, train_steps=-1, reset_training=False, eval_steps=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if train_steps != 0:
             train_epochs = 1
@@ -48,12 +42,11 @@ class UnifiedEstimator(EstimatorBase):
                                 tot_steps=n_train_batch)
         if (self.cur_step + 1) % self.eval_steps != 0:
             return {'default': None}
-        arch_desc = self.model_exporter(self.model)
+        arch_desc = self.exporter(self.model)
         ret = self.compute_metrics()
         self.logger.info('Evaluate: {} -> {}'.format(arch_desc, ret))
         score = self.get_score(ret)
-        if self.best_score is None or (score is not None
-                                       and score > self.best_score):
+        if self.best_score is None or (score is not None and score > self.best_score):
             self.best_score = score
             self.best_arch_desc = arch_desc
         return ret
@@ -71,14 +64,15 @@ class UnifiedEstimator(EstimatorBase):
         eta_m = utils.ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
         for epoch_step in itertools.count(0):
-            n_epoch_steps = 1 if train_steps == 0 else (
-                self.get_num_train_batch() + train_steps - 1) // train_steps
+            n_epoch_steps = 1 if train_steps == 0 else (self.get_num_train_batch() + train_steps - 1) // train_steps
             epoch = self.cur_epoch
             if epoch >= tot_epochs:
                 break
             # arch step
-            if epoch >= arch_epoch_start and (
-                    epoch - arch_epoch_start) % arch_epoch_intv == 0:
+            if not optim.has_next():
+                logger.info('Search: finished')
+                break
+            if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
             self.inputs = optim.next(batch_size=arch_batch_size)
             self.results = []
@@ -97,13 +91,10 @@ class UnifiedEstimator(EstimatorBase):
                 self.save_arch_desc()
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint()
-            self.save_arch_desc(save_name='best',
-                                arch_desc=self.best_arch_desc)
+            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             eta_m.step()
-            logger.info(
-                'Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.
-                format(self.cur_epoch + 1, tot_epochs, batch_best or 0,
-                       self.best_score or 0, eta_m.eta_fmt()))
+            logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+                self.cur_epoch + 1, tot_epochs, batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
             self.cur_epoch += 1
         return {
             'best_score': self.best_score,

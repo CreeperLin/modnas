@@ -131,7 +131,7 @@ def estims_routine(logger, optim, estims):
     return results
 
 
-def default_model_builder(logger, construct_fn):
+def default_constructor(logger, construct_fn):
     Slot.reset()
     # net
     net = None
@@ -187,12 +187,12 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
     construct_fn.update(build_constructor_all(con_config))
     # model
-    model = model_builder = None
+    model = constructor = None
     if construct_fn:
-        model_builder = partial(default_model_builder, logger, construct_fn)
-        model = model_builder()
+        constructor = partial(default_constructor, logger, construct_fn)
+        model = constructor()
     # export
-    model_exporter = build_exporter_all(config.get('export', {}))
+    exporter = build_exporter_all(config.get('export', {}))
     # optim
     optim = None
     if 'optim' in config:
@@ -208,8 +208,8 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
     # estim
     estim_comp = {
         'expman': expman,
-        'model_builder': model_builder,
-        'model_exporter': model_exporter,
+        'constructor': constructor,
+        'exporter': exporter,
         'model': model,
         'writer': writer,
         'logger': logger,

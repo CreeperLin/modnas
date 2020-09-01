@@ -64,11 +64,10 @@ class DefaultSlotTraversalConstructor():
         gen = self.gen or Slot.gen_slots_model(model)
         all_slots = list(gen())
         for m in all_slots:
-            if m.fixed:
+            if m.ent is not None:
                 continue
             ent = self.convert(m)
             m.set_entity(ent)
-            m.fixed = True
         return model
 
 

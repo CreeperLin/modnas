@@ -6,16 +6,9 @@ from ...core.param_space import ArchParamSpace
 
 
 class SubNetEstimator(EstimatorBase):
-    def __init__(self,
-                 rebuild_subnet=False,
-                 reset_subnet_params=False,
-                 num_bn_batch=100,
-                 clear_subnet_bn=True,
-                 *args,
-                 **kwargs):
+    def __init__(self, rebuild_subnet=False, num_bn_batch=100, clear_subnet_bn=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rebuild_subnet = rebuild_subnet
-        self.reset_subnet_params = reset_subnet_params
         self.num_bn_batch = num_bn_batch
         self.clear_subnet_bn = clear_subnet_bn
         self.best_score = None
@@ -23,13 +16,12 @@ class SubNetEstimator(EstimatorBase):
 
     def step(self, params):
         ArchParamSpace.update_params(params)
-        arch_desc = self.model_exporter(self.model)
+        arch_desc = self.exporter(self.model)
         config = self.config
         try:
             self.construct_subnet(arch_desc)
         except RuntimeError:
-            self.logger.info('subnet construct failed:\n{}'.format(
-                traceback.format_exc()))
+            self.logger.info('subnet construct failed:\n{}'.format(traceback.format_exc()))
             ret = {'error_no': -1}
             return ret
         tot_epochs = config.subnet_epochs
@@ -42,8 +34,7 @@ class SubNetEstimator(EstimatorBase):
                 self.train_epoch(epoch=epoch, tot_epochs=tot_epochs)
         ret = self.compute_metrics()
         best_score = self.get_score(ret)
-        if self.best_score is None or (best_score is not None
-                                       and best_score > self.best_score):
+        if self.best_score is None or (best_score is not None and best_score > self.best_score):
             self.best_score = best_score
             self.best_arch_desc = arch_desc
         self.logger.info('Evaluate: {} -> {}'.format(arch_desc, ret))
@@ -51,16 +42,12 @@ class SubNetEstimator(EstimatorBase):
 
     def construct_subnet(self, arch_desc):
         if self.rebuild_subnet:
-            self.model = self.model_builder(arch_desc=arch_desc)
-        elif self.reset_subnet_params:
-            pass
+            self.model = self.constructor(arch_desc=arch_desc)
         else:
-            utils.recompute_bn_running_statistics(self.model, self.trainer,
-                                                  self.num_bn_batch,
-                                                  self.clear_subnet_bn)
+            utils.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
     def validate(self):
-        self.construct_subnet(self.model_exporter(self.model))
+        self.construct_subnet(self.exporter(self.model))
         return self.validate_epoch(epoch=0, tot_epochs=1)
 
     def run(self, optim):
@@ -76,8 +63,10 @@ class SubNetEstimator(EstimatorBase):
             if epoch >= tot_epochs:
                 break
             # arch step
-            if epoch >= arch_epoch_start and (
-                    epoch - arch_epoch_start) % arch_epoch_intv == 0:
+            if not optim.has_next():
+                logger.info('Search: finished')
+                break
+            if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
             self.inputs = optim.next(batch_size=arch_batch_size)
             self.results = []
@@ -94,13 +83,10 @@ class SubNetEstimator(EstimatorBase):
                 self.save_arch_desc(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
-            self.save_arch_desc(save_name='best',
-                                arch_desc=self.best_arch_desc)
+            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             eta_m.step()
-            logger.info(
-                'Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.
-                format(epoch + 1, tot_epochs, batch_best or 0, self.best_score
-                       or 0, eta_m.eta_fmt()))
+            logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+                epoch + 1, tot_epochs, batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
             'best_arch': self.best_arch_desc,

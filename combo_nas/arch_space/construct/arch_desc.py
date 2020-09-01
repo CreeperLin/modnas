@@ -10,8 +10,8 @@ from . import register
 
 _arch_desc_parser = {
     'json': lambda desc: json.loads(desc),
-    'yaml': lambda desc: yaml.load(desc),
-    'yml': lambda desc: yaml.load(desc),
+    'yaml': lambda desc: yaml.load(desc, Loader=yaml.FullLoader),
+    'yml': lambda desc: yaml.load(desc, Loader=yaml.FullLoader),
 }
 
 

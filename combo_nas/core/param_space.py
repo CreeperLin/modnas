@@ -26,7 +26,7 @@ class ParamSpace():
                 idx += 1
                 reg_name = '{}_{}'.format(name, idx)
         param.name = reg_name
-        self._params_map[reg_name] = param
+        self.add_param(reg_name, param)
         if isinstance(param, ParamCategorical):
             self._categorical_length = None
 
@@ -52,6 +52,9 @@ class ParamSpace():
     def named_params(self, ):
         for n, p in self._params_map.items():
             yield n, p
+
+    def add_param(self, name, param):
+        self._params_map[name] = param
 
     def get_param(self, name):
         return self._params_map.get(name, None)
@@ -107,19 +110,18 @@ class ParamSpace():
     def get_categorical_index(self, param):
         idx = 0
         base = 1
-        for n, v in param.items():
-            p = self.get_param(n)
+        for p in self.categorical_params():
             p_dim = len(p)
-            p_idx = p.get_index(v)
+            p_idx = p.get_index(param[p.name])
             idx += base * p_idx
             base *= p_dim
         return idx
 
     def set_categorical_params(self, idx):
-        for ap in self.categorical_params():
-            ap_dim = len(ap)
-            ap.set_value(idx % ap_dim)
-            idx //= ap_dim
+        for p in self.categorical_params():
+            p_dim = len(p)
+            p.set_value(idx % p_dim)
+            idx //= p_dim
 
     def update_params(self, pmap, trigger=True):
         for k, v in pmap.items():
@@ -274,65 +276,14 @@ class ParamTensor(Param):
         self.val = value
 
 
-class ArchParamSpaceClass(ParamSpace):
-    def param_call(self, func, *args, **kwargs):
-        return [getattr(p, func)(*args, **kwargs) for p in self.params()]
-
-    def param_module_call(self, func, *args, **kwargs):
-        for p in self.params():
-            p.param_module_call(func, *args, **kwargs)
-
-    def param_modules(self, ):
-        for p in self.params():
-            for m in p.modules():
-                yield (p.value(), m)
-
-    def tensor_param_modules(self, ):
-        for p in self.tensor_params():
-            for m in p.modules():
-                yield (p.value(), m)
-
-    def categorical_param_modules(self, ):
-        for p in self.categorical_params():
-            for m in p.modules():
-                yield (p.value(), m)
+ArchParamSpace = ParamSpace()
 
 
-ArchParamSpace = ArchParamSpaceClass()
-
-
-class ArchParam():
-    def __init__(self):
-        self.pid = None
-        self._modules = []
-
-    def value(self):
-        raise NotImplementedError
-
-    def add_module(self, m):
-        self._modules.append(m)
-        logging.debug('param: {} add module: {}'.format(self.pid, type(m)))
-
-    def param_module_call(self, func, *args, **kwargs):
-        return [getattr(m, func)(self.value(), *args, **kwargs) for m in self.modules()]
-
-    def module_call(self, func, *args, **kwargs):
-        return [getattr(m, func)(*args, **kwargs) for m in self.modules()]
-
-    def modules(self):
-        for m in self._modules:
-            yield m
-
-
-class ArchParamTensor(ParamTensor, ArchParam):
+class ArchParamTensor(ParamTensor):
     def __init__(self, shape, sampler=None, name=None, on_update=None):
         ParamTensor.__init__(self, ArchParamSpace, shape, sampler, name, on_update)
-        ArchParam.__init__(self)
-        logging.debug('tensor arch param {} defined: {}'.format(self.pid, self.shape))
 
 
-class ArchParamCategorical(ParamCategorical, ArchParam):
+class ArchParamCategorical(ParamCategorical):
     def __init__(self, choices, sampler=None, name=None, on_update=None):
         ParamCategorical.__init__(self, ArchParamSpace, choices, sampler, name, on_update)
-        ArchParam.__init__(self)
-        logging.debug('discrete arch param {} defined: {}'.format(self.pid, self.choices))

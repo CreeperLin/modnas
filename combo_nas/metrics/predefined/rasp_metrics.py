@@ -1,6 +1,5 @@
 from ..base import MetricsBase
 from .. import register_as, build
-from ...arch_space.slot import Slot
 from ...arch_space.mixed_ops import MixedOp
 try:
     import rasp
@@ -60,14 +59,6 @@ class RASPTraversalMetrics(MetricsBase):
         if node.tape is None:
             return ret
         for cur_node in node.tape.items:
-            module = cur_node.module
-            if isinstance(module, Slot):
-                prim_type = module.desc
-                if prim_type is not None:
-                    if isinstance(prim_type, (tuple, list)):
-                        prim_type = prim_type[0]
-                    ent_node = F.get_stats_node(module.ent)
-                    ent_node['prim_type'] = prim_type
             if cur_node['prim_type']:
                 n_ret = self.metrics.compute(cur_node)
             else:
@@ -127,8 +118,7 @@ class RASPTraversalMetrics(MetricsBase):
                 if subn_mt is None:
                     subn_mt = self.traverse(subn)
                 if subn_mt is None:
-                    self.logger.warning('unresolved node: {} type: {}'.format(
-                        subn['name'], subn['type']))
+                    self.logger.warning('unresolved node: {} type: {}'.format(subn['name'], subn['type']))
                     subn_mt = 0
                 mixop_mt = mixop_mt + subn_mt * p
             mt += mixop_mt
@@ -141,14 +131,7 @@ class RASPTraversalMetrics(MetricsBase):
 
 @register_as('RASPRootMetrics')
 class RASPRootMetrics(MetricsBase):
-    def __init__(self,
-                 logger,
-                 input_shape,
-                 metrics,
-                 args={},
-                 compute=True,
-                 timing=False,
-                 device=None):
+    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
         super().__init__(logger)
         if rasp is None:
             raise ValueError('package RASP is not found')

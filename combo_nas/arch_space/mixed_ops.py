@@ -17,11 +17,9 @@ class MixedOp(nn.Module):
             raise ValueError('unsupported primitives type')
         if arch_param_map is None:
             arch_param_map = {
-                'p': ArchParamTensor(len(self._ops)),
+                'default': ArchParamTensor(len(self._ops)),
             }
         self.arch_param_map = arch_param_map
-        for ap in arch_param_map.values():
-            ap.add_module(self)
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
 
     def primitives(self):
@@ -35,15 +33,15 @@ class MixedOp(nn.Module):
             yield n, prim
 
     def alpha(self):
-        return self.arch_param_value('p')
+        return self.arch_param_value()
 
     def prob(self):
         return F.softmax(self.alpha(), dim=-1)
 
-    def arch_param(self, name):
+    def arch_param(self, name='default'):
         return self.arch_param_map.get(name)
 
-    def arch_param_value(self, name):
+    def arch_param_value(self, name='default'):
         return self.arch_param_map.get(name).value()
 
     def to_arch_desc(self, *args, **kwargs):
@@ -91,14 +89,10 @@ class BinGateMixedOp(MixedOp):
         self.a_grad_enabled = enabled
 
     def sample_path(self):
-        p = self.arch_param_value('p')
+        p = self.alpha()
         s_op = self.s_op
-        self.w_path_f = F.softmax(p.index_select(
-            -1,
-            torch.tensor(s_op).to(p.device)),
-                                  dim=-1)
-        samples = self.w_path_f.multinomial(
-            1 if self.a_grad_enabled else self.n_samples)
+        self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
+        samples = self.w_path_f.multinomial(1 if self.a_grad_enabled else self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
 
     def sample_ops(self, n_samples):
@@ -117,7 +111,7 @@ class BinGateMixedOp(MixedOp):
         if self.training:
             self.swap_ops(s_path_f)
         if self.a_grad_enabled:
-            p = self.arch_param_value('p')
+            p = self.alpha()
             ctx_dict = {
                 's_op': self.s_op,
                 's_path_f': self.s_path_f,
@@ -178,11 +172,7 @@ class BinGateFunction(torch.autograd.function.Function):
         args_f = ctx.saved_tensors[:-1]
         m_out = ctx.saved_tensors[-1]
         retain = True if len(args_f) > 1 else False
-        grad_args = torch.autograd.grad(m_out,
-                                        args_f,
-                                        m_grad,
-                                        only_inputs=True,
-                                        retain_graph=retain)
+        grad_args = torch.autograd.grad(m_out, args_f, m_grad, only_inputs=True, retain_graph=retain)
         with torch.no_grad():
             a_grad = torch.zeros(ctx.param_shape)
             s_op = ctx.s_op
@@ -199,31 +189,25 @@ class BinGateFunction(torch.autograd.function.Function):
                 g_grad = torch.sum(m_grad * op_out)
                 for i, oi in enumerate(s_op):
                     kron = 1 if i == j else 0
-                    a_grad[oi] = a_grad[oi] + g_grad * w_path_f[j] * (
-                        kron - w_path_f[i])
+                    a_grad[oi] = a_grad[oi] + g_grad * w_path_f[j] * (kron - w_path_f[i])
         return (None, a_grad, None) + grad_args
 
 
 class BinGateUniformMixedOp(BinGateMixedOp):
     """ Mixed operation controlled by binary gate """
     def sample_path(self):
-        p = self.arch_param_value('p')
+        p = self.alpha()
         s_op = self.s_op
-        self.w_path_f = F.softmax(p.index_select(
-            -1,
-            torch.tensor(s_op).to(p.device)),
-                                  dim=-1)
+        self.w_path_f = F.softmax(p.index_select(-1, torch.tensor(s_op).to(p.device)), dim=-1)
         # sample uniformly
-        samples = F.softmax(torch.ones(len(s_op)),
-                            dim=-1).multinomial(self.n_samples)
+        samples = F.softmax(torch.ones(len(s_op)), dim=-1).multinomial(self.n_samples)
         s_path_f = [s_op[i] for i in samples]
         self.s_path_f = s_path_f
 
     def sample_ops(self, n_samples):
-        p = self.arch_param_value('p')
+        p = self.alpha()
         # sample uniformly
-        samples = F.softmax(torch.ones(p.shape),
-                            dim=-1).multinomial(n_samples).detach()
+        samples = F.softmax(torch.ones(p.shape), dim=-1).multinomial(n_samples).detach()
         # sample according to p
         # samples = F.softmax(p, dim=-1).multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())

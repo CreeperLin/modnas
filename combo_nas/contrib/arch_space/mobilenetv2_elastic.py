@@ -35,7 +35,7 @@ class MobileNetV2ElasticArchDescExporter():
 
 
 @register_constructor
-class MobileNetV2ElasticSpatialConverter(MobileNetV2PredefinedConstructor):
+class MobileNetV2ElasticSpatialConstructor(MobileNetV2PredefinedConstructor):
     def __init__(self, fix_first=True, expansion_range=[1, 3, 6], rank_fn='l1_fan_in', search=True):
         super().__init__()
         self.fix_first = fix_first
@@ -109,7 +109,7 @@ class MobileNetV2ElasticSpatialConverter(MobileNetV2PredefinedConstructor):
 
 
 @register_constructor
-class MobileNetV2ElasticSequentialConverter(MobileNetV2PredefinedConstructor):
+class MobileNetV2ElasticSequentialConstructor(MobileNetV2PredefinedConstructor):
     def __init__(self, repeat_range=[1, 2, 3, 4], search=True):
         super().__init__()
         self.is_search = search
@@ -145,10 +145,10 @@ class MobileNetV2ElasticSequentialConverter(MobileNetV2PredefinedConstructor):
 
 
 @register_constructor
-class MobileNetV2ElasticConverter(MobileNetV2ElasticSpatialConverter, MobileNetV2ElasticSequentialConverter):
-    __call__ = MobileNetV2ElasticSequentialConverter.__call__
-    convert = MobileNetV2ElasticSpatialConverter.convert
+class MobileNetV2ElasticConstructor(MobileNetV2ElasticSpatialConstructor, MobileNetV2ElasticSequentialConstructor):
+    __call__ = MobileNetV2ElasticSequentialConstructor.__call__
+    convert = MobileNetV2ElasticSpatialConstructor.convert
 
     def __init__(self, search=True, spatial_kwargs=None, sequential_kwargs=None):
-        MobileNetV2ElasticSpatialConverter.__init__(self, search=search, **(spatial_kwargs or {}))
-        MobileNetV2ElasticSequentialConverter.__init__(self, search=search, **(sequential_kwargs or {}))
+        MobileNetV2ElasticSpatialConstructor.__init__(self, search=search, **(spatial_kwargs or {}))
+        MobileNetV2ElasticSequentialConstructor.__init__(self, search=search, **(sequential_kwargs or {}))

@@ -1,7 +1,6 @@
-import torch.nn as nn
 from combo_nas.core.param_space import ArchParamCategorical
 from combo_nas.estim.predefined.regression import RegressionEstimator, ArchPredictor
-import combo_nas.arch_space
+from combo_nas.arch_space.construct import register as register_constructor
 import combo_nas.estim
 try:
     from nasbench import api
@@ -16,25 +15,18 @@ CONV3X3 = 'conv3x3-bn-relu'
 MAXPOOL3X3 = 'maxpool3x3'
 
 
-@combo_nas.arch_space.register_as('NASBench')
-class NASBenchNet(nn.Module):
+@register_constructor
+class NASBenchSpaceConstructor():
     def __init__(self, n_nodes=7):
-        super().__init__()
-        matrix = []
-        ops = []
+        self.n_nodes = n_nodes
+
+    def __call__(self, model):
+        del model
+        n_nodes = self.n_nodes
         n_states = n_nodes - 2
         n_edges = n_nodes * (n_nodes - 1) // 2
-        for _ in range(n_edges):
-            matrix.append(ArchParamCategorical(['0', '1']))
-        for _ in range(n_states):
-            ops.append(ArchParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]))
-        self.matrix_params = matrix
-        self.ops_params = ops
-
-    def to_arch_desc(self):
-        matrix = [p.value() for p in self.matrix_params]
-        ops = [p.value() for p in self.ops_params]
-        return (matrix, ops)
+        _ = [ArchParamCategorical([0, 1]) for i in range(n_edges)]
+        _ = [ArchParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]) for i in range(n_states)]
 
 
 class NASBenchPredictor(ArchPredictor):
@@ -45,19 +37,17 @@ class NASBenchPredictor(ArchPredictor):
         self.nasbench = api.NASBench(record_path)
         self.max_nodes = 7
 
-    def fit(self, ):
-        pass
-
     def predict(self, arch_desc):
         max_nodes = self.max_nodes
         matrix = [[0] * max_nodes for i in range(max_nodes)]
-        g_matrix = arch_desc[0]
+        g_matrix = [g for g in arch_desc if g in [0, 1]]
+        g_ops = arch_desc[len(g_matrix):]
         k = 0
         for i in range(max_nodes):
             for j in range(i + 1, max_nodes):
                 matrix[i][j] = int(g_matrix[k])
                 k += 1
-        ops = [INPUT] + arch_desc[1] + [OUTPUT]
+        ops = [INPUT] + g_ops + [OUTPUT]
         model_spec = api.ModelSpec(matrix=matrix, ops=ops)
         try:
             data = self.nasbench.query(model_spec)

@@ -4,7 +4,7 @@ import matplotlib
 import torch.nn.functional as F
 from combo_nas.estim import register_as
 from combo_nas.estim.predefined.supernet import SuperNetEstimator
-from combo_nas.core.param_space import ArchParamSpace
+from combo_nas.arch_space.mixed_ops import MixedOp
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
@@ -16,7 +16,7 @@ class ParamStatsEstimator(SuperNetEstimator):
         self.probs = []
 
     def record_probs(self):
-        self.probs.append([F.softmax(a.detach(), dim=-1).cpu().numpy() for a in ArchParamSpace.tensor_values()])
+        self.probs.append([F.softmax(m.alpha().detach(), dim=-1).cpu().numpy() for m in MixedOp.gen(self.model)])
 
     def search_epoch(self, epoch, optim):
         self.record_probs()
@@ -31,14 +31,14 @@ class ParamStatsEstimator(SuperNetEstimator):
         self.logger.info('arch param stats: epochs: {} alphas: {}'.format(n_epochs, n_alphas))
         epochs = list(range(n_epochs))
         save_probs = []
-        for i, alpha in enumerate(ArchParamSpace.tensor_params()):
+        for i, m in enumerate(MixedOp.gen(self.model)):
             plt.figure(i)
             plt.title('alpha: {}'.format(i))
             prob = np.array([p[i] for p in probs])
             alpha_dim = prob.shape[1]
             for a in range(alpha_dim):
                 plt.plot(epochs, prob[:, a])
-            legends = list(alpha.modules())[0].primitive_names()
+            legends = m.primitive_names()
             plt.legend(legends)
             plt.savefig(self.expman.join('plot', 'prob_{}.png'.format(i)))
             save_probs.append(prob)

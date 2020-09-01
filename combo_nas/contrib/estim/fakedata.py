@@ -1,19 +1,19 @@
 import numpy as np
-import torch.nn as nn
 from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
 from combo_nas.estim.predefined.regression import RegressionEstimator, ArchPredictor
-import combo_nas.arch_space
+from combo_nas.arch_space.construct import register as register_constructor
 import combo_nas.estim
 
 
-@combo_nas.arch_space.register_as('FakeData')
-class FakeDataNet(nn.Module):
+@register_constructor
+class FakeDataSpaceConstructor():
     def __init__(self, n_nodes=2**10, dim=2**1):
-        super().__init__()
-        matrix = []
-        for _ in range(n_nodes):
-            matrix.append(ArchParamCategorical(list(range(dim))))
-        self.matrix_params = matrix
+        self.n_nodes = n_nodes
+        self.dim = dim
+
+    def __call__(self, model):
+        del model
+        _ = [ArchParamCategorical(list(range(self.dim))) for _ in range(self.n_nodes)]
 
 
 class FakeDataPredictor(ArchPredictor):

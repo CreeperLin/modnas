@@ -4,8 +4,9 @@ from ..base import CategoricalSpaceOptim
 
 
 class GeneticOptim(CategoricalSpaceOptim):
-    def __init__(self, space, pop_size, logger=None):
+    def __init__(self, space, pop_size, max_it=1000, logger=None):
         super().__init__(space, logger)
+        self.max_it = max_it
         self.pop_size = pop_size
         self.operators = []
         self.metrics = []
@@ -21,7 +22,9 @@ class GeneticOptim(CategoricalSpaceOptim):
         return cur_pop
 
     def _next(self):
-        return self.population[len(self.metrics)]
+        params = self.population[len(self.metrics)]
+        self.set_visited_params(params)
+        return params
 
     def add_operator(self, operator):
         self.operators.append(operator)
@@ -88,28 +91,40 @@ class EvolutionOptim(GeneticOptim):
 
     def _crossover(self, pop):
         next_pop = []
-        while len(next_pop) < self.n_crossover:
+        it = 0
+        while len(next_pop) < self.n_crossover and it < self.max_it:
             parents = [random.choice(pop) for _ in range(self.n_parents)]
             for _ in range(self.n_offsprings):
-                n_desc = parents[0].copy()
+                n_gene = parents[0].copy()
                 for name in parents[0]:
                     values = [p[name] for p in parents]
-                    n_desc[name] = random.choice(values)
-                next_pop.append(n_desc)
+                    n_gene[name] = random.choice(values)
+                if self.is_visited_params(n_gene):
+                    continue
+                next_pop.append(n_gene)
+            it += 1
+        while len(next_pop) < self.n_crossover:
+            next_pop.append(self.get_random_params())
         return next_pop
 
     def _mutation(self, pop):
         next_pop = []
-        for desc in pop:
-            m_desc = desc.copy()
-            for name, value in desc.items():
-                p = self.space.get_param(name)
-                if random.random() < self.mutation_prob:
-                    nidx = idx = p.get_index(value)
-                    while nidx == idx:
-                        nidx = random.randint(0, len(p) - 1)
-                    m_desc[name] = p.get_value(nidx)
-            next_pop.append(m_desc)
+        for gene in pop:
+            it = 0
+            while it < self.max_it:
+                m_gene = gene.copy()
+                for name, value in gene.items():
+                    p = self.space.get_param(name)
+                    if random.random() < self.mutation_prob:
+                        nidx = idx = p.get_index(value)
+                        while nidx == idx:
+                            nidx = random.randint(0, len(p) - 1)
+                        m_gene[name] = p.get_value(nidx)
+                if not self.is_visited_params(m_gene):
+                    break
+            if it == self.max_it:
+                m_gene = self.get_random_params()
+            next_pop.append(m_gene)
         return next_pop
 
 

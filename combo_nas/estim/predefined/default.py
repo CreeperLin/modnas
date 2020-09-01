@@ -1,6 +1,6 @@
 import itertools
 from ..base import EstimatorBase
-from ...arch_space.droppath import update_drop_path_prob, apply_drop_path
+from ...arch_space.droppath import update_drop_path_prob
 from ...utils import ETAMeter
 
 
@@ -23,8 +23,6 @@ class DefaultEstimator(EstimatorBase):
         config = self.config
         tot_epochs = config.epochs
         drop_prob = self.config.drop_path_prob
-        if drop_prob > 0:
-            apply_drop_path(self.model)
         eta_m = ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
