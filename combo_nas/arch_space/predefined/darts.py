@@ -139,7 +139,7 @@ class DARTSSearchConstructor(DefaultMixedOpConstructor):
         if arch_params is not None:
             mixed_args['arch_param_map'] = arch_params
         ent = super().convert(slot)
-        del mixed_args['arch_param_map']
+        mixed_args.pop('arch_param_map', None)
         if slot.name not in self.param_map:
             self.param_map[slot.name] = ent.arch_param_map
         return ent

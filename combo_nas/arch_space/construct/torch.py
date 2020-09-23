@@ -1,6 +1,24 @@
 import logging
 import torch
 from . import register
+from ..slot import Slot
+from ...core.param_space import ArchParamSpace
+
+
+@register
+class DefaultInitConstructor():
+    def __init__(self, seed=None):
+        self.seed = seed
+
+    def __call__(self, model):
+        Slot.reset()
+        ArchParamSpace.reset()
+        seed = self.seed
+        if seed:
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        return model
 
 
 @register

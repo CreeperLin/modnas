@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import torch
 import torch.nn as nn
 from ...utils.optimizer import get_optimizer
@@ -165,12 +166,12 @@ class ImageClsTrainer(TrainerBase):
         if not tot_steps:
             return None
         for step in range(tot_steps):
-            self.valid_step(estim, model, epoch, tot_epochs, step, tot_steps)
-        return {
-            'acc_top1': self.top1.avg,
-            'acc_top5': self.top5.avg,
-            'loss': self.losses.avg,
-        }
+            self.validate_step(estim, model, epoch, tot_epochs, step, tot_steps)
+        return OrderedDict([
+            ('acc_top1', self.top1.avg),
+            ('acc_top5', self.top5.avg),
+            ('loss', self.losses.avg),
+        ])
 
     def valid_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
         if step == 0:

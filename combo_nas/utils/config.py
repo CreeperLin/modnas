@@ -1,8 +1,6 @@
 # modified from https://github.com/HarryVolek/PyTorch_Speaker_Verification
 import yaml
 import copy
-import logging
-logger = logging.getLogger('config')
 
 
 def load_config(filename):
@@ -72,23 +70,6 @@ class Config(dict):
             raise ValueError('unsupported apply type: {}'.format(type(dct)))
         for k, v in dct.items():
             Config.set_value(config, k, v)
-
-    @staticmethod
-    def merge(src, dest, overwrite=True):
-        if isinstance(src, dict) and isinstance(dest, dict):
-            for k, v in dest.items():
-                if k not in src:
-                    src[k] = v
-                    logger.warning('merge_config: add key {}'.format(k))
-                else:
-                    src[k] = Config.merge(src[k], v, overwrite)
-        elif isinstance(src, list) and isinstance(dest, list):
-            logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
-            src.extend(dest)
-        elif overwrite:
-            src = dest
-            logger.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
-        return src
 
     @staticmethod
     def load(conf):

@@ -12,6 +12,23 @@ except ImportError:
     SummaryWriter = None
 
 
+def merge_config(src, dest, overwrite=True):
+    if isinstance(src, dict) and isinstance(dest, dict):
+        for k, v in dest.items():
+            if k not in src:
+                src[k] = v
+                logging.warning('merge_config: add key {}'.format(k))
+            else:
+                src[k] = merge_config(src[k], v, overwrite)
+    elif isinstance(src, list) and isinstance(dest, list):
+        logging.warning('merge_config: extend list: {} + {}'.format(src, dest))
+        src.extend(dest)
+    elif overwrite:
+        logging.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
+        src = dest
+    return src
+
+
 def env_info():
     return 'environment info:\ncombo_nas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
         __version__,

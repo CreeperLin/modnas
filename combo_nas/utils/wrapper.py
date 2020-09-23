@@ -42,8 +42,12 @@ def load_config(conf):
     config = None
     for cfg in conf:
         loaded_cfg = Config.load(cfg)
-        config = loaded_cfg if config is None else Config.merge(config, loaded_cfg)
+        config = loaded_cfg if config is None else utils.merge_config(config, loaded_cfg)
     return config
+
+
+def get_init_constructor():
+    return {'type': 'DefaultInitConstructor'}
 
 
 def get_model_constructor(config):
@@ -69,6 +73,12 @@ def get_mixed_op_constructor(config):
     if 'args' in config:
         default_args['mixed_args'] = config['args']
     return {'type': default_type, 'args': default_args}
+
+
+def get_arch_desc_constructor(arch_desc):
+    default_con = {'type': 'DefaultSlotArchDescConstructor', 'args': {}}
+    default_con['args']['arch_desc'] = arch_desc
+    return default_con
 
 
 def build_constructor_all(config):
@@ -131,17 +141,21 @@ def estims_routine(logger, optim, estims):
     return results
 
 
-def default_constructor(logger, construct_fn):
-    Slot.reset()
-    # net
-    net = None
+def default_constructor(model, logger=None, construct_fn=None, construct_config=None, arch_desc=None):
+    construct_fn = construct_fn or {}
+    if isinstance(construct_fn, list):
+        construct_fn = [(str(i), v) for i, v in enumerate(construct_fn)]
+    construct_fn = OrderedDict(construct_fn)
+    if arch_desc:
+        construct_config['args']['arch_desc'] = arch_desc
+    construct_fn.update(build_constructor_all(construct_config or {}))
     for name, con_fn in construct_fn.items():
         logger.info('Running constructor: {} type: {}'.format(name, con_fn.__class__.__name__))
-        net = con_fn(net)
-    return net
+        model = con_fn(model)
+    return model
 
 
-def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
+def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=None):
     # reset
     ArchParamSpace.reset()
     # dir
@@ -164,33 +178,22 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
     if 'ops' in config:
         configure_ops(config.ops)
     # construct
-    if construct_fn is None:
-        construct_fn = {}
-    if isinstance(construct_fn, list):
-        construct_fn = [(str(i), v) for i, v in enumerate(construct_fn)]
-    construct_fn = OrderedDict(construct_fn)
     con_config = OrderedDict()
+    con_config['init'] = get_init_constructor()
     if 'model' in config:
         con_config['model'] = get_model_constructor(config.model)
-    con_config.update(config.get('construct', {}))
     if 'mixed_op' in config:
         con_config['mixed_op'] = get_mixed_op_constructor(config.mixed_op)
     if arch_desc is not None:
-        default_con = con_config.get('arch_desc', {'type': 'DefaultSlotArchDescConstructor'})
-        args = default_con.get('args', {})
-        args['arch_desc'] = arch_desc
-        default_con['args'] = args
-        con_config['arch_desc'] = default_con
-    if device_ids and len(con_config) or len(construct_fn):
+        con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
+    if device_ids and len(con_config):
         con_config['device'] = {'type': 'ToDevice', 'args': {'device_ids': device_ids}}
     if chkpt is not None:
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
-    construct_fn.update(build_constructor_all(con_config))
+    con_config = utils.merge_config(con_config, config.get('construct', {}))
     # model
-    model = constructor = None
-    if construct_fn:
-        constructor = partial(default_constructor, logger, construct_fn)
-        model = constructor()
+    constructor = partial(default_constructor, logger, construct_fn, con_config, arch_desc)
+    model = constructor(model)
     # export
     exporter = build_exporter_all(config.get('export', {}))
     # optim
