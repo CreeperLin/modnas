@@ -15,6 +15,6 @@ def get_optimizer(params, config, device_ids=None, scale_lr=True):
     return optimizer
 
 
-register(torch.optim.Adam, 'Adam')
-register(torch.optim.SGD, 'SGD')
-register(torch.optim.RMSprop, 'RMSprop')
+register(torch.optim.Adam)
+register(torch.optim.SGD)
+register(torch.optim.RMSprop)

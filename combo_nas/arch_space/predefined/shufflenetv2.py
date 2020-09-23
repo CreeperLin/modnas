@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .. import ops, build, register_as
+from .. import ops, build, register
 from ..slot import Slot
 from ..construct import register as register_constructor
 from ..construct.default import DefaultMixedOpConstructor, DefaultSlotTraversalConstructor
@@ -245,7 +245,7 @@ class ShuffleNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
         return build('SHU3', slot)
 
 
-@register_as('ShuffleNetV2_OneShot')
+@register
 def shufflenetv2_oneshot(cfgs=None, **kwargs):
     cfgs = [
         [16, 1, 2, 1.0],
@@ -258,7 +258,7 @@ def shufflenetv2_oneshot(cfgs=None, **kwargs):
     return ShuffleNetV2(cfgs=cfgs, **kwargs)
 
 
-@register_as('CIFAR-ShuffleNetV2_OneShot')
+@register
 def cifar_shufflenetv2_oneshot(cfgs=None, **kwargs):
     cfgs = [
         [24, 1, 1, 1.0],
@@ -271,7 +271,7 @@ def cifar_shufflenetv2_oneshot(cfgs=None, **kwargs):
     return ShuffleNetV2(cfgs=cfgs, **kwargs)
 
 
-@register_as('ShuffleNetV2')
+@register
 def shufflenetv2(cfgs=None, **kwargs):
     cfgs = [
         [24, 1, 4, 1.0],
@@ -283,7 +283,7 @@ def shufflenetv2(cfgs=None, **kwargs):
     return ShuffleNetV2(cfgs=cfgs, **kwargs)
 
 
-@register_as('CIFAR-ShuffleNetV2')
+@register
 def cifar_shufflenetv2(cfgs=None, **kwargs):
     cfgs = [
         [24, 1, 1, 1.0],

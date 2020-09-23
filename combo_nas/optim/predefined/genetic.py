@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from ..base import CategoricalSpaceOptim
+from .. import register
 
 
 class GeneticOptim(CategoricalSpaceOptim):
@@ -45,6 +46,7 @@ class GeneticOptim(CategoricalSpaceOptim):
             self.metrics = []
 
 
+@register
 class EvolutionOptim(GeneticOptim):
     def __init__(self,
                  space,
@@ -56,7 +58,7 @@ class EvolutionOptim(GeneticOptim):
                  n_crossover=None,
                  mutation_prob=0.01,
                  logger=None):
-        super().__init__(space, pop_size, logger)
+        super().__init__(space=space, pop_size=pop_size, logger=logger)
         self.add_operator(self._survival)
         self.add_operator(self._selection)
         self.add_operator(self._crossover)
@@ -128,6 +130,7 @@ class EvolutionOptim(GeneticOptim):
         return next_pop
 
 
+@register
 class RegularizedEvolutionOptim(EvolutionOptim):
     def _survival(self, pop):
         s_idx = self.n_eliminate

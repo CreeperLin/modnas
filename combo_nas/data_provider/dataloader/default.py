@@ -2,22 +2,22 @@ import logging
 import random
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-from . import register_as
+from . import register
 
 
-@register_as('Default')
-def get_torch_dataloader(trn_data,
-                         val_data,
-                         parallel_multiplier=1,
-                         trn_batch_size=64,
-                         val_batch_size=64,
-                         workers=2,
-                         train_size=0,
-                         train_ratio=1.,
-                         train_seed=1,
-                         valid_size=0,
-                         valid_ratio=0.,
-                         valid_seed=1):
+@register
+def DefaultDataLoader(trn_data,
+                      val_data,
+                      parallel_multiplier=1,
+                      trn_batch_size=64,
+                      val_batch_size=64,
+                      workers=2,
+                      train_size=0,
+                      train_ratio=1.,
+                      train_seed=1,
+                      valid_size=0,
+                      valid_ratio=0.,
+                      valid_seed=1):
     # index
     n_train_data = len(trn_data)
     trn_idx = list(range(n_train_data))

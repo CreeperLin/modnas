@@ -1,11 +1,13 @@
 import itertools
 import traceback
-from ..base import EstimatorBase
+from ..base import EstimBase
 from ... import utils
 from ...core.param_space import ArchParamSpace
+from .. import register
 
 
-class SubNetEstimator(EstimatorBase):
+@register
+class SubNetEstim(EstimBase):
     def __init__(self, rebuild_subnet=False, num_bn_batch=100, clear_subnet_bn=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rebuild_subnet = rebuild_subnet
@@ -46,9 +48,9 @@ class SubNetEstimator(EstimatorBase):
         else:
             utils.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
-    def validate(self):
+    def valid(self):
         self.construct_subnet(self.exporter(self.model))
-        return self.validate_epoch(epoch=0, tot_epochs=1)
+        return self.valid_epoch(epoch=0, tot_epochs=1)
 
     def run(self, optim):
         logger = self.logger

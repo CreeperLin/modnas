@@ -1,6 +1,8 @@
 from .base import ModelOptimizer
+from . import register
 
 
+@register
 class RandomSamplingModelOptimizer(ModelOptimizer):
     def __init__(self, space, n_iter=1000):
         super().__init__(space)

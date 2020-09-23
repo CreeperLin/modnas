@@ -1,7 +1,9 @@
 from ..base import CategoricalSpaceOptim
 from .. import cost_model, model_optimizer
+from .. import register
 
 
+@register
 class ModelBasedOptim(CategoricalSpaceOptim):
     def __init__(self, space, cost_model_config, model_optimizer_config, greedy_e=0.05, n_next_pts=32, logger=None):
         super().__init__(space, logger)

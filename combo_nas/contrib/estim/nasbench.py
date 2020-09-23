@@ -1,7 +1,7 @@
 from combo_nas.core.param_space import ArchParamCategorical
-from combo_nas.estim.predefined.regression import RegressionEstimator, ArchPredictor
+from combo_nas.estim.predefined.regression import RegressionEstim
 from combo_nas.arch_space.construct import register as register_constructor
-import combo_nas.estim
+from combo_nas.estim import register as register_estim
 try:
     from nasbench import api
 except ImportError:
@@ -29,9 +29,8 @@ class NASBenchSpaceConstructor():
         _ = [ArchParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]) for i in range(n_states)]
 
 
-class NASBenchPredictor(ArchPredictor):
+class NASBenchPredictor():
     def __init__(self, record_path):
-        super().__init__()
         if api is None:
             raise RuntimeError('nasbench api is not installed')
         self.nasbench = api.NASBench(record_path)
@@ -57,8 +56,8 @@ class NASBenchPredictor(ArchPredictor):
         return val_acc
 
 
-@combo_nas.estim.register_as('NASBench')
-class NASBenchEstimator(RegressionEstimator):
+@register_estim
+class NASBenchEstim(RegressionEstim):
     def run(self, optim):
         config = self.config
         self.logger.info('loading NASBench data')

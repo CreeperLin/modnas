@@ -1,11 +1,11 @@
 import os
 import tempfile
 import torch
-from combo_nas.metrics import build, register_as
+from combo_nas.metrics import build, register
 from combo_nas.metrics.base import MetricsBase
 
 
-@register_as('OnnxExportMetrics')
+@register
 class OnnxExportMetrics(MetricsBase):
     def __init__(self, logger, metrics, head=None, export_dir=None, verbose=False, args={}):
         super().__init__(logger)

@@ -30,7 +30,8 @@ def get_current_device():
 def parse_device(device):
     if not isinstance(device, str):
         return []
-    if device == 'cpu':
+    device = device.lower()
+    if device in ['cpu', 'nil', 'none']:
         return []
     if device == 'all':
         return list(range(torch.cuda.device_count()))
@@ -79,8 +80,6 @@ def check_config(config, top_keys=[]):
     flag = False
 
     defaults = {
-        'data.type': 'ImageCls',
-        'data_loader.type': 'ImageCls',
         'ops.ops_order': 'act_weight_bn',
         'ops.affine': False,
         'ops.bias': False,
@@ -93,8 +92,8 @@ def check_config(config, top_keys=[]):
         'estimator.*.arch_update_epoch_intv': 1,
         'estimator.*.arch_update_intv': -1,
         'estimator.*.arch_update_batch': 1,
-        'estimator.*.criterion': 'CE',
-        'estimator.*.metrics': 'Validate',
+        'estimator.*.criterion': 'CrossEntropyLoss',
+        'estimator.*.metrics': 'ValidateMetrics',
     }
 
     for key, val in defaults.items():

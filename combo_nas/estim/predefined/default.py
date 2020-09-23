@@ -1,10 +1,12 @@
 import itertools
-from ..base import EstimatorBase
+from ..base import EstimBase
 from ...arch_space.droppath import update_drop_path_prob
 from ...utils import ETAMeter
+from .. import register
 
 
-class DefaultEstimator(EstimatorBase):
+@register
+class DefaultEstim(EstimBase):
     def __init__(self, *args, save_best=True, valid_intv=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.save_best = save_best
@@ -33,9 +35,9 @@ class DefaultEstimator(EstimatorBase):
                 update_drop_path_prob(self.model, drop_prob, epoch, tot_epochs)
             # train
             trn_res = self.train_epoch(epoch, tot_epochs)
-            # validate
+            # valid
             if epoch + 1 == tot_epochs or (self.valid_intv is not None and not (epoch + 1) % self.valid_intv):
-                val_res = self.validate_epoch(epoch, tot_epochs)
+                val_res = self.valid_epoch(epoch, tot_epochs)
                 if val_res is None:
                     val_res = trn_res
                 val_score = self.get_score(val_res)

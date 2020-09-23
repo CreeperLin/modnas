@@ -88,15 +88,16 @@ class Cutout(object):
         return img
 
 
-def get_dataset(dataset,
-                root,
-                valid=False,
-                mean=None,
-                stddev=None,
-                cutout=0,
-                jitter=False,
-                transform_args=None,
-                to_tensor=True):
+@register
+def ImageClsData(dataset,
+                 root,
+                 valid=False,
+                 mean=None,
+                 stddev=None,
+                 cutout=0,
+                 jitter=False,
+                 transform_args=None,
+                 to_tensor=True):
     dataset = dataset.lower()
     meta = get_metadata(dataset)
     mean = meta['mean'] if mean is None else mean
@@ -133,6 +134,3 @@ def get_dataset(dataset,
     else:
         data = dset(root, train=(not valid), transform=transforms.Compose(transf), download=True)
     return data
-
-
-register(get_dataset, 'ImageCls')

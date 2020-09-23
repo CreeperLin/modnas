@@ -1,8 +1,10 @@
 import time
 import random
 from ..base import CategoricalSpaceOptim
+from .. import register
 
 
+@register
 class GridSearchOptim(CategoricalSpaceOptim):
     def __init__(self, space, logger=None):
         super().__init__(space, logger)
@@ -17,6 +19,7 @@ class GridSearchOptim(CategoricalSpaceOptim):
         return self.counter < self.space_size()
 
 
+@register
 class RandomSearchOptim(CategoricalSpaceOptim):
     def __init__(self, space, seed=None, logger=None):
         super().__init__(space, logger)

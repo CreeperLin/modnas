@@ -1,10 +1,12 @@
 import itertools
-from ..base import EstimatorBase
+from ..base import EstimBase
 from ... import utils
 from ...core.param_space import ArchParamSpace
+from .. import register
 
 
-class UnifiedEstimator(EstimatorBase):
+@register
+class UnifiedEstim(EstimBase):
     def __init__(self, train_epochs=1, train_steps=-1, reset_training=False, eval_steps=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if train_steps != 0:

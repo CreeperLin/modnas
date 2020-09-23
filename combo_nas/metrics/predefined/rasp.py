@@ -1,5 +1,5 @@
 from ..base import MetricsBase
-from .. import register_as, build
+from .. import register, build
 from ...arch_space.mixed_ops import MixedOp
 try:
     import rasp
@@ -8,7 +8,7 @@ except ImportError:
     rasp = None
 
 
-@register_as('RASPStatsMetrics')
+@register
 class RASPStatsMetrics(MetricsBase):
     def __init__(self, logger, item):
         super().__init__(logger)
@@ -18,7 +18,7 @@ class RASPStatsMetrics(MetricsBase):
         return node[self.item]
 
 
-@register_as('RASPTraversalMetrics')
+@register
 class RASPTraversalMetrics(MetricsBase):
     def __init__(self,
                  logger,
@@ -129,7 +129,7 @@ class RASPTraversalMetrics(MetricsBase):
         return mt
 
 
-@register_as('RASPRootMetrics')
+@register
 class RASPRootMetrics(MetricsBase):
     def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
         super().__init__(logger)

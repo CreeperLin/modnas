@@ -3,8 +3,10 @@ import heapq
 import random
 import numpy as np
 from .base import ModelOptimizer
+from . import register
 
 
+@register
 class SimulatedAnnealingModelOptimizer(ModelOptimizer):
     def __init__(self,
                  space,

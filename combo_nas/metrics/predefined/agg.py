@@ -1,9 +1,9 @@
 from functools import reduce
 from ..base import MetricsBase
-from .. import register_as, build
+from .. import register, build
 
 
-@register_as('SumAgg')
+@register
 class SumAggMetrics(MetricsBase):
     def __init__(self, logger, metrics_conf):
         super().__init__(logger)
@@ -17,7 +17,7 @@ class SumAggMetrics(MetricsBase):
         return sum(self.weight[k] * mt_res[k] / self.base[k] for k in self.metrics)
 
 
-@register_as('ProdAgg')
+@register
 class ProdAggMetrics(MetricsBase):
     def __init__(self, logger, metrics_conf):
         super().__init__(logger)
@@ -34,7 +34,7 @@ class ProdAggMetrics(MetricsBase):
         return reduce(lambda x, y: x * y, mt_w)
 
 
-@register_as('MergeAgg')
+@register
 class MergeAggMetrics(MetricsBase):
     def __init__(self, logger, metrics_conf):
         super().__init__(logger)

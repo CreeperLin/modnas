@@ -1,10 +1,10 @@
 import time
 import torch
-from combo_nas import metrics
+from combo_nas.metrics import register
 from combo_nas.metrics.base import MetricsBase
 
 
-@metrics.register_as('LocalProfilerMetrics')
+@register
 class LocalProfilerMetrics(MetricsBase):
     def __init__(self, logger, device=None, rep=50, warmup=10):
         super().__init__(logger)

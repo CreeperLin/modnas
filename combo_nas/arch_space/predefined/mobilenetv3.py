@@ -5,6 +5,7 @@ from ..construct.default import DefaultMixedOpConstructor, DefaultSlotTraversalC
 from ..construct.arch_desc import DefaultSlotArchDescConstructor
 from ..slot import register_slot_ccs
 from ..construct import register as register_constructor
+from .. import register
 
 for ksize in [3, 5, 7, 9]:
     for exp in [1, 3, 6, 9]:
@@ -120,6 +121,7 @@ class MobileInvertedResidualBlock(nn.Module):
             return self.conv(x)
 
 
+@register
 class MobileNetV3(nn.Module):
     def __init__(self, cfgs, mode, chn_in=3, n_classes=1000, width_mult=1., dropout_rate=0.2):
         super(MobileNetV3, self).__init__()
@@ -225,6 +227,7 @@ class MobileNetV3ArchDescConstructor(DefaultSlotArchDescConstructor):
         return ent
 
 
+@register
 def mobilenetv3_large(cfgs=None, **kwargs):
     """
     Constructs a MobileNetV3-Large model
@@ -251,6 +254,7 @@ def mobilenetv3_large(cfgs=None, **kwargs):
     return MobileNetV3(cfgs, mode='large', **kwargs)
 
 
+@register
 def mobilenetv3_small(cfgs=None, **kwargs):
     """
     Constructs a MobileNetV3-Small model

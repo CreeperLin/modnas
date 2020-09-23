@@ -33,5 +33,5 @@ def get_data_provider(config, logger):
         data_provd_args['valid_loader'] = val_loader
     elif not data_prov_conf:
         return None
-    data_prov = build(data_prov_conf.get('type', 'Default'), logger=logger, **data_provd_args)
+    data_prov = build(data_prov_conf.get('type', 'DefaultDataProvider'), logger=logger, **data_provd_args)
     return data_prov

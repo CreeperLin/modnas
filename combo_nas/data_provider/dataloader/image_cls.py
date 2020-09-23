@@ -3,7 +3,7 @@ import random
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-from . import register_as
+from . import register
 
 
 def get_label_class(label):
@@ -61,21 +61,21 @@ def map_data_label(data, mapping):
         data.test_labels = [mapping.get(get_label_class(c), c) for c in labels]
 
 
-@register_as('ImageCls')
-def get_torch_dataloader(trn_data,
-                         val_data,
-                         classes=None,
-                         trn_batch_size=64,
-                         val_batch_size=64,
-                         workers=2,
-                         collate_fn=None,
-                         parallel_multiplier=1,
-                         train_size=0,
-                         train_ratio=1.,
-                         train_seed=1,
-                         valid_size=0,
-                         valid_ratio=0.,
-                         valid_seed=1):
+@register
+def ImageClsDataLoader(trn_data,
+                       val_data,
+                       classes=None,
+                       trn_batch_size=64,
+                       val_batch_size=64,
+                       workers=2,
+                       collate_fn=None,
+                       parallel_multiplier=1,
+                       train_size=0,
+                       train_ratio=1.,
+                       train_seed=1,
+                       valid_size=0,
+                       valid_ratio=0.,
+                       valid_seed=1):
     # classes
     trn_labels = get_dataset_label(trn_data)
     if hasattr(trn_data, 'classes'):

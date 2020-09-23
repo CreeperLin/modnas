@@ -5,10 +5,10 @@ from ...utils.lr_scheduler import get_lr_scheduler
 from ...data_provider import build as build_data_provider
 from ... import utils
 from ..base import TrainerBase
-from .. import register_as
+from .. import register
 
 
-@register_as('ImageCls')
+@register
 class ImageClsTrainer(TrainerBase):
     def __init__(self,
                  logger=None,
@@ -161,18 +161,18 @@ class ImageClsTrainer(TrainerBase):
             logger.info("Train: [{:3d}/{}] Prec@1 {:.4%}".format(epoch + 1, tot_epochs, top1.avg))
         return loss, prec1, prec5
 
-    def validate_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
+    def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
         if not tot_steps:
             return None
         for step in range(tot_steps):
-            self.validate_step(estim, model, epoch, tot_epochs, step, tot_steps)
+            self.valid_step(estim, model, epoch, tot_epochs, step, tot_steps)
         return {
             'acc_top1': self.top1.avg,
             'acc_top5': self.top5.avg,
             'loss': self.losses.avg,
         }
 
-    def validate_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
+    def valid_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
         if step == 0:
             self.data_provider.reset_valid_iter()
             self.reset_stats()
@@ -185,11 +185,11 @@ class ImageClsTrainer(TrainerBase):
         print_freq = self.print_freq
         model.eval()
         tprof = estim.tprof
-        tprof.timer_start('validate')
+        tprof.timer_start('valid')
         with torch.no_grad():
             val_X, val_y = self.get_next_valid_batch()
             loss, logits = estim.loss_logits(val_X, val_y, model=model, mode='eval')
-        tprof.timer_stop('validate')
+        tprof.timer_stop('valid')
         prec1, prec5 = utils.accuracy(logits, val_y, topk=(1, 5))
         N = val_X.size(0)
         losses.update(loss.item(), N)

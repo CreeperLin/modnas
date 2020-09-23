@@ -4,6 +4,7 @@ try:
 except ImportError:
     xgb = None
 from .base import CostModel
+from . import register
 
 xgb_params_reg = {
     'max_depth': 3,
@@ -28,6 +29,7 @@ xgb_params_rank = {
 }
 
 
+@register
 class XGBoostCostModel(CostModel):
     def __init__(self, space, loss_type='reg', xgb_kwargs={}):
         super().__init__(space)

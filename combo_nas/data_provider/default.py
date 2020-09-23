@@ -2,6 +2,7 @@ from .base import DataProviderBase
 from . import register
 
 
+@register
 class DefaultDataProvider(DataProviderBase):
     def __init__(self, train_loader, valid_loader, logger=None):
         super().__init__(logger)
@@ -54,6 +55,3 @@ class DefaultDataProvider(DataProviderBase):
 
     def get_num_valid_batch(self, epoch):
         return 0 if self.valid_loader is None else len(self.valid_loader)
-
-
-register(DefaultDataProvider, 'Default')

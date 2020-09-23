@@ -2,15 +2,15 @@ import numpy as np
 import pickle
 import matplotlib
 import torch.nn.functional as F
-from combo_nas.estim import register_as
-from combo_nas.estim.predefined.supernet import SuperNetEstimator
+from combo_nas.estim import register
+from combo_nas.estim.predefined.supernet import SuperNetEstim
 from combo_nas.arch_space.mixed_ops import MixedOp
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
 
-@register_as('ParamStatsSuperNet')
-class ParamStatsEstimator(SuperNetEstimator):
+@register
+class ParamStatsSuperNetEstim(SuperNetEstim):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.probs = []

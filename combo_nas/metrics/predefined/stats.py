@@ -2,17 +2,17 @@ import yaml
 import pickle
 import numpy as np
 from ..base import MetricsBase
-from .. import register_as, build
+from .. import register, build
 
 
-@register_as('StatsLUTMetrics')
+@register
 class StatsLUTMetrics(MetricsBase):
     def __init__(self, logger, lut_path, head=None):
         super().__init__(logger)
         with open(lut_path, 'r') as f:
             self.lut = yaml.load(f, Loader=yaml.Loader)
         if self.lut is None:
-            raise ValueError('StatsLUTMetrics: Error loading LUT: {}'.format(lut_path))
+            raise ValueError('StatsLUT: Error loading LUT: {}'.format(lut_path))
         self.head = head
         self.warned = set()
 
@@ -21,7 +21,7 @@ class StatsLUTMetrics(MetricsBase):
         val = self.lut.get(key, None)
         if val is None:
             if key not in self.warned:
-                self.logger.warning('StatsLUTMetrics: missing key in LUT: {}'.format(key))
+                self.logger.warning('StatsLUT: missing key in LUT: {}'.format(key))
                 self.warned.add(key)
         elif isinstance(val, dict):
             val = float(np.random.normal(val['mean'], val['std']))
@@ -30,7 +30,7 @@ class StatsLUTMetrics(MetricsBase):
         return val
 
 
-@register_as('StatsRecordMetrics')
+@register
 class StatsRecordMetrics(MetricsBase):
     def __init__(self, logger, metrics, head=None, args=None, save_path=None):
         super().__init__(logger)
@@ -54,7 +54,7 @@ class StatsRecordMetrics(MetricsBase):
         return val
 
 
-@register_as('StatsModelMetrics')
+@register
 class StatsModelMetrics(MetricsBase):
     def __init__(self, logger, model_path, head):
         super().__init__(logger)

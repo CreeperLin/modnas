@@ -3,6 +3,7 @@ import torch.nn as nn
 from ..ops import FactorizedReduce, StdConv
 from ..slot import Slot
 from ..construct.default import DefaultMixedOpConstructor
+from ..construct import register as register_constructor
 from ..layers import DAGLayer
 from .. import register
 
@@ -126,6 +127,7 @@ class DARTSLikeNet(nn.Module):
             yield cell
 
 
+@register_constructor
 class DARTSSearchConstructor(DefaultMixedOpConstructor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -136,7 +138,7 @@ class DARTSSearchConstructor(DefaultMixedOpConstructor):
         mixed_args = self.mixed_args
         if arch_params is not None:
             mixed_args['arch_param_map'] = arch_params
-        ent = super.__call__(slot)
+        ent = super().convert(slot)
         del mixed_args['arch_param_map']
         if slot.name not in self.param_map:
             self.param_map[slot.name] = ent.arch_param_map

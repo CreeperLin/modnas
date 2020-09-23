@@ -54,8 +54,8 @@ class MixedOp(nn.Module):
                 yield m
 
 
-class WeightedSumMixedOp(MixedOp):
-    """ Mixed operation as weighted sum """
+@register
+class SoftmaxSumMixedOp(MixedOp):
     def __init__(self, primitives, arch_param_map=None):
         super().__init__(primitives, arch_param_map)
 
@@ -74,7 +74,8 @@ class WeightedSumMixedOp(MixedOp):
         return desc
 
 
-class BinGateMixedOp(MixedOp):
+@register
+class BinaryGateMixedOp(MixedOp):
     """ Mixed operation controlled by binary gate """
     def __init__(self, primitives, arch_param_map=None, n_samples=1):
         super().__init__(primitives, arch_param_map)
@@ -118,7 +119,7 @@ class BinGateMixedOp(MixedOp):
                 'w_path_f': self.w_path_f,
                 'primitives': primitives,
             }
-            m_out = BinGateFunction.apply(kwargs, p, ctx_dict, *args)
+            m_out = BinaryGateFunction.apply(kwargs, p, ctx_dict, *args)
         else:
             outputs = [primitives[i](*args, **kwargs) for i in s_path_f]
             m_out = sum(outputs) if len(s_path_f) > 1 else outputs[0]
@@ -151,7 +152,7 @@ class BinGateMixedOp(MixedOp):
         return desc
 
 
-class BinGateFunction(torch.autograd.function.Function):
+class BinaryGateFunction(torch.autograd.function.Function):
     @staticmethod
     def forward(ctx, kwargs, alpha, ctx_dict, *args):
         ctx.__dict__.update(ctx_dict)
@@ -193,8 +194,8 @@ class BinGateFunction(torch.autograd.function.Function):
         return (None, a_grad, None) + grad_args
 
 
-class BinGateUniformMixedOp(BinGateMixedOp):
-    """ Mixed operation controlled by binary gate """
+@register
+class BinaryGateUniformMixedOp(BinaryGateMixedOp):
     def sample_path(self):
         p = self.alpha()
         s_op = self.s_op
@@ -213,8 +214,8 @@ class BinGateUniformMixedOp(BinGateMixedOp):
         self.s_op = list(samples.flatten().cpu().numpy())
 
 
+@register
 class GumbelSumMixedOp(MixedOp):
-    """ Mixed operation as weighted sum """
     def __init__(self, primitives, arch_param_map=None):
         super().__init__(primitives, arch_param_map)
         self.temp = 1e5
@@ -245,8 +246,8 @@ class GumbelSumMixedOp(MixedOp):
         return desc
 
 
+@register
 class IndexMixedOp(MixedOp):
-    """ Mixed operation controlled by external index """
     def __init__(self, primitives, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
@@ -294,10 +295,3 @@ class IndexMixedOp(MixedOp):
 
     def to_arch_desc(self, *args, **kwargs):
         return self.arch_param_value('prims')
-
-
-register(WeightedSumMixedOp, 'WeightedSum')
-register(BinGateMixedOp, 'BinGate')
-register(BinGateUniformMixedOp, 'BinGateUniform')
-register(GumbelSumMixedOp, 'GumbelSum')
-register(IndexMixedOp, 'Index')

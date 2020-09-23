@@ -1,11 +1,11 @@
 import random
-from combo_nas.estim.predefined.default import DefaultEstimator
-from combo_nas.estim import register_as
+from combo_nas.estim.predefined.default import DefaultEstim
+from combo_nas.estim import register
 from combo_nas.core.param_space import ArchParamSpace
 
 
-@register_as('RandomSampling')
-class RandomSamplingEstimator(DefaultEstimator):
+@register
+class RandomSamplingEstim(DefaultEstim):
     def __init__(self, *args, seed=1, save_best=True, **kwargs):
         super().__init__(*args, save_best=save_best, **kwargs)
         random.seed(seed)

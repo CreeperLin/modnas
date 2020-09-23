@@ -5,8 +5,10 @@ import torch
 from ..base import GradientBasedOptim
 from ...core.param_space import ArchParamSpace
 from ...arch_space.mixed_ops import MixedOp
+from .. import register
 
 
+@register
 class DARTSOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, w_momentum, w_weight_decay, logger=None):
         super().__init__(space, a_optim, logger)
@@ -89,6 +91,7 @@ class DARTSOptim(GradientBasedOptim):
         return hessian
 
 
+@register
 class BinaryGateOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, n_samples, renorm, logger=None):
         super().__init__(space, a_optim, logger)
@@ -143,6 +146,7 @@ class BinaryGateOptim(GradientBasedOptim):
             m.reset_ops()
 
 
+@register
 class DirectGradOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, logger=None):
         super().__init__(space, a_optim, logger)
@@ -152,6 +156,7 @@ class DirectGradOptim(GradientBasedOptim):
         self.optim_reset()
 
 
+@register
 class DirectGradBiLevelOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, logger=None):
         super().__init__(space, a_optim, logger)
@@ -164,6 +169,7 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
         self.optim_step()
 
 
+@register
 class REINFORCEOptim(GradientBasedOptim):
     def __init__(self, space, a_optim, batch_size, logger=None):
         super().__init__(space, a_optim, logger)
@@ -218,6 +224,7 @@ class REINFORCEOptim(GradientBasedOptim):
         self.optim_step()
 
 
+@register
 class GumbelAnnealingOptim(GradientBasedOptim):
     def __init__(self,
                  space,

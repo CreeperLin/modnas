@@ -1,10 +1,12 @@
 import itertools
-from ..base import EstimatorBase
+from ..base import EstimBase
 from ...core.param_space import ArchParamSpace
 from ... import utils
+from .. import register
 
 
-class SuperNetEstimator(EstimatorBase):
+@register
+class SuperNetEstim(EstimBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.best_score = None

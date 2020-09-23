@@ -1,8 +1,8 @@
 from ..base import MetricsBase
-from .. import register_as
+from .. import register
 
 
-@register_as('Validate')
+@register
 class ValidateMetrics(MetricsBase):
     def __init__(self, logger, field=None):
         super().__init__(logger)
@@ -10,7 +10,7 @@ class ValidateMetrics(MetricsBase):
 
     def compute(self, model):
         estim = self.estim
-        val_res = estim.validate_epoch(model=model)
+        val_res = estim.valid_epoch(model=model)
         if isinstance(val_res, dict):
             field = self.field
             default_res = list(val_res.values())[0]

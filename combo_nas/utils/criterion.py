@@ -25,7 +25,7 @@ def torch_criterion_wrapper(cls):
             y_pred = model(X)
         return cls.__call__(self, y_pred, y_true)
 
-    new_cls = type('Wrapped{}'.format(cls.__name__), (cls, ), {'__call__': call_fn})
+    new_cls = type(cls.__name__, (cls, ), {'__call__': call_fn})
     return new_cls
 
 
@@ -44,7 +44,7 @@ def cross_entropy_soft_target(y_pred, target):
     return torch.mean(torch.sum(-target * F.log_softmax(y_pred, dim=-1), 1))
 
 
-class CrossEntropyLabelSmoothing(nn.Module):
+class CrossEntropyLabelSmoothingLoss(nn.Module):
     def __init__(self, eta=0.1):
         super().__init__()
         self.eta = eta
@@ -54,8 +54,8 @@ class CrossEntropyLabelSmoothing(nn.Module):
         return cross_entropy_soft_target(y_pred, soft_y_true)
 
 
-@register_as('MixUp')
-class MixUp():
+@register
+class MixUpLoss():
     def __init__(self, crit_type, alpha=0.3, use_flip=True, crit_args=None):
         self.alpha = alpha
         self.use_flip = use_flip
@@ -79,8 +79,8 @@ class MixUp():
         +(1 - lam) * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, alt_y_true)
 
 
-@register_as('Auxiliary')
-class Auxiliary():
+@register
+class AuxiliaryLoss():
     def __init__(self, aux_ratio=0.4, loss_type='ce', forward_func='forward_aux'):
         super().__init__()
         self.aux_ratio = aux_ratio
@@ -98,8 +98,8 @@ class Auxiliary():
         return loss + self.aux_ratio * aux_loss
 
 
-@register_as('KnowledgeDistill')
-class KnowledgeDistill():
+@register
+class KnowledgeDistillLoss():
     def __init__(self, kd_model_constructor=None, kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
         if kd_model_constructor is not None:
@@ -131,7 +131,7 @@ class KnowledgeDistill():
         return loss
 
 
-class AggMetricsCriterion():
+class AggMetricsLoss():
     def __init__(self, metrics, target_val=None, target_decay=0.1):
         super().__init__()
         if target_val is not None:
@@ -151,8 +151,8 @@ class AggMetricsCriterion():
         return mt
 
 
-@register_as('AddMetrics')
-class AddMetrics(AggMetricsCriterion):
+@register
+class AddMetricsLoss(AggMetricsLoss):
     def __init__(
         self,
         metrics,
@@ -168,8 +168,8 @@ class AddMetrics(AggMetricsCriterion):
         return loss + self.lamd * (mt.to(device=loss.device) / self.target_val - 1.)
 
 
-@register_as('MultMetrics')
-class MultMetrics(AggMetricsCriterion):
+@register
+class MultMetricsLoss(AggMetricsLoss):
     def __init__(self, metrics, target_val=None, target_decay=0.1, alpha=1., beta=0.6):
         super().__init__(metrics, target_val, target_decay)
         self.alpha = alpha
@@ -180,8 +180,8 @@ class MultMetrics(AggMetricsCriterion):
         return self.alpha * loss * (mt.to(device=loss.device) / self.target_val)**self.beta
 
 
-@register_as('MultLogMetrics')
-class MultLogMetrics(AggMetricsCriterion):
+@register
+class MultLogMetricsLoss(AggMetricsLoss):
     def __init__(self, metrics, target_val=None, target_decay=0.1, alpha=1., beta=0.6):
         super().__init__(metrics, target_val, target_decay)
         self.alpha = alpha
@@ -192,5 +192,5 @@ class MultLogMetrics(AggMetricsCriterion):
         return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val))**self.beta
 
 
-register(torch_criterion_wrapper(nn.CrossEntropyLoss), 'CE')
-register(torch_criterion_wrapper(CrossEntropyLabelSmoothing), 'LabelSmoothing')
+register(torch_criterion_wrapper(nn.CrossEntropyLoss))
+register(torch_criterion_wrapper(CrossEntropyLabelSmoothingLoss))

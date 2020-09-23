@@ -14,13 +14,13 @@ class TrainerBase():
     def train_epoch(self):
         pass
 
-    def validate_epoch(self):
+    def valid_epoch(self):
         pass
 
     def train_step(self):
         pass
 
-    def validate_step(self):
+    def valid_step(self):
         pass
 
     def state_dict(self):

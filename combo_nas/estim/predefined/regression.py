@@ -1,20 +1,11 @@
 import itertools
-from ..base import EstimatorBase
+from ..base import EstimBase
 from ...core.param_space import ArchParamSpace
+from .. import register
 
 
-class ArchPredictor():
-    def __init__(self):
-        pass
-
-    def fit(self, ):
-        pass
-
-    def predict(self, arch_desc):
-        pass
-
-
-class RegressionEstimator(EstimatorBase):
+@register
+class RegressionEstim(EstimBase):
     def __init__(self, *args, predictor=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.predictor = predictor

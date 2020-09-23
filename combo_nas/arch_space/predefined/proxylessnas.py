@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from queue import Queue
 from ...arch_space.slot import Slot
+from .. import register
 
 
 def list_sum(x):
@@ -1577,8 +1578,9 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
         return ProxylessNASNet(blocks, classifier, ops_order, tree_node_config, groups_3x3)
 
 
-def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks, conv_groups, alpha, bottleneck_ratio,
-                      path_drop_rate, ops_order, use_avg, bn_before_add, dropout_rate, **kwargs):
+@register
+def ProxylessNAS(chn_in, chn, channel_multiplier, n_classes, groups, blocks, conv_groups, alpha, bottleneck_ratio,
+                 path_drop_rate, ops_order, use_avg, bn_before_add, dropout_rate, **kwargs):
     chn_cur = chn * channel_multiplier
     model_config = {
         'start_planes': chn_cur,
@@ -1614,7 +1616,8 @@ def build_from_config(chn_in, chn, channel_multiplier, n_classes, groups, blocks
     return ProxylessNASNet.set_standard_net(data_shape=(chn_in, 32, 32), n_classes=n_classes, **model_config)
 
 
-def build_eas_net(net_config_path):
+@register
+def PathLevelEAS(net_config_path):
     net_config_json = json.load(open(net_config_path, 'r'))
     print('Net config:')
     for k, v in net_config_json.items():

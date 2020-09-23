@@ -5,8 +5,10 @@ try:
 except ImportError:
     sklearn = None
 from .base import CostModel
+from . import register
 
 
+@register
 class SKLearnCostModel(CostModel):
     def __init__(self, space, model_cls, module, model_kwargs={}):
         super().__init__(space)

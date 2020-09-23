@@ -29,6 +29,6 @@ class Swish(nn.Module):
         return x * F.sigmoid(x)
 
 
-register(HardSigmoid, 'hSigmoid')
-register(HardSwish, 'hSwish')
-register(Swish, 'Swish')
+register(HardSigmoid)
+register(HardSwish)
+register(Swish)

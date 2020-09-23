@@ -1,8 +1,8 @@
 import numpy as np
 from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
-from combo_nas.estim.predefined.regression import RegressionEstimator, ArchPredictor
+from combo_nas.estim.predefined.regression import RegressionEstim
 from combo_nas.arch_space.construct import register as register_constructor
-import combo_nas.estim
+from combo_nas.estim import register as register_estim
 
 
 @register_constructor
@@ -16,7 +16,7 @@ class FakeDataSpaceConstructor():
         _ = [ArchParamCategorical(list(range(self.dim))) for _ in range(self.n_nodes)]
 
 
-class FakeDataPredictor(ArchPredictor):
+class FakeDataPredictor():
     def __init__(self, seed=11235, random_score=False, noise_scale=0.01):
         super().__init__()
         self.rng = np.random.RandomState(seed)
@@ -46,8 +46,8 @@ class FakeDataPredictor(ArchPredictor):
         return score
 
 
-@combo_nas.estim.register_as('FakeData')
-class FakeDataEstimator(RegressionEstimator):
+@register_estim
+class FakeDataEstim(RegressionEstim):
     def run(self, optim):
         self.predictor = FakeDataPredictor()
         self.model = None

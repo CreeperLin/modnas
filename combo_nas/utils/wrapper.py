@@ -72,7 +72,7 @@ def get_mixed_op_constructor(config):
 
 
 def build_constructor_all(config):
-    return {k: build_con(conf['type'], **conf.get('args', {})) for k, conf in config.items()}
+    return OrderedDict([(k, build_con(conf['type'], **conf.get('args', {}))) for k, conf in config.items()])
 
 
 def build_exporter_all(config):
@@ -101,7 +101,7 @@ def build_trainer_all(trainer_config, trainer_comp=None):
 def build_estim_all(estim_config, estim_comp=None):
     estims = {}
     if isinstance(estim_config, list):
-        estim_config = {c.get('name', str(i)): c for i, c in enumerate(estim_config)}
+        estim_config = OrderedDict([(c.get('name', str(i)), c) for i, c in enumerate(estim_config)])
     for estim_name, estim_conf in estim_config.items():
         estim_type = estim_conf.type
         estim_args = estim_conf.get('args', {})
@@ -167,7 +167,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
     if construct_fn is None:
         construct_fn = {}
     if isinstance(construct_fn, list):
-        construct_fn = {str(i): v for i, v in enumerate(construct_fn)}
+        construct_fn = [(str(i), v) for i, v in enumerate(construct_fn)]
     construct_fn = OrderedDict(construct_fn)
     con_config = OrderedDict()
     if 'model' in config:
@@ -181,7 +181,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn):
         args['arch_desc'] = arch_desc
         default_con['args'] = args
         con_config['arch_desc'] = default_con
-    if device_ids and len(con_config):
+    if device_ids and len(con_config) or len(construct_fn):
         con_config['device'] = {'type': 'ToDevice', 'args': {'device_ids': device_ids}}
     if chkpt is not None:
         con_config['chkpt'] = get_chkpt_constructor(chkpt)

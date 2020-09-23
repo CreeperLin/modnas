@@ -3,6 +3,7 @@ import torch.nn as nn
 from ..slot import Slot
 from ..construct.default import DefaultSlotTraversalConstructor
 from ..construct import register as register_constructor
+from .. import register
 
 
 class GroupConv(nn.Module):
@@ -61,6 +62,7 @@ class BottleneckBlock(nn.Module):
         return out
 
 
+@register
 class PyramidNet(nn.Module):
     def __init__(self, chn_in, chn, n_classes, groups, blocks, conv_groups, bottleneck_ratio, alpha):
         super(PyramidNet, self).__init__()

@@ -2,15 +2,15 @@ import itertools
 import time
 import random
 import torch
-from combo_nas.estim.base import EstimatorBase
-from combo_nas.estim import register_as
+from combo_nas.estim.base import EstimBase
+from combo_nas.estim import register
 from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
 from combo_nas.utils import recompute_bn_running_statistics
 
 
-@register_as('ProgressiveShrinking')
-class ProgressiveShrinkingEstimator(EstimatorBase):
+@register
+class ProgressiveShrinkingEstim(EstimBase):
     def __init__(self,
                  *args,
                  stages,
@@ -151,9 +151,9 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
                 break
             # train
             self.train_epoch(epoch, tot_epochs)
-            # validate subnets
+            # valid subnets
             if self.subnet_valid_freq != 0 and (epoch + 1) % self.subnet_valid_freq == 0:
-                results = self.validate_subnet(epoch, tot_epochs)
+                results = self.valid_subnet(epoch, tot_epochs)
                 for name, res in results.items():
                     self.logger.info('Subnet {}: {:.4%}'.format(name, res))
                 self.update_results(results)
@@ -199,7 +199,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         for g in ElasticSpatial.groups():
             g.set_spatial_rank()
 
-    def validate_subnet(self, *args, configs=None, **kwargs):
+    def valid_subnet(self, *args, configs=None, **kwargs):
         if configs is None:
             configs = dict()
             sp_len = ElasticSpatial.num_groups()
@@ -222,8 +222,7 @@ class ProgressiveShrinkingEstimator(EstimatorBase):
         results = dict()
         for name, conf in configs.items():
             self.apply_subnet_config(conf)
-            recompute_bn_running_statistics(self.model, self.data_provider.get_train_iter(), self.num_bn_batch,
-                                            self.clear_subnet_bn)
-            val_top1 = self.validate_epoch(*args, **kwargs)
-            results[name] = val_top1
+            recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
+            score = self.get_score(self.compute_metrics())
+            results[name] = score
         return results

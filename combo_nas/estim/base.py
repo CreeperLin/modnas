@@ -8,7 +8,7 @@ from ..utils.profiling import TimeProfiler
 from ..arch_space.export import build as build_exporter
 
 
-class EstimatorBase():
+class EstimBase():
     def __init__(self,
                  config=None,
                  expman=None,
@@ -148,8 +148,8 @@ class EstimatorBase():
     def train(self):
         pass
 
-    def validate(self):
-        return self.validate_epoch(epoch=0, tot_epochs=1)
+    def valid(self):
+        return self.valid_epoch(epoch=0, tot_epochs=1)
 
     def run(self, optim):
         pass
@@ -183,15 +183,15 @@ class EstimatorBase():
                                        step=step,
                                        tot_steps=tot_steps)
 
-    def validate_epoch(self, epoch=0, tot_epochs=1, model=None):
+    def valid_epoch(self, epoch=0, tot_epochs=1, model=None):
         model = self.model if model is None else model
-        return self.trainer.validate_epoch(estim=self,
+        return self.trainer.valid_epoch(estim=self,
                                            model=model,
                                            tot_steps=self.get_num_valid_batch(epoch),
                                            epoch=epoch,
                                            tot_epochs=tot_epochs)
 
-    def validate_step(
+    def valid_step(
         self,
         epoch,
         tot_epochs,
@@ -200,7 +200,7 @@ class EstimatorBase():
         model=None,
     ):
         model = self.model if model is None else model
-        return self.trainer.validate_step(estim=self,
+        return self.trainer.valid_step(estim=self,
                                           model=model,
                                           epoch=epoch,
                                           tot_epochs=tot_epochs,

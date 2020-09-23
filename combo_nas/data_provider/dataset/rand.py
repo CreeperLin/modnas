@@ -29,12 +29,10 @@ def get_random_data(shape, dtype, drange):
     return data.to(dtype=get_dtype(dtype))
 
 
-def get_rand_dataset(data_spec, data_size=128):
+@register
+def RandData(data_spec, data_size=128):
     data = []
     for dshape, dtype, drange in data_spec:
         data.append(get_random_data([data_size] + get_data_shape(dshape), dtype, drange))
     dset = TensorDataset(*data)
     return dset
-
-
-register(get_rand_dataset, 'Rand')

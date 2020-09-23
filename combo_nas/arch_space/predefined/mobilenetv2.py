@@ -7,6 +7,8 @@ from ..construct.default import DefaultSlotTraversalConstructor, DefaultMixedOpC
 from ..construct.arch_desc import DefaultSlotArchDescConstructor
 from ..ops import get_same_padding
 from ..slot import register_slot_builder
+from .. import register
+
 
 kernel_sizes = [3, 5, 7, 9]
 expand_ratios = [1, 3, 6, 9]
@@ -71,6 +73,7 @@ class MobileInvertedResidualBlock(nn.Module):
         return out
 
 
+@register
 class MobileNetV2(nn.Module):
     def __init__(self,
                  chn_in,
@@ -199,6 +202,7 @@ class MobileNetV2ArchDescConstructor(DefaultSlotArchDescConstructor):
         return ent
 
 
+@register
 def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     default_cfgs = [
         # t, c, n, s,
@@ -216,6 +220,7 @@ def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
 
 
+@register
 def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     default_cfgs = [
         # t, c, n, s,
@@ -230,8 +235,4 @@ def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     ]
     if cfgs is None:
         cfgs = default_cfgs
-    return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
-
-
-def mobilenetv2(chn_in, n_classes, cfgs, **kwargs):
     return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)

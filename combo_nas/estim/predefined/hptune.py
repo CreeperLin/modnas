@@ -1,13 +1,15 @@
 import copy
 import itertools
 import traceback
-from ..base import EstimatorBase
+from ..base import EstimBase
 from ... import utils
 from ...utils.config import Config
 from ...utils.wrapper import build as build_runner
+from .. import register
 
 
-class HPTuneEstimator(EstimatorBase):
+@register
+class HPTuneEstim(EstimBase):
     def __init__(self,
                  measure_fn=None,
                  batch_size=1,

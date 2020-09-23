@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from collections import OrderedDict
-import combo_nas.optim as optim
+from combo_nas.optim import register
 from combo_nas.optim.base import OptimBase
 from combo_nas.core.param_space import ParamCategorical, ParamNumeric
 try:
@@ -12,8 +12,8 @@ except ImportError:
     skopt = None
 
 
-@optim.register_as('Skopt')
-class SkoptParamOptim(OptimBase):
+@register
+class SkoptOptim(OptimBase):
     def __init__(self, space, skopt_args={}, logger=None):
         super().__init__(space, logger)
         if skopt is None:
