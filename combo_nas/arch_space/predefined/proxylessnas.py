@@ -863,8 +863,8 @@ class TreeNode(nn.Module):
         else:
             apply_drop = True
         if ((hasattr(edge, 'in_channels') and edge.in_channels != edge.out_channels) or
-            (hasattr(edge, 'chn_in') and edge.chn_in != edge.chn_out)
-                or edge.__dict__.get('stride', 1) > 1) and not self.use_zero_drop:
+            (hasattr(edge, 'chn_in') and edge.chn_in != edge.chn_out) or
+                edge.__dict__.get('stride', 1) > 1) and not self.use_zero_drop:
             apply_drop = False
         if apply_drop and self.path_drop_rate > 0:
             p = random.uniform(0, 1)

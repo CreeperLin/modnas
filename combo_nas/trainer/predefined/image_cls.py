@@ -134,11 +134,9 @@ class ImageClsTrainer(TrainerBase):
         top5 = self.top5
         losses = self.losses
         print_freq = self.print_freq
-        tprof = estim.tprof
         model.train()
         trn_X, trn_y = self.get_next_train_batch()
         N = trn_X.size(0)
-        tprof.timer_start('train')
         optimizer.zero_grad()
         loss, logits = estim.loss_logits(trn_X, trn_y, model=model, mode='train')
         loss.backward()
@@ -146,7 +144,6 @@ class ImageClsTrainer(TrainerBase):
         if self.w_grad_clip > 0:
             nn.utils.clip_grad_norm_(model.weights(), self.w_grad_clip)
         optimizer.step()
-        tprof.timer_stop('train')
         prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
@@ -166,7 +163,7 @@ class ImageClsTrainer(TrainerBase):
         if not tot_steps:
             return None
         for step in range(tot_steps):
-            self.validate_step(estim, model, epoch, tot_epochs, step, tot_steps)
+            self.valid_step(estim, model, epoch, tot_epochs, step, tot_steps)
         return OrderedDict([
             ('acc_top1', self.top1.avg),
             ('acc_top5', self.top5.avg),
@@ -185,12 +182,9 @@ class ImageClsTrainer(TrainerBase):
         losses = self.losses
         print_freq = self.print_freq
         model.eval()
-        tprof = estim.tprof
-        tprof.timer_start('valid')
         with torch.no_grad():
             val_X, val_y = self.get_next_valid_batch()
             loss, logits = estim.loss_logits(val_X, val_y, model=model, mode='eval')
-        tprof.timer_stop('valid')
         prec1, prec5 = utils.accuracy(logits, val_y, topk=(1, 5))
         N = val_X.size(0)
         losses.update(loss.item(), N)

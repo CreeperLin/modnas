@@ -8,12 +8,12 @@ from ..construct import register as register_constructor
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1):
-    """3x3 convolution with padding"""
+    """Return 3x3 convolution with padding."""
     return Slot(_chn_in=in_planes, _chn_out=out_planes, _stride=stride, groups=groups)
 
 
 def conv1x1(in_planes, out_planes, stride=1):
-    """1x1 convolution"""
+    """Return 1x1 convolution."""
     return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False),
                          nn.BatchNorm2d(out_planes))
 
@@ -184,65 +184,47 @@ class CIFARResNet(ResNet):
 
 
 def resnet10(resnet_cls, **kwargs):
-    """Constructs a ResNet-10 model.
-    Args:
-    """
+    """Construct a ResNet-10 model."""
     return resnet_cls(block=BasicBlock, layers=[1, 1, 1, 1], **kwargs)
 
 
 def resnet18(resnet_cls, **kwargs):
-    """Constructs a ResNet-18 model.
-    Args:
-    """
+    """Construct a ResNet-18 model."""
     return resnet_cls(block=BasicBlock, layers=[2, 2, 2, 2], **kwargs)
 
 
 def resnet32(resnet_cls, **kwargs):
-    """Constructs a ResNet-32 model.
-    Args:
-    """
+    """Construct a ResNet-32 model."""
     return resnet_cls(block=BasicBlock, layers=[5, 5, 5], **kwargs)
 
 
 def resnet34(resnet_cls, **kwargs):
-    """Constructs a ResNet-34 model.
-    Args:
-    """
+    """Construct a ResNet-34 model."""
     return resnet_cls(block=BasicBlock, layers=[3, 4, 6, 3], **kwargs)
 
 
 def resnet50(resnet_cls, **kwargs):
-    """Constructs a ResNet-50 model.
-    Args:
-    """
+    """Construct a ResNet-50 model."""
     return resnet_cls(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
 
 
 def resnet56(resnet_cls, **kwargs):
-    """Constructs a ResNet-56 model.
-    Args:
-    """
+    """Construct a ResNet-56 model."""
     return resnet_cls(block=BasicBlock, layers=[9, 9, 9], **kwargs)
 
 
 def resnet101(resnet_cls, **kwargs):
-    """Constructs a ResNet-101 model.
-    Args:
-    """
+    """Construct a ResNet-101 model."""
     return resnet_cls(block=Bottleneck, layers=[3, 4, 23, 3], **kwargs)
 
 
 def resnet110(resnet_cls, **kwargs):
-    """Constructs a ResNet-110 model.
-    Args:
-    """
+    """Construct a ResNet-110 model."""
     return resnet_cls(block=BasicBlock, layers=[18, 18, 18], **kwargs)
 
 
 def resnet152(resnet_cls, **kwargs):
-    """Constructs a ResNet-152 model.
-    Args:
-    """
+    """Construct a ResNet-152 model."""
     return resnet_cls(block=Bottleneck, layers=[3, 8, 36, 3], **kwargs)
 
 

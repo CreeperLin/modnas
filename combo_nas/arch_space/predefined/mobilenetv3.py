@@ -10,8 +10,7 @@ from .. import register
 for ksize in [3, 5, 7, 9]:
     for exp in [1, 3, 6, 9]:
         register_slot_ccs(lambda C_in, C_out, S, use_se=0, use_hs=0, k=ksize, e=exp: MobileInvertedConvV3(
-            C_in, C_out, S, C_in * e, k, use_se, use_hs),
-                          'M3B{}E{}'.format(ksize, exp))
+                          C_in, C_out, S, C_in * e, k, use_se, use_hs), 'M3B{}E{}'.format(ksize, exp))
         register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 0, 1),
                           'M3B{}E{}H'.format(ksize, exp))
         register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 0),
@@ -21,7 +20,8 @@ for ksize in [3, 5, 7, 9]:
 
 
 def _make_divisible(v, divisor, min_value=None):
-    """
+    """Make channel divisible.
+
     This function is taken from the original tf repo.
     It ensures that all layers have a channel number that is divisible by 8
     It can be seen here:
@@ -229,9 +229,7 @@ class MobileNetV3ArchDescConstructor(DefaultSlotArchDescConstructor):
 
 @register
 def mobilenetv3_large(cfgs=None, **kwargs):
-    """
-    Constructs a MobileNetV3-Large model
-    """
+    """Construct a MobileNetV3-Large model."""
     cfgs = [
         # k, t, c, SE, NL, s
         [3, 0, 16, 0, 1, 2],
@@ -256,9 +254,7 @@ def mobilenetv3_large(cfgs=None, **kwargs):
 
 @register
 def mobilenetv3_small(cfgs=None, **kwargs):
-    """
-    Constructs a MobileNetV3-Small model
-    """
+    """Construct a MobileNetV3-Small model."""
     cfgs = [
         # k, t, c, SE, NL, s
         [3, 0, 16, 0, 1, 2],

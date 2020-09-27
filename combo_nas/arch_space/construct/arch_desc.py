@@ -1,3 +1,4 @@
+"""ArchDesc Constructors."""
 import os
 import yaml
 import json
@@ -15,34 +16,41 @@ _arch_desc_parser = {
 }
 
 
+def parse_arch_desc(desc, parser=None):
+    """Return archdesc parsed from file."""
+    if isinstance(desc, str):
+        default_parser = 'yaml'
+        if os.path.exists(desc):
+            _, ext = os.path.splitext(desc)
+            default_parser = ext[1:].lower()
+            with open(desc, 'r', encoding='UTF-8') as f:
+                desc = f.read()
+        parser = parser or default_parser
+        parse_fn = _arch_desc_parser.get(parser)
+        if parse_fn is None:
+            raise ValueError('invalid arch_desc parser type: {}'.format(parser))
+        return parse_fn(desc)
+    else:
+        return desc
+
+
 class DefaultArchDescConstructor():
+    """Constructor that builds network from archdesc."""
+
     def __init__(self, arch_desc, parse_args=None):
-        arch_desc = self.parse_arch_desc(arch_desc, **(parse_args or {}))
+        arch_desc = parse_arch_desc(arch_desc, **(parse_args or {}))
         logging.info('construct from arch_desc: {}'.format(arch_desc))
         self.arch_desc = arch_desc
 
-    def parse_arch_desc(self, desc, parser=None):
-        if isinstance(desc, str):
-            default_parser = 'yaml'
-            if os.path.exists(desc):
-                _, ext = os.path.splitext(desc)
-                default_parser = ext[1:].lower()
-                with open(desc, 'r', encoding='UTF-8') as f:
-                    desc = f.read()
-            parser = parser or default_parser
-            parse_fn = _arch_desc_parser.get(parser)
-            if parse_fn is None:
-                raise ValueError('invalid arch_desc parser type: {}'.format(parser))
-            return parse_fn(desc)
-        else:
-            return desc
-
     def __call__(self, *args, **kwargs):
+        """Run constructor."""
         raise NotImplementedError
 
 
 @register
 class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
+    """Constructor that recursively builds network submodules from archdesc."""
+
     def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None, substitute=False):
         super().__init__(arch_desc, parse_args)
         self.construct_fn = construct_fn
@@ -50,6 +58,7 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
         self.substitute = substitute
 
     def visit(self, module):
+        """Construct and return module."""
         construct_fn = getattr(module, self.construct_fn, None)
         if construct_fn is not None:
             ret = construct_fn(self.arch_desc, **copy.deepcopy(self.fn_args))
@@ -61,10 +70,12 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
         return module
 
     def __call__(self, model):
+        """Run constructor."""
         Slot.set_convert_fn(self.convert)
         return self.visit(model)
 
     def convert(self, slot, desc, *args, **kwargs):
+        """Convert Slot to module from archdesc."""
         desc = desc[0] if isinstance(desc, list) else desc
         ent = build_module(desc, slot, *args, **kwargs)
         return ent
@@ -72,6 +83,8 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
 
 @register
 class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArchDescConstructor):
+    """Constructor that converts Slots to modules from archdesc."""
+
     def __init__(self, arch_desc, parse_args=None, fn_args=None):
         DefaultSlotTraversalConstructor.__init__(self)
         DefaultArchDescConstructor.__init__(self, arch_desc, parse_args)
@@ -79,6 +92,7 @@ class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArc
         self.idx = -1
 
     def get_next_desc(self):
+        """Return next archdesc item."""
         self.idx += 1
         desc = self.arch_desc[self.idx]
         if isinstance(desc, list) and len(desc) == 1:
@@ -86,5 +100,6 @@ class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArc
         return desc
 
     def convert(self, slot):
+        """Convert Slot to module from archdesc."""
         m_type = self.get_next_desc()
         return build_module(m_type, slot, **copy.deepcopy(self.fn_args))

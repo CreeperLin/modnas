@@ -1,9 +1,10 @@
+"""LR Scheduler."""
 import torch
-from .registration import get_registry_utils
-registry, register, get_builder, build, register_as = get_registry_utils('lr_scheduler')
+from ..registry.lr_scheduler import register, get_builder, build, register_as
 
 
 def get_lr_scheduler(optimizer, config, epochs):
+    """Return a new LR Scheduler."""
     lr_type = config.type
     lr_args = config.get('args', {})
     if lr_type == 'CosineAnnealingLR':

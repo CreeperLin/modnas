@@ -6,10 +6,8 @@ from combo_nas.core.param_space import ParamNumeric
 
 @register
 class HITLOptim(OptimBase):
-    '''
-        Human-in-the-loop Optimizer
-        for debugging use
-    '''
+    """Human-in-the-loop Optimizer, used for debugging."""
+
     def has_next(self):
         return True
 

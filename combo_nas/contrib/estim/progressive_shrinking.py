@@ -1,3 +1,4 @@
+"""Implementation of Progressive Shrinking in Once for All."""
 import itertools
 import time
 import random
@@ -11,6 +12,8 @@ from combo_nas.utils import recompute_bn_running_statistics
 
 @register
 class ProgressiveShrinkingEstim(EstimBase):
+    """Applies the Progressive Shrinking training strategy on a supernet."""
+
     def __init__(self,
                  *args,
                  stages,
@@ -39,10 +42,12 @@ class ProgressiveShrinkingEstim(EstimBase):
         self.subnet_valid_freq = subnet_valid_freq
 
     def set_stage(self, stage):
+        """Set PS training stage from config."""
         self.set_spatial_candidates(stage.get('spatial', None))
         self.set_sequential_candidates(stage.get('sequential', None))
 
     def set_sequential_candidates(self, candidates):
+        """Set PS sequential (depth) candidates from config."""
         n_groups = ElasticSequential.num_groups()
         if n_groups == 0 or candidates is None:
             candidates = [[None]]
@@ -52,6 +57,7 @@ class ProgressiveShrinkingEstim(EstimBase):
         self.logger.info('set sequential candidates: {}'.format(self.sequential_candidates))
 
     def set_spatial_candidates(self, candidates):
+        """Set PS spatial (width) candidates from config."""
         n_groups = ElasticSpatial.num_groups()
         if n_groups == 0 or candidates is None:
             candidates = [[None]]
@@ -61,11 +67,13 @@ class ProgressiveShrinkingEstim(EstimBase):
         self.logger.info('set spatial candidates: {}'.format(self.spatial_candidates))
 
     def randomize(self, seed=None):
+        """Randomize sampling."""
         if seed is None:
             seed = time.time()
         random.seed(seed)
 
     def apply_subnet_config(self, config):
+        """Apply sampled config to obtain the subnet."""
         self.logger.debug('set subnet: {}'.format(config))
         spatial_config = config.get('spatial', None)
         for i, sp_g in enumerate(ElasticSpatial.groups()):
@@ -89,6 +97,7 @@ class ProgressiveShrinkingEstim(EstimBase):
                 sp_g.set_depth(depth)
 
     def sample_spatial_config(self, seed=None):
+        """Sample spatial config from candidates."""
         self.randomize(seed)
         spatial_config = []
         for sp_cand in self.spatial_candidates:
@@ -99,6 +108,7 @@ class ProgressiveShrinkingEstim(EstimBase):
         }
 
     def sample_sequential_config(self, seed=None):
+        """Sample sequential config from candidates."""
         self.randomize(seed)
         sequential_config = []
         for sq_cand in self.sequential_candidates:
@@ -109,6 +119,7 @@ class ProgressiveShrinkingEstim(EstimBase):
         }
 
     def sample_config(self, seed=None):
+        """Sample config (spatial & sequential) from candidates."""
         config = dict()
         if self.spatial_candidates is not None:
             config.update(self.sample_spatial_config(seed=seed))
@@ -117,6 +128,7 @@ class ProgressiveShrinkingEstim(EstimBase):
         return config
 
     def loss_logits(self, X, y, model=None, mode=None):
+        """Compute loss & logits from subnet(s)."""
         model = self.model if model is None else model
         if mode == 'train':
             subnet_logits = []
@@ -142,10 +154,11 @@ class ProgressiveShrinkingEstim(EstimBase):
         return loss, logits
 
     def train_stage(self):
+        """Train and evaluate supernet with current stage config."""
         config = self.config
         tot_epochs = config.epochs
         if self.reset_stage_training:
-            self.reset_training_states()
+            self.reset_trainer()
         for epoch in itertools.count(self.cur_epoch + 1):
             if epoch == tot_epochs:
                 break
@@ -162,19 +175,23 @@ class ProgressiveShrinkingEstim(EstimBase):
                 self.save_checkpoint(epoch)
 
     def update_results(self, results):
+        """Merge subnet evaluation results."""
         for k, v in results.items():
             val = self.subnet_results.get(k, 0)
             self.subnet_results[k] = max(val, v)
 
     def state_dict(self):
+        """Save training stage progress."""
         return {'cur_stage': self.cur_stage}
 
     def load_state_dict(self, state_dict):
+        """Resume training stage progress."""
         if 'cur_stage' in state_dict:
             self.cur_stage = state_dict['cur_stage']
 
-    def train(self):
-        self.reset_training_states()
+    def run(self, optim):
+        """Train supernet in multiple PS stages."""
+        self.reset_trainer()
         for self.cur_stage in itertools.count(self.cur_stage + 1):
             if self.cur_stage >= len(self.stages):
                 break
@@ -192,14 +209,13 @@ class ProgressiveShrinkingEstim(EstimBase):
         }
         return results
 
-    def run(self, optim):
-        return self.train()
-
     def rerank_spatial(self):
+        """Reorder channel dimensions in all spatial groups."""
         for g in ElasticSpatial.groups():
             g.set_spatial_rank()
 
     def valid_subnet(self, *args, configs=None, **kwargs):
+        """Sample and validate subnets from current candidates."""
         if configs is None:
             configs = dict()
             sp_len = ElasticSpatial.num_groups()

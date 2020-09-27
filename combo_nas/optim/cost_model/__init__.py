@@ -1,3 +1,2 @@
-from ...utils.registration import get_registry_utils
-registry, register, get_builder, build, register_as = get_registry_utils('cost_model')
+from ...registry.cost_model import register, get_builder, build, register_as
 from . import sklearn, xgboost

@@ -1,4 +1,2 @@
-from ...utils.registration import get_registry_utils
-registry, register, get_builder, build, register_as = get_registry_utils('data_loader')
-
-from . import image_cls, default
+from ...registry.data_loader import register, get_builder, build, register_as
+from . import default, image_cls

@@ -1,3 +1,4 @@
+"""Default DataLoader."""
 import logging
 import random
 from torch.utils.data import DataLoader
@@ -18,6 +19,7 @@ def DefaultDataLoader(trn_data,
                       valid_size=0,
                       valid_ratio=0.,
                       valid_seed=1):
+    """Return default DataLoader."""
     # index
     n_train_data = len(trn_data)
     trn_idx = list(range(n_train_data))

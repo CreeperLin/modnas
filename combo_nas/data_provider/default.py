@@ -1,9 +1,12 @@
+"""Default DataProvider with dataloader."""
 from .base import DataProviderBase
 from . import register
 
 
 @register
 class DefaultDataProvider(DataProviderBase):
+    """Default DataProvider with dataloader."""
+
     def __init__(self, train_loader, valid_loader, logger=None):
         super().__init__(logger)
         self.train_loader = train_loader
@@ -15,6 +18,7 @@ class DefaultDataProvider(DataProviderBase):
         self.reset_valid_iter()
 
     def get_next_train_batch(self):
+        """Return the next train batch."""
         if self.train_loader is None:
             self.logger.error('no train loader')
             return None
@@ -26,6 +30,7 @@ class DefaultDataProvider(DataProviderBase):
         return trn_batch
 
     def get_next_valid_batch(self):
+        """Return the next validate batch."""
         if self.valid_loader is None:
             if self.no_valid_warn:
                 self.logger.warning('no valid loader, returning training batch instead')
@@ -39,19 +44,25 @@ class DefaultDataProvider(DataProviderBase):
         return val_batch
 
     def get_train_iter(self):
+        """Return train iterator."""
         return self.train_iter
 
     def get_valid_iter(self):
+        """Return validate iterator."""
         return self.valid_iter
 
     def reset_train_iter(self):
+        """Reset train iterator."""
         self.train_iter = None if self.train_loader is None else iter(self.train_loader)
 
     def reset_valid_iter(self):
+        """Reset validate iterator."""
         self.valid_iter = None if self.valid_loader is None else iter(self.valid_loader)
 
     def get_num_train_batch(self, epoch):
+        """Return number of train batches in current epoch."""
         return 0 if self.train_loader is None else len(self.train_loader)
 
     def get_num_valid_batch(self, epoch):
+        """Return number of validate batches in current epoch."""
         return 0 if self.valid_loader is None else len(self.valid_loader)

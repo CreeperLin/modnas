@@ -1,3 +1,4 @@
+"""Unified Estimator."""
 import itertools
 from ..base import EstimBase
 from ... import utils
@@ -7,6 +8,8 @@ from .. import register
 
 @register
 class UnifiedEstim(EstimBase):
+    """Unified Estimator class."""
+
     def __init__(self, train_epochs=1, train_steps=-1, reset_training=False, eval_steps=1, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if train_steps != 0:
@@ -20,6 +23,7 @@ class UnifiedEstim(EstimBase):
         self.best_arch_desc = None
 
     def step(self, params):
+        """Return evaluation results of a parameter set."""
         ArchParamSpace.update_params(params)
         n_train_batch = self.get_num_train_batch()
         n_valid_batch = self.get_num_valid_batch()
@@ -30,7 +34,7 @@ class UnifiedEstim(EstimBase):
         elif train_steps == -1:
             train_steps = max(round(n_train_batch / (n_valid_batch or 1)), 1)
         if self.reset_training:
-            self.reset_training_states(tot_epochs=train_epochs)
+            self.reset_trainer(tot_epochs=train_epochs)
         for epoch in range(train_epochs):
             for _ in range(train_steps):
                 self.cur_step += 1
@@ -54,7 +58,8 @@ class UnifiedEstim(EstimBase):
         return ret
 
     def run(self, optim):
-        self.reset_training_states()
+        """Run Estimator routine."""
+        self.reset_trainer()
         logger = self.logger
         config = self.config
         tot_epochs = config.epochs
@@ -89,7 +94,7 @@ class UnifiedEstim(EstimBase):
             if (epoch_step + 1) % n_epoch_steps != 0:
                 continue
             # save
-            if config.save_gt:
+            if config.save_arch_desc:
                 self.save_arch_desc()
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint()

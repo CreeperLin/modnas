@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import torch
 from ..version import __version__
-from .config import Config
 try:
     from tensorboardX import SummaryWriter
 except ImportError:
@@ -30,6 +29,7 @@ def merge_config(src, dest, overwrite=True):
 
 
 def env_info():
+    """Return dependency versions."""
     return 'environment info:\ncombo_nas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
         __version__,
         sys.version.split()[0],
@@ -38,13 +38,8 @@ def env_info():
     )
 
 
-def get_current_device():
-    if not torch.cuda.is_available():
-        return 'cpu'
-    return torch.cuda.current_device()
-
-
 def parse_device(device):
+    """Return device ids from config."""
     if not isinstance(device, str):
         return []
     device = device.lower()
@@ -56,12 +51,9 @@ def parse_device(device):
         return [int(s) for s in device.split(',')]
 
 
-def check_config(config, top_keys=[]):
-    for k in top_keys:
-        if k not in config:
-            config[k] = Config()
-
-    def check_field(config, field, default, required=False):
+def check_config(config):
+    """Check config and set default values."""
+    def check_field(config, field, default):
         cur_key = ''
         idx = -1
         keys = field.split('.')
@@ -86,25 +78,14 @@ def check_config(config, top_keys=[]):
         except KeyError:
             if idx != len(keys) - 1:
                 logging.warning('check_config: key \'{}\' in field \'{}\' missing'.format(cur_key, field))
-            elif required:
-                logging.error('missing field \'{}\''.format(field))
-                return True
             else:
                 logging.warning('check_config: setting field \'{}\' to default: {}'.format(field, default))
                 cur_dict[cur_key] = default
         return False
 
-    flag = False
-
     defaults = {
-        'ops.ops_order': 'act_weight_bn',
-        'ops.affine': False,
-        'ops.bias': False,
-        'log.writer': False,
-        'log.debug': False,
-        'estimator.*.save_gt': True,
+        'estimator.*.save_arch_desc': True,
         'estimator.*.save_freq': 0,
-        'estimator.*.drop_path_prob': 0.,
         'estimator.*.arch_update_epoch_start': 0,
         'estimator.*.arch_update_epoch_intv': 1,
         'estimator.*.arch_update_intv': -1,
@@ -114,15 +95,11 @@ def check_config(config, top_keys=[]):
     }
 
     for key, val in defaults.items():
-        if check_field(config, key, val):
-            flag = True
-    if flag:
-        raise ValueError('check_config: Failed')
-    logging.info('check_config: OK')
-    return False
+        check_field(config, key, val)
 
 
 def init_device(device='all', seed=11235):
+    """Initialize device and set seed."""
     np.random.seed(seed)
     torch.manual_seed(seed)
     device_ids = parse_device(device)
@@ -137,6 +114,7 @@ def init_device(device='all', seed=11235):
 
 
 def get_logger(log_dir, name, debug=False):
+    """Return a new logger."""
     level = logging.DEBUG if debug else logging.INFO
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
@@ -148,14 +126,18 @@ def get_logger(log_dir, name, debug=False):
 
 
 class DummyWriter():
-    def dummy(self, *args, **kwargs):
-        pass
+    """A no-op writer."""
 
     def __getattr__(self, item):
-        return self.dummy
+        """Return no-op."""
+        def noop(*args, **kwargs):
+            pass
+
+        return noop
 
 
 def get_writer(log_dir, enabled=False):
+    """Return a new writer."""
     if enabled:
         if SummaryWriter is None:
             raise ValueError('module SummaryWriter is not found')
@@ -166,6 +148,7 @@ def get_writer(log_dir, enabled=False):
 
 
 def get_same_padding(kernel_size):
+    """Return SAME padding size for convolutions."""
     if isinstance(kernel_size, tuple):
         assert len(kernel_size) == 2, 'invalid kernel size: %s' % kernel_size
         p1 = get_same_padding(kernel_size[0])
@@ -177,27 +160,30 @@ def get_same_padding(kernel_size):
 
 
 def param_count(model, factor=0, divisor=1000):
+    """Return number of model parameters."""
     return sum(p.data.nelement() for p in model.parameters()) / divisor**factor
 
 
 def param_size(model, factor=0, divisor=1024):
+    """Return size of model parameters."""
     return 4 * param_count(model) / divisor**factor
 
 
 class AverageMeter():
-    """ Computes and stores the average and current value """
+    """Compute and store the average and current value."""
+
     def __init__(self):
         self.reset()
 
     def reset(self):
-        """ Reset all statistics """
+        """Reset all statistics."""
         self.val = 0
         self.avg = 0
         self.sum = 0
         self.count = 0
 
     def update(self, val, n=1):
-        """ Update statistics """
+        """Update statistics."""
         self.val = val
         self.sum += val * n
         self.count += n
@@ -205,7 +191,7 @@ class AverageMeter():
 
 
 def accuracy(output, target, topk=(1, )):
-    """ Computes the precision@k for the specified values of k """
+    """Compute the precision@k for the specified values of k."""
     maxk = max(topk)
     batch_size = target.size(0)
 
@@ -226,12 +212,14 @@ def accuracy(output, target, topk=(1, )):
 
 
 def clear_bn_running_statistics(model):
+    """Clear BatchNorm running statistics."""
     for m in model.modules():
         if isinstance(m, torch.nn.BatchNorm2d):
             m.reset_running_stats()
 
 
 def recompute_bn_running_statistics(model, trainer, num_batch=100, clear=True):
+    """Recompute BatchNorm running statistics."""
     if clear:
         clear_bn_running_statistics(model)
     is_training = model.training
@@ -249,12 +237,15 @@ def recompute_bn_running_statistics(model, trainer, num_batch=100, clear=True):
 
 
 def format_time(sec):
+    """Return formatted time in seconds."""
     m, s = divmod(sec, 60)
     h, m = divmod(m, 60)
     return "%d h %d m %d s" % (h, m, s)
 
 
 class ETAMeter():
+    """ETA Meter."""
+
     def __init__(self, total_steps, cur_steps=-1):
         self.total_steps = total_steps
         self.last_step = cur_steps
@@ -262,22 +253,27 @@ class ETAMeter():
         self.speed = None
 
     def start(self):
+        """Start timing."""
         self.last_time = time.time()
 
     def set_step(self, step):
+        """Set current step."""
         self.speed = (step - self.last_step) / (time.time() - self.last_time + 1e-7)
         self.last_step = step
         self.last_time = time.time()
 
     def step(self, n=1):
+        """Increment current step."""
         self.speed = n / (time.time() - self.last_time + 1e-7)
         self.last_step += n
         self.last_time = time.time()
 
     def eta(self):
+        """Return ETA in seconds."""
         if self.speed is None:
             return 0
         return (self.total_steps - self.last_step) / (self.speed + 1e-7)
 
     def eta_fmt(self):
+        """Return formatted ETA."""
         return format_time(self.eta())

@@ -1,14 +1,15 @@
+"""Base Estimator."""
 import traceback
 import pickle
 from .. import utils
-from ..metrics import build as build_metrics
-from ..metrics.base import MetricsBase
-from ..utils.criterion import get_criterion
-from ..utils.profiling import TimeProfiler
+from ..utils.criterion import build_criterions_all
+from ..metrics import build_metrics_all
 from ..arch_space.export import build as build_exporter
 
 
 class EstimBase():
+    """Base Estimator class."""
+
     def __init__(self,
                  config=None,
                  expman=None,
@@ -29,62 +30,21 @@ class EstimBase():
         self.writer = writer
         self.logger = logger
         self.cur_epoch = -1
-        metrics = {}
-        mt_configs = config.get('metrics', None)
-        if mt_configs:
-            MetricsBase.set_estim(self)
-            if not isinstance(mt_configs, dict):
-                mt_configs = {'default': mt_configs}
-            for mt_name, mt_conf in mt_configs.items():
-                if isinstance(mt_conf, str):
-                    mt_conf = {'type': mt_conf}
-                mt_type = mt_conf['type']
-                mt_args = mt_conf.get('args', {})
-                mt = build_metrics(mt_type, self.logger, **mt_args)
-                metrics[mt_name] = mt
-        self.metrics = metrics
-        criterions_all = []
-        criterions_train = []
-        criterions_eval = []
-        criterions_valid = []
-        crit_configs = config.get('criterion', None)
-        if crit_configs:
-            if not isinstance(crit_configs, list):
-                crit_configs = [crit_configs]
-            for crit_conf in crit_configs:
-                if isinstance(crit_conf, str):
-                    crit_conf = {'type': crit_conf}
-                try:
-                    device_ids = model.device_ids
-                except AttributeError:
-                    device_ids = None
-                crit = get_criterion(crit_conf, device_ids=device_ids)
-                crit_mode = crit_conf.get('mode', 'all')
-                if not isinstance(crit_mode, list):
-                    crit_mode = [crit_mode]
-                if 'all' in crit_mode:
-                    criterions_all.append(crit)
-                if 'train' in crit_mode:
-                    criterions_train.append(crit)
-                if 'eval' in crit_mode:
-                    criterions_eval.append(crit)
-                if 'valid' in crit_mode:
-                    criterions_valid.append(crit)
-        self.criterions_all = criterions_all
-        self.criterions_train = criterions_train
-        self.criterions_eval = criterions_eval
-        self.criterions_valid = criterions_valid
+        self.metrics = build_metrics_all(config.get('metrics', None), self, logger)
+        self.criterions_all, self.criterions_train, self.criterions_eval, self.criterions_valid = build_criterions_all(
+            config.get('criterion', None), getattr(model, 'device_ids', None))
         self.trainer = trainer
         self.results = []
         self.inputs = []
-        self.tprof = TimeProfiler(enabled=profiling)
         self.cur_trn_batch = None
         self.cur_val_batch = None
 
     def set_trainer(self, trainer):
+        """Set current trainer."""
         self.trainer = trainer
 
     def criterion(self, X, y_pred, y_true, model=None, mode=None):
+        """Return loss."""
         model = self.model if model is None else model
         if mode is None:
             crits = []
@@ -98,30 +58,42 @@ class EstimBase():
             raise ValueError('invalid criterion mode: {}'.format(mode))
         crits = self.criterions_all + crits
         loss = None
+        if hasattr(self.trainer, 'loss'):
+            loss = self.trainer.loss(model(X) if y_pred is None else y_pred, y_true)
         for crit in crits:
             loss = crit(loss, self, model, X, y_pred, y_true)
         return loss
 
     def loss(self, X, y, output=None, model=None, mode=None):
+        """Return loss."""
         model = self.model if model is None else model
         return self.criterion(X, output, y, model, mode)
 
     def loss_logits(self, X, y, model=None, mode=None):
+        """Return loss and logits."""
         model = self.model if model is None else model
         output = model(X)
         return self.loss(X, y, output, model, mode), output
 
+    def step(self, params):
+        """Return evaluation results of a parameter set."""
+        raise NotImplementedError
+
     def print_model_info(self):
+        """Output model information."""
         model = self.model
         if model is not None:
             self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model, factor=2),
                                                                                     utils.param_size(model, factor=2)))
 
     def get_last_results(self):
+        """Return last evaluation results."""
         return self.inputs, self.results
 
     def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
-        fmt_key = lambda n, k: '{}.{}'.format(n, k)
+        """Return Metrics results."""
+        def fmt_key(n, k):
+            return '{}.{}'.format(n, k)
 
         def flatten_dict(n, r):
             if isinstance(r, dict):
@@ -142,19 +114,12 @@ class EstimBase():
             merge_results(ret, mt_name, flatten_dict(mt_name, res))
         return ret
 
-    def predict(self, ):
-        pass
-
-    def train(self):
-        pass
-
-    def valid(self):
-        return self.valid_epoch(epoch=0, tot_epochs=1)
-
     def run(self, optim):
-        pass
+        """Run Estimator routine."""
+        raise NotImplementedError
 
     def get_score(self, res):
+        """Return scalar value from evaluation results."""
         if not isinstance(res, dict):
             return res
         score = res.get('default', None)
@@ -163,18 +128,17 @@ class EstimBase():
         return score
 
     def train_epoch(self, epoch, tot_epochs, model=None):
+        """Train model for one epoch."""
         model = self.model if model is None else model
-        tprof = self.tprof
         ret = self.trainer.train_epoch(estim=self,
                                        model=model,
                                        tot_steps=self.get_num_train_batch(epoch),
                                        epoch=epoch,
                                        tot_epochs=tot_epochs)
-        tprof.stat('data')
-        tprof.stat('train')
         return ret
 
     def train_step(self, epoch, tot_epochs, step, tot_steps, model=None):
+        """Train model for one step."""
         model = self.model if model is None else model
         return self.trainer.train_step(estim=self,
                                        model=model,
@@ -184,37 +148,33 @@ class EstimBase():
                                        tot_steps=tot_steps)
 
     def valid_epoch(self, epoch=0, tot_epochs=1, model=None):
+        """Validate model for one epoch."""
         model = self.model if model is None else model
         return self.trainer.valid_epoch(estim=self,
-                                           model=model,
-                                           tot_steps=self.get_num_valid_batch(epoch),
-                                           epoch=epoch,
-                                           tot_epochs=tot_epochs)
+                                        model=model,
+                                        tot_steps=self.get_num_valid_batch(epoch),
+                                        epoch=epoch,
+                                        tot_epochs=tot_epochs)
 
-    def valid_step(
-        self,
-        epoch,
-        tot_epochs,
-        step,
-        tot_steps,
-        model=None,
-    ):
+    def valid_step(self, epoch, tot_epochs, step, tot_steps, model=None):
+        """Validate model for one step."""
         model = self.model if model is None else model
         return self.trainer.valid_step(estim=self,
-                                          model=model,
-                                          epoch=epoch,
-                                          tot_epochs=tot_epochs,
-                                          step=step,
-                                          tot_steps=tot_steps)
+                                       model=model,
+                                       epoch=epoch,
+                                       tot_epochs=tot_epochs,
+                                       step=step,
+                                       tot_steps=tot_steps)
 
-    def reset_training_states(self,
-                              tot_epochs=None,
-                              config=None,
-                              device=None,
-                              optimizer_config=None,
-                              lr_scheduler_config=None,
-                              model=None,
-                              scale_lr=True):
+    def reset_trainer(self,
+                      tot_epochs=None,
+                      config=None,
+                      device=None,
+                      optimizer_config=None,
+                      lr_scheduler_config=None,
+                      model=None,
+                      scale_lr=True):
+        """Reinitialize trainer."""
         model = self.model if model is None else model
         config = self.config if config is None else config
         tot_epochs = config.epochs if tot_epochs is None else tot_epochs
@@ -228,46 +188,56 @@ class EstimBase():
         self.cur_epoch = -1
 
     def get_num_train_batch(self, epoch=None):
+        """Return number of training batches."""
         epoch = self.cur_epoch if epoch is None else epoch
         return 0 if self.trainer is None else self.trainer.get_num_train_batch(epoch=epoch)
 
     def get_num_valid_batch(self, epoch=None):
+        """Return number of validating batches."""
         epoch = self.cur_epoch if epoch is None else epoch
         return 0 if self.trainer is None else self.trainer.get_num_valid_batch(epoch=epoch)
 
     def get_next_train_batch(self):
-        self.tprof.timer_start('data')
+        """Return the next training batch."""
         ret = self.trainer.get_next_train_batch()
-        self.tprof.timer_stop('data')
         self.cur_trn_batch = ret
         return ret
 
     def get_cur_train_batch(self):
+        """Return the current training batch."""
         return self.cur_trn_batch or self.get_next_train_batch()
 
     def get_next_valid_batch(self):
-        self.tprof.timer_start('data')
+        """Return the next validating batch."""
         ret = self.trainer.get_next_valid_batch()
-        self.tprof.timer_stop('data')
         self.cur_val_batch = ret
         return ret
 
     def get_cur_valid_batch(self):
+        """Return the current validating batch."""
         return self.cur_val_batch
 
     def load_state_dict(self, state_dict):
+        """Resume states."""
         pass
 
     def state_dict(self):
+        """Return current states."""
         return {'cur_epoch': self.cur_epoch}
 
+    def get_arch_desc(self):
+        """Return current archdesc."""
+        return self.exporter(self.model)
+
     def save_model(self, save_name=None, exporter='DefaultTorchCheckpointExporter'):
+        """Save model checkpoint to file."""
         expman = self.expman
         save_name = 'model_{}_{}.pt'.format(self.name, save_name)
         chkpt_path = expman.join('chkpt', save_name)
         build_exporter(exporter, path=chkpt_path)(self.model)
 
     def save(self, epoch=None, save_name=None):
+        """Save Estimator states to file."""
         expman = self.expman
         logger = self.logger
         save_name = 'estim_{}_{}.pkl'.format(self.name, save_name)
@@ -281,12 +251,14 @@ class EstimBase():
             logger.error("Failed saving estimator: {}".format(traceback.format_exc()))
 
     def save_checkpoint(self, epoch=None, save_name=None):
+        """Save Estimator & model to file."""
         epoch = epoch or self.cur_epoch
         save_name = save_name or 'ep{:03d}'.format(epoch + 1)
         self.save_model(save_name)
         self.save(epoch, save_name)
 
     def save_arch_desc(self, epoch=None, arch_desc=None, save_name=None, exporter='DefaultToFileExporter'):
+        """Save archdesc to file."""
         expman = self.expman
         logger = self.logger
         if save_name is not None:
@@ -301,12 +273,10 @@ class EstimBase():
             logger.error("Failed saving arch_desc: {}".format(traceback.format_exc()))
 
     def load(self, chkpt_path):
+        """Load states from file."""
         if chkpt_path is None:
             return
         self.logger.info("Resuming from checkpoint: {}".format(chkpt_path))
         with open(chkpt_path, 'rb') as f:
             chkpt = pickle.load(f)
-        if 'model' in chkpt and self.model is not None:
-            self.model.load(chkpt['model'])  # legacy
-        if 'states' in chkpt:
-            self.load_state_dict(chkpt['states'])
+        self.load_state_dict(chkpt)

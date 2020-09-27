@@ -1,8 +1,11 @@
+"""Base Trainer."""
 from ..utils import DummyWriter
 import logging
 
 
 class TrainerBase():
+    """Base Trainer class."""
+
     def __init__(self, logger=None, writer=None):
         if logger is None:
             logger = logging.getLogger('Trainer')
@@ -12,19 +15,25 @@ class TrainerBase():
         self.writer = writer
 
     def train_epoch(self):
-        pass
+        """Train for one epoch."""
+        raise NotImplementedError
 
     def valid_epoch(self):
-        pass
+        """Validate for one epoch."""
+        raise NotImplementedError
 
     def train_step(self):
-        pass
+        """Train for one step."""
+        raise NotImplementedError
 
     def valid_step(self):
-        pass
+        """Validate for one step."""
+        raise NotImplementedError
 
     def state_dict(self):
+        """Return current states."""
         return {}
 
     def load_state_dict(self, sd):
-        pass
+        """Resume states."""
+        raise NotImplementedError

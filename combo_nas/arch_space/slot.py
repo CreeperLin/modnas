@@ -1,3 +1,4 @@
+"""Slot module."""
 from functools import partial
 import copy
 import logging
@@ -10,12 +11,22 @@ def _simplify_list(data):
 
 
 class Slot(nn.Module):
+    """Stub module that is converted to actual modules by Constructors."""
+
     _slots = []
     _slot_id = -1
     _convert_fn = None
     _export_fn = None
 
-    def __init__(self, *args, _chn_in=None, _chn_out=None, _stride=None, in_shape=None, out_shape=None, name=None, **kwargs):
+    def __init__(self,
+                 *args,
+                 _chn_in=None,
+                 _chn_out=None,
+                 _stride=None,
+                 in_shape=None,
+                 out_shape=None,
+                 name=None,
+                 **kwargs):
         super().__init__()
         Slot.register(self)
         self.name = str(self.sid) if name is None else name
@@ -35,22 +46,26 @@ class Slot(nn.Module):
                    for in_s, out_s in zip(in_shape, out_shape)]
         if _stride is not None:
             strides = [([None, None, _stride] if strd is None else (strd[:1] + [(_stride if s is None else s)
-                                                                                for s in strd[1:]])) for strd in strides]
+                                                                                for s in strd[1:]]))
+                       for strd in strides]
         self.in_shape = in_shape
         self.out_shape = out_shape
         self.strides = strides
         self.ent = None
         self.kwargs = kwargs
         self.args = args
-        logging.debug('slot {} {}: declared {} {} {}'.format(self.sid, self.name, self.in_shape, self.out_shape, self.strides))
+        logging.debug('slot {} {}: declared {} {} {}'.format(self.sid, self.name, self.in_shape, self.out_shape,
+                                                             self.strides))
 
     @staticmethod
     def register(slot):
+        """Register a Slot module."""
         slot.sid = Slot.new_slot_id()
         Slot._slots.append(slot)
 
     @staticmethod
     def reset():
+        """Reset Slot modules."""
         Slot._slots = []
         Slot._slot_id = -1
         Slot._convert_fn = None
@@ -58,30 +73,37 @@ class Slot(nn.Module):
 
     @staticmethod
     def new_slot_id():
+        """Return a new Slot id."""
         Slot._slot_id += 1
         return Slot._slot_id
 
     @property
     def chn_in(self):
+        """Return input channel (first) dimension."""
         return _simplify_list([(None if in_s is None else in_s[1])
                                for in_s in self.in_shape]) if self.in_shape is not None else None
 
     @property
     def chn_out(self):
+        """Return output channel (first) dimension."""
         return _simplify_list([(None if out_s is None else out_s[1])
                                for out_s in self.out_shape]) if self.out_shape is not None else None
 
     @property
     def stride(self):
-        return _simplify_list([(None if s is None else s[2]) for s in self.strides]) if self.strides is not None else None
+        """Return strides of data dimensions."""
+        return _simplify_list([(None if s is None else s[2])
+                               for s in self.strides]) if self.strides is not None else None
 
     @staticmethod
     def gen_slots_all():
+        """Return an iterator over all Slots."""
         for m in Slot._slots:
             yield m
 
     @staticmethod
     def gen_slots_model(model):
+        """Return an iterator over all Slots in a model."""
         def gen():
             for m in model.modules():
                 if isinstance(m, Slot):
@@ -91,6 +113,7 @@ class Slot(nn.Module):
 
     @staticmethod
     def call_all(funcname, gen=None, fn_kwargs=None):
+        """Call a member function over Slots."""
         if gen is None:
             gen = Slot.gen_slots_all
         ret = []
@@ -101,6 +124,7 @@ class Slot(nn.Module):
 
     @staticmethod
     def apply_all(func, gen=None, fn_kwargs=None):
+        """Apply a function over Slots."""
         if gen is None:
             gen = Slot.gen_slots_all
         ret = []
@@ -110,30 +134,37 @@ class Slot(nn.Module):
 
     @staticmethod
     def set_convert_fn(func):
+        """Set default Slot convert function."""
         Slot._convert_fn = func
 
     @staticmethod
     def set_export_fn(func):
+        """Set default Slot export function."""
         Slot._export_fn = func
 
     def get_entity(self):
+        """Return actual module in Slot."""
         return self._modules.get('ent', None)
 
     def set_entity(self, ent):
+        """Set actual module in Slot."""
         self.ent = ent
         logging.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
 
     def del_entity(self):
+        """Delete actual module in Slot."""
         if self.ent is None:
             return
         del self.ent
 
     def forward(self, *args, **kwargs):
+        """Compute output."""
         if self.ent is None:
             raise RuntimeError('Undefined entity in slot {}'.format(self.sid))
         return self.ent(*args, **kwargs)
 
     def to_arch_desc(self, *args, **kwargs):
+        """Return archdesc from Slot."""
         export_fn = Slot._export_fn
         if export_fn is None:
             logging.warning('slot {} has no exporter'.format(self.sid))
@@ -141,17 +172,20 @@ class Slot(nn.Module):
         return export_fn(self, *args, **kwargs)
 
     def build_from_arch_desc(self, *args, **kwargs):
+        """Convert Slot to module from archdesc."""
         if self.ent is None:
             self.set_entity(Slot._convert_fn(self, *args, **kwargs))
         else:
             logging.warning('slot {} already built'.format(self.sid))
 
     def extra_repr(self):
+        """Return extra string representation."""
         return '{}, {}, {}, '.format(self.chn_in, self.chn_out, self.stride) + ', '.join(
             ['{}={}'.format(k, v) for k, v in self.kwargs.items()])
 
 
 def get_slot_builder(builder, args_fmt=None, kwargs_fmt=None):
+    """Return a builder that converts slot to module."""
     def get_slot_args(slot, args_fmt, kwargs_fmt):
         if args_fmt is None:
             return slot.args
@@ -198,6 +232,7 @@ def get_slot_builder(builder, args_fmt=None, kwargs_fmt=None):
 
 
 def register_slot_builder(builder, _reg_id=None, args_fmt=None, kwargs_fmt=None):
+    """Register a builder that converts slot to module."""
     _reg_id = _reg_id or builder.__qualname__
     register(get_slot_builder(builder, args_fmt, kwargs_fmt), _reg_id)
     return builder

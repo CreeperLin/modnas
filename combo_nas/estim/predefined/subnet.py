@@ -1,3 +1,4 @@
+"""Subnet-based Estimator."""
 import itertools
 import traceback
 from ..base import EstimBase
@@ -8,6 +9,8 @@ from .. import register
 
 @register
 class SubNetEstim(EstimBase):
+    """Subnet-based Estimator class."""
+
     def __init__(self, rebuild_subnet=False, num_bn_batch=100, clear_subnet_bn=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.rebuild_subnet = rebuild_subnet
@@ -17,6 +20,7 @@ class SubNetEstim(EstimBase):
         self.best_arch_desc = None
 
     def step(self, params):
+        """Return evaluation results of a parameter set."""
         ArchParamSpace.update_params(params)
         arch_desc = self.exporter(self.model)
         config = self.config
@@ -28,7 +32,7 @@ class SubNetEstim(EstimBase):
             return ret
         tot_epochs = config.subnet_epochs
         if tot_epochs > 0:
-            self.reset_training_states(tot_epochs=tot_epochs)
+            self.reset_trainer(tot_epochs=tot_epochs)
             for epoch in itertools.count(0):
                 if epoch == tot_epochs:
                     break
@@ -43,16 +47,14 @@ class SubNetEstim(EstimBase):
         return ret
 
     def construct_subnet(self, arch_desc):
+        """Return subnet built from archdesc."""
         if self.rebuild_subnet:
             self.model = self.constructor(arch_desc=arch_desc)
         else:
             utils.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
-    def valid(self):
-        self.construct_subnet(self.exporter(self.model))
-        return self.valid_epoch(epoch=0, tot_epochs=1)
-
     def run(self, optim):
+        """Run Estimator routine."""
         logger = self.logger
         config = self.config
         tot_epochs = config.epochs
@@ -81,7 +83,7 @@ class SubNetEstim(EstimBase):
                 if batch_best is None or val_score > batch_best:
                     batch_best = val_score
             # save
-            if config.save_gt:
+            if config.save_arch_desc:
                 self.save_arch_desc(epoch)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)

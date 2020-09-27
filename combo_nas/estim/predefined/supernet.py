@@ -1,3 +1,4 @@
+"""Supernet-based Estimator."""
 import itertools
 from ..base import EstimBase
 from ...core.param_space import ArchParamSpace
@@ -7,20 +8,24 @@ from .. import register
 
 @register
 class SuperNetEstim(EstimBase):
+    """Supernet-based Estimator class."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.best_score = None
         self.best_arch_desc = None
 
     def print_tensor_params(self, max_num=3):
+        """Log current tensor parameter values."""
         logger = self.logger
         ap_cont = tuple(a.detach().softmax(dim=-1).cpu().numpy() for a in ArchParamSpace.tensor_values())
         max_num = min(len(ap_cont) // 2, max_num)
-        logger.info('TENSOR: {}\n{}'.format(len(ap_cont),
-                                            '\n'.join([str(a) for a in (ap_cont[:max_num] + ('...', ) + ap_cont[-max_num:])])))
+        logger.info('TENSOR: {}\n{}'.format(
+            len(ap_cont), '\n'.join([str(a) for a in (ap_cont[:max_num] + ('...', ) + ap_cont[-max_num:])])))
 
     def run(self, optim):
-        self.reset_training_states()
+        """Run Estimator routine."""
+        self.reset_trainer()
         model = self.model
         config = self.config
         tot_epochs = config.epochs
@@ -41,7 +46,7 @@ class SuperNetEstim(EstimBase):
                 self.best_score = score
                 self.best_arch_desc = arch_desc
             # save
-            if config.save_gt:
+            if config.save_arch_desc:
                 self.save_arch_desc(epoch, arch_desc=arch_desc)
             if config.save_freq != 0 and epoch % config.save_freq == 0:
                 self.save_checkpoint(epoch)
@@ -55,6 +60,7 @@ class SuperNetEstim(EstimBase):
         }
 
     def search_epoch(self, epoch, optim):
+        """Run search for one epoch."""
         config = self.config
         n_trn_batch = self.get_num_train_batch(epoch)
         n_val_batch = self.get_num_valid_batch(epoch)
@@ -70,15 +76,12 @@ class SuperNetEstim(EstimBase):
             elif arch_update_intv == 0:  # update last step
                 arch_update_intv = n_trn_batch
             arch_update_batch = config.arch_update_batch
-        tprof = self.tprof
         arch_step = 0
         for step in range(n_trn_batch):
             # optim step
             if update_arch and (step + 1) // arch_update_intv > arch_step:
                 for _ in range(arch_update_batch):
-                    tprof.timer_start('arch')
                     optim.step(self)
-                    tprof.timer_stop('arch')
                 arch_step += 1
             # supernet step
             optim.next()
@@ -88,6 +91,3 @@ class SuperNetEstim(EstimBase):
                                     tot_epochs=tot_epochs,
                                     step=step,
                                     tot_steps=n_trn_batch)
-        tprof.stat('data')
-        tprof.stat('train')
-        tprof.stat('arch')

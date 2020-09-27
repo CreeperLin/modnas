@@ -1,3 +1,4 @@
+"""Genetic search algorithms."""
 import numpy as np
 import random
 from ..base import CategoricalSpaceOptim
@@ -5,6 +6,8 @@ from .. import register
 
 
 class GeneticOptim(CategoricalSpaceOptim):
+    """Optimizer with genetic operators on a population."""
+
     def __init__(self, space, pop_size, max_it=1000, logger=None):
         super().__init__(space, logger)
         self.max_it = max_it
@@ -28,9 +31,11 @@ class GeneticOptim(CategoricalSpaceOptim):
         return params
 
     def add_operator(self, operator):
+        """Add a genetic operator."""
         self.operators.append(operator)
 
     def to_metrics(self, res):
+        """Return scalar metrics from evaluation results."""
         if isinstance(res, dict):
             return list(res.values())[0]
         if isinstance(res, (tuple, list)):
@@ -38,6 +43,7 @@ class GeneticOptim(CategoricalSpaceOptim):
         return res
 
     def step(self, estim):
+        """Update Optimizer states using Estimator evaluation results."""
         _, results = estim.get_last_results()
         results = [self.to_metrics(res) for res in results]
         self.metrics.extend(results)
@@ -48,6 +54,8 @@ class GeneticOptim(CategoricalSpaceOptim):
 
 @register
 class EvolutionOptim(GeneticOptim):
+    """Optimizer with Evolution algorithm."""
+
     def __init__(self,
                  space,
                  pop_size=100,
@@ -132,6 +140,8 @@ class EvolutionOptim(GeneticOptim):
 
 @register
 class RegularizedEvolutionOptim(EvolutionOptim):
+    """Optimizer with Regularized Evolution algorithm."""
+
     def _survival(self, pop):
         s_idx = self.n_eliminate
         if s_idx <= 0:

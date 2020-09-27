@@ -1,9 +1,11 @@
+"""Dictionary based configuration."""
 # modified from https://github.com/HarryVolek/PyTorch_Speaker_Verification
 import yaml
 import copy
 
 
 def load_config(filename):
+    """Load configuration from YAML file."""
     stream = open(filename, 'r')
     docs = yaml.load_all(stream, Loader=yaml.Loader)
     config_dict = dict()
@@ -14,6 +16,8 @@ def load_config(filename):
 
 
 class Config(dict):
+    """Dictionary based configuration."""
+
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
@@ -30,16 +34,20 @@ class Config(dict):
                     if hasattr(value[i], 'keys'):
                         value[i] = Config(None, value[i])
             self[key] = value
-        yaml.add_representer(Config, lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
+        yaml.add_representer(Config,
+                             lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
 
     def __deepcopy__(self, memo):
+        """Return deepcopy."""
         return Config(None, copy.deepcopy(dict(self)))
 
     def __str__(self):
+        """Return config string."""
         return yaml.dump(dict(self), default_flow_style=False)
 
     @staticmethod
     def get_value(config, key):
+        """Get config value by path."""
         keywords = key.split('.')
         val = config[keywords[0]]
         if len(keywords) == 1:
@@ -50,6 +58,7 @@ class Config(dict):
 
     @staticmethod
     def set_value(config, key, value):
+        """Set config value by path."""
         keywords = key.split('.')
         if len(keywords) == 1:
             config[keywords[0]] = value
@@ -62,6 +71,7 @@ class Config(dict):
 
     @staticmethod
     def apply(config, dct):
+        """Apply items to a configuration."""
         if isinstance(dct, dict):
             dct = Config(dct=dct)
         elif isinstance(dct, list):
@@ -73,6 +83,7 @@ class Config(dict):
 
     @staticmethod
     def load(conf):
+        """Load configuration."""
         if isinstance(conf, Config):
             config = conf
         elif isinstance(conf, str):

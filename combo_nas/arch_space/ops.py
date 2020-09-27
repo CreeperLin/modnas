@@ -2,7 +2,6 @@ import logging
 import torch
 import torch.nn as nn
 from ..utils import get_same_padding
-
 from .slot import register_slot_ccs
 
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
@@ -31,37 +30,20 @@ BIAS = False
 INPLACE = False
 
 
-def configure_ops(config):
+def configure_ops(ops_order='act_weight_bn', affine=False, bias=False, inplace=False):
     global OPS_ORDER
-    OPS_ORDER = config.ops_order.split('_')
+    OPS_ORDER = ops_order.split('_')
     global AFFINE
-    AFFINE = config.affine
+    AFFINE = affine
     global BIAS
-    BIAS = False if OPS_ORDER[-1] == 'bn' else True
-    if 'bias' in config:
-        BIAS = config.bias
+    BIAS = False if OPS_ORDER[-1] == 'bn' else bias
     global INPLACE
-    INPLACE = False if OPS_ORDER[0] == 'act' else True
-    if 'inplace' in config:
-        INPLACE = config.inplace
+    INPLACE = False if OPS_ORDER[0] == 'act' else inplace
     logging.info('ops config: ops_order: {} affine: {} bias: {} inplace: {}'.format(OPS_ORDER, AFFINE, BIAS, INPLACE))
-
-
-def drop_path_(x, drop_prob, training):
-    if training and drop_prob > 0.:
-        keep_prob = 1. - drop_prob
-        # per data point mask; assuming x in cuda.
-        mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
-        x.div_(keep_prob).mul_(mask)
-    return x
 
 
 class DropPath_(nn.Module):
     def __init__(self, prob=0.):
-        """ DropPath module.
-        Args:
-            prob: probability of an path to be zeroed.
-        """
         super().__init__()
         self.prob = prob
 
@@ -69,19 +51,18 @@ class DropPath_(nn.Module):
         return 'prob={}, inplace'.format(self.prob)
 
     def forward(self, x):
-        drop_path_(x, self.prob, self.training)
+        if self.training and self.drop_prob > 0.:
+            keep_prob = 1. - self.drop_prob
+            # per data point mask; assuming x in cuda.
+            mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
+            x.div_(keep_prob).mul_(mask)
         return x
 
 
 class PoolBN(nn.Module):
-    """
-    AvgPool or MaxPool - BN
-    """
+    """AvgPool or MaxPool - BN."""
+
     def __init__(self, pool_type, C_in, C_out, kernel_size, stride, padding):
-        """
-        Args:
-            pool_type: 'max' or 'avg'
-        """
         super().__init__()
         if C_in != C_out:
             raise ValueError('invalid channel in pooling layer')
@@ -108,9 +89,8 @@ class PoolBN(nn.Module):
 
 
 class StdConv(nn.Module):
-    """ Standard conv
-    ReLU - Conv - BN
-    """
+    """Standard conv, ReLU - Conv - BN."""
+
     def __init__(self, C_in, C_out, kernel_size, stride, padding, groups=1):
         super().__init__()
         C = C_in
@@ -130,9 +110,8 @@ class StdConv(nn.Module):
 
 
 class FacConv(nn.Module):
-    """ Factorized conv
-    ReLU - Conv(Kx1) - Conv(1xK) - BN
-    """
+    """Factorized conv, ReLU - Conv(Kx1) - Conv(1xK) - BN."""
+
     def __init__(self, C_in, C_out, kernel_length, stride, padding):
         super().__init__()
         C = C_in
@@ -154,12 +133,14 @@ class FacConv(nn.Module):
 
 
 class DilConv(nn.Module):
-    """ (Dilated) depthwise separable conv
+    """(Dilated) depthwise separable conv.
+
     ReLU - (Dilated) depthwise separable - Pointwise - BN
 
     If dilation == 2, 3x3 conv => 5x5 receptive field
                       5x5 conv => 9x9 receptive field
     """
+
     def __init__(self, C_in, C_out, kernel_size, stride, padding, dilation):
         super().__init__()
         C = C_in
@@ -180,9 +161,8 @@ class DilConv(nn.Module):
 
 
 class SepConv(nn.Module):
-    """ Depthwise separable conv
-    DilConv(dilation=1) * 2
-    """
+    """Depthwise separable conv, DilConv(dilation=1) * 2."""
+
     def __init__(self, C_in, C_out, kernel_size, stride, padding):
         super().__init__()
         self.net = nn.Sequential(DilConv(C_in, C_in, kernel_size, stride, padding, dilation=1),
@@ -193,9 +173,8 @@ class SepConv(nn.Module):
 
 
 class SepSingle(nn.Module):
-    """ Depthwise separable conv
-    DilConv(dilation=1)
-    """
+    """Depthwise separable conv, DilConv(dilation=1) * 1."""
+
     def __init__(self, C_in, C_out, kernel_size, stride, padding):
         super().__init__()
         C = C_in
@@ -234,15 +213,13 @@ class Zero(nn.Module):
     def forward(self, x):
         if self.stride == 1:
             return x * 0.
-
         # re-sizing by stride
         return x[:, :, ::self.stride, ::self.stride] * 0.
 
 
 class FactorizedReduce(nn.Module):
-    """
-    Reduce feature map size by factorized pointwise(stride=2).
-    """
+    """Reduce feature map size by factorized pointwise(stride=2)."""
+
     def __init__(self, C_in, C_out):
         super().__init__()
         self.relu = nn.ReLU()

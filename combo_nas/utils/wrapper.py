@@ -1,42 +1,36 @@
+"""Wrapper for routine initialization and execution."""
 import os
-import sys
 import queue
 import importlib
 from collections import OrderedDict
 from functools import partial
-from ..utils.registration import get_registry_utils
-registry, register, get_builder, build, register_as = get_registry_utils('runner')
-from ..utils.exp_manager import ExpManager
+from ..registry.runner import register, get_builder, build, register_as
+from .exp_manager import ExpManager
+from .config import Config
+from . import optimizer
+from . import lr_scheduler
 from ..data_provider import get_data_provider
 from ..arch_space.construct import build as build_con
 from ..arch_space.export import build as build_exp
 from ..arch_space.ops import configure_ops
-from ..arch_space.slot import Slot
 from ..core.param_space import ArchParamSpace
 from ..optim import build as build_optim
 from ..estim import build as build_estim
 from ..trainer import build as build_trainer
 from .. import utils
-from ..utils.config import Config
 from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 
 
 def import_modules(modules):
+    """Import modules by name."""
     if modules is None:
         return
     for m in modules:
         importlib.import_module(m)
 
 
-def import_files(names, files):
-    for name, path in zip(names, files):
-        spec = importlib.util.spec_from_file_location(name, path)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-
-
 def load_config(conf):
+    """Load configurations."""
     if not isinstance(conf, list):
         conf = [conf]
     config = None
@@ -47,10 +41,12 @@ def load_config(conf):
 
 
 def get_init_constructor():
+    """Return default init constructor."""
     return {'type': 'DefaultInitConstructor'}
 
 
 def get_model_constructor(config):
+    """Return default model constructor."""
     default_type = 'DefaultModelConstructor'
     default_args = {}
     default_args['model_type'] = config['type']
@@ -60,10 +56,12 @@ def get_model_constructor(config):
 
 
 def get_chkpt_constructor(path):
+    """Return default checkpoint loader."""
     return {'type': 'DefaultTorchCheckpointLoader', 'args': {'path': path}}
 
 
 def get_mixed_op_constructor(config):
+    """Return default mixed operation constructor."""
     default_type = 'DefaultMixedOpConstructor'
     default_args = {}
     if 'primitives' in config:
@@ -76,16 +74,19 @@ def get_mixed_op_constructor(config):
 
 
 def get_arch_desc_constructor(arch_desc):
+    """Return default archdesc constructor."""
     default_con = {'type': 'DefaultSlotArchDescConstructor', 'args': {}}
     default_con['args']['arch_desc'] = arch_desc
     return default_con
 
 
 def build_constructor_all(config):
+    """Build and return all constructors."""
     return OrderedDict([(k, build_con(conf['type'], **conf.get('args', {}))) for k, conf in config.items()])
 
 
 def build_exporter_all(config):
+    """Build and return all exporters."""
     if len(config) == 0:
         config = {'default': {'type': 'DefaultSlotTraversalExporter'}}
     if len(config) > 1:
@@ -97,6 +98,7 @@ def build_exporter_all(config):
 
 
 def build_trainer_all(trainer_config, trainer_comp=None):
+    """Build and return all trainers."""
     trners = {}
     for trner_name, trner_conf in trainer_config.items():
         if isinstance(trner_conf, str):
@@ -109,6 +111,7 @@ def build_trainer_all(trainer_config, trainer_comp=None):
 
 
 def build_estim_all(estim_config, estim_comp=None):
+    """Build and return all estimators."""
     estims = {}
     if isinstance(estim_config, list):
         estim_config = OrderedDict([(c.get('name', str(i)), c) for i, c in enumerate(estim_config)])
@@ -125,29 +128,31 @@ def build_estim_all(estim_config, estim_comp=None):
 
 
 def bind_trainer(estims, trners):
+    """Bind estimators with trainers."""
     for estim in estims.values():
         estim.set_trainer(trners.get(estim.config.get('trainer', estim.name), trners.get('default')))
 
 
 def estims_routine(logger, optim, estims):
+    """Run a chain of estimator routines."""
     results = {}
     for estim_name, estim in estims.items():
         logger.info('Running estim: {} type: {}'.format(estim_name, estim.__class__.__name__))
         ret = estim.run(optim)
         results[estim_name] = ret
-        logger.info('Results: {}: {{{}}}'.format(estim_name, ', '.join(['{}: {}'.format(k, v) for k, v in ret.items()])))
     logger.info('All results: {{\n{}\n}}'.format('\n'.join(['{}: {}'.format(k, v) for k, v in results.items()])))
     results['final'] = ret
     return results
 
 
 def default_constructor(model, logger=None, construct_fn=None, construct_config=None, arch_desc=None):
+    """Apply all constructors on model."""
     construct_fn = construct_fn or {}
     if isinstance(construct_fn, list):
         construct_fn = [(str(i), v) for i, v in enumerate(construct_fn)]
     construct_fn = OrderedDict(construct_fn)
     if arch_desc:
-        construct_config['args']['arch_desc'] = arch_desc
+        construct_config['arch_desc']['args']['arch_desc'] = arch_desc
     construct_fn.update(build_constructor_all(construct_config or {}))
     for name, con_fn in construct_fn.items():
         logger.info('Running constructor: {} type: {}'.format(name, con_fn.__class__.__name__))
@@ -156,13 +161,12 @@ def default_constructor(model, logger=None, construct_fn=None, construct_config=
 
 
 def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=None):
-    # reset
-    ArchParamSpace.reset()
+    """Initialize all components."""
     # dir
     utils.check_config(config)
     expman = ExpManager(exp, name, **config.get('expman', {}))
-    logger = utils.get_logger(expman.logs_path, name, **config.get('logger', {}))
-    writer = utils.get_writer(expman.writer_path, **config.get('writer', {}))
+    logger = utils.get_logger(expman.subdir('logs'), name, **config.get('logger', {}))
+    writer = utils.get_writer(expman.subdir('writer'), **config.get('writer', {}))
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
@@ -175,8 +179,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=No
     # data
     data_provider = get_data_provider(config, logger)
     # ops
-    if 'ops' in config:
-        configure_ops(config.ops)
+    configure_ops(**config.get('ops', {}))
     # construct
     con_config = OrderedDict()
     con_config['init'] = get_init_constructor()
@@ -186,13 +189,17 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=No
         con_config['mixed_op'] = get_mixed_op_constructor(config.mixed_op)
     if arch_desc is not None:
         con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
-    if device_ids and len(con_config):
+    con_config = utils.merge_config(con_config, config.get('construct', {}))
+    if device_ids and len(con_config) > 1:
         con_config['device'] = {'type': 'ToDevice', 'args': {'device_ids': device_ids}}
     if chkpt is not None:
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
-    con_config = utils.merge_config(con_config, config.get('construct', {}))
     # model
-    constructor = partial(default_constructor, logger, construct_fn, con_config, arch_desc)
+    constructor = partial(default_constructor,
+                          logger=logger,
+                          construct_fn=construct_fn,
+                          construct_config=con_config,
+                          arch_desc=arch_desc)
     model = constructor(model)
     # export
     exporter = build_exporter_all(config.get('export', {}))
@@ -223,7 +230,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=No
 
 
 def init_all_search(config, name, exp='exp', chkpt=None, device=None, arch_desc=None, construct_fn=None, config_override=None):
-    # config
+    """Initialize all components from search config."""
     config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.pop('search', {}))
@@ -238,6 +245,7 @@ def init_all_augment(config,
                      arch_desc=None,
                      construct_fn=None,
                      config_override=None):
+    """Initialize all components from augment config."""
     config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.pop('augment', {}))
@@ -245,6 +253,7 @@ def init_all_augment(config,
 
 
 def init_all_hptune(config, name, exp='exp', measure_fn=None, config_override=None):
+    """Initialize all components from hptune config."""
     config = load_config(config)
     Config.apply(config, config_override or {})
     Config.apply(config, config.pop('hptune', {}))
@@ -260,27 +269,31 @@ def init_all_hptune(config, name, exp='exp', measure_fn=None, config_override=No
 
 @register_as('search')
 def run_search(*args, **kwargs):
+    """Run search routines."""
     return estims_routine(**init_all_search(*args, **kwargs))
 
 
 @register_as('augment')
 def run_augment(*args, **kwargs):
+    """Run augment routines."""
     return estims_routine(**init_all_augment(*args, **kwargs))
 
 
 @register_as('hptune')
 def run_hptune(*args, **kwargs):
+    """Run hptune routines."""
     return estims_routine(**init_all_hptune(*args, **kwargs))
 
 
 @register_as('pipeline')
 def run_pipeline(config, name, exp='exp', config_override=None):
+    """Run pipeline routines."""
     config = load_config(config)
     Config.apply(config, config_override or {})
-    utils.check_config(config, top_keys=['log'])
+    utils.check_config(config)
     # dir
     expman = ExpManager(exp, name, **config.get('expman', {}))
-    logger = utils.get_logger(expman.logs_path, name, **config.get('logger', {}))
+    logger = utils.get_logger(expman.subdir('logs'), name, **config.get('logger', {}))
     logger.info('config loaded:\n{}'.format(config))
     logger.info(utils.env_info())
     # imports
@@ -325,6 +338,7 @@ def run_pipeline(config, name, exp='exp', config_override=None):
 
 
 def run(config, *args, proc=None, **kwargs):
+    """Run routine."""
     config = Config.load(config)
     proc = proc or config.get('proc', None)
     return build(proc, *args, config=config, **kwargs)

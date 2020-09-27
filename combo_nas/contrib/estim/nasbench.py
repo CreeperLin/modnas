@@ -30,10 +30,11 @@ class NASBenchSpaceConstructor():
 
 
 class NASBenchPredictor():
-    def __init__(self, record_path):
+    def __init__(self, record_path, record_key='test_accuracy'):
         if api is None:
             raise RuntimeError('nasbench api is not installed')
         self.nasbench = api.NASBench(record_path)
+        self.record_key = record_key
         self.max_nodes = 7
 
     def predict(self, arch_desc):
@@ -50,8 +51,8 @@ class NASBenchPredictor():
         model_spec = api.ModelSpec(matrix=matrix, ops=ops)
         try:
             data = self.nasbench.query(model_spec)
-            val_acc = data['test_accuracy']
-        except:
+            val_acc = data[self.record_key]
+        except api.OutOfDomainError:
             val_acc = 0
         return val_acc
 

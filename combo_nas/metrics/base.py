@@ -1,7 +1,10 @@
+"""Implementation of Metrics interface."""
 import logging
 
 
 class MetricsBase(object):
+    """Base Metrics class."""
+
     cur_estim = None
 
     def __init__(self, logger):
@@ -10,12 +13,15 @@ class MetricsBase(object):
         self.estim = MetricsBase.get_estim()
 
     def compute(self, *args, **kwargs):
+        """Compute metrics."""
         raise NotImplementedError
 
     @staticmethod
     def get_estim():
+        """Get current Estimator."""
         return MetricsBase.cur_estim
 
     @staticmethod
     def set_estim(estim):
+        """Set current Estimator."""
         MetricsBase.cur_estim = estim

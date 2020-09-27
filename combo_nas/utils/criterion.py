@@ -1,3 +1,4 @@
+"""Implementation of Criterions (Loss functions)."""
 import math
 import random
 import torch
@@ -10,6 +11,7 @@ registry, register, get_builder, build, register_as = get_registry_utils('criter
 
 
 def get_criterion(config, device_ids=None):
+    """Return a new Criterion."""
     crit_type = config['type']
     crit_args = config.get('args', {})
     n_parallel = 1 if device_ids is None else len(device_ids)
@@ -19,7 +21,36 @@ def get_criterion(config, device_ids=None):
     return criterion
 
 
+def build_criterions_all(crit_configs, device_ids=None):
+    """Build Criterions from configs."""
+    crits_all = []
+    crits_train = []
+    crits_eval = []
+    crits_valid = []
+    if crit_configs is None:
+        crit_configs = []
+    if not isinstance(crit_configs, list):
+        crit_configs = [crit_configs]
+    for crit_conf in crit_configs:
+        if isinstance(crit_conf, str):
+            crit_conf = {'type': crit_conf}
+        crit = get_criterion(crit_conf, device_ids=device_ids)
+        crit_mode = crit_conf.get('mode', 'all')
+        if not isinstance(crit_mode, list):
+            crit_mode = [crit_mode]
+        if 'all' in crit_mode:
+            crits_all.append(crit)
+        if 'train' in crit_mode:
+            crits_train.append(crit)
+        if 'eval' in crit_mode:
+            crits_eval.append(crit)
+        if 'valid' in crit_mode:
+            crits_valid.append(crit)
+    return crits_all, crits_train, crits_eval, crits_valid
+
+
 def torch_criterion_wrapper(cls):
+    """Return a Criterion class that wraps a torch loss function."""
     def call_fn(self, loss, estim, model, X, y_pred, y_true):
         if y_pred is None:
             y_pred = model(X)
@@ -30,6 +61,7 @@ def torch_criterion_wrapper(cls):
 
 
 def label_smoothing(y_pred, y_true, eta):
+    """Return label smoothed target."""
     n_classes = y_pred.size(1)
     # convert to one-hot
     y_true = torch.unsqueeze(y_true, 1)
@@ -41,27 +73,34 @@ def label_smoothing(y_pred, y_true, eta):
 
 
 def cross_entropy_soft_target(y_pred, target):
+    """Return soft target cross entropy loss."""
     return torch.mean(torch.sum(-target * F.log_softmax(y_pred, dim=-1), 1))
 
 
 class CrossEntropyLabelSmoothingLoss(nn.Module):
+    """Cross entropy loss with label smoothing."""
+
     def __init__(self, eta=0.1):
         super().__init__()
         self.eta = eta
 
     def forward(self, y_pred, y_true):
+        """Return loss."""
         soft_y_true = label_smoothing(y_pred, y_true, self.eta)
         return cross_entropy_soft_target(y_pred, soft_y_true)
 
 
 @register
 class MixUpLoss():
+    """Apply MIXUP loss."""
+
     def __init__(self, crit_type, alpha=0.3, use_flip=True, crit_args=None):
         self.alpha = alpha
         self.use_flip = use_flip
         self.criterion = build(crit_type, **(crit_args or {}))
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
+        """Return loss."""
         alpha = self.alpha
         lam = random.betavariate(alpha, alpha) if alpha > 0 else 1
         if self.use_flip:
@@ -81,6 +120,8 @@ class MixUpLoss():
 
 @register
 class AuxiliaryLoss():
+    """Apply Auxiliary loss."""
+
     def __init__(self, aux_ratio=0.4, loss_type='ce', forward_func='forward_aux'):
         super().__init__()
         self.aux_ratio = aux_ratio
@@ -91,6 +132,7 @@ class AuxiliaryLoss():
             raise ValueError('unsupported loss type: {}'.format(loss_type))
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
+        """Return loss."""
         aux_logits = getattr(model, self.fwd_func)(X)
         if aux_logits is None:
             return loss
@@ -100,10 +142,12 @@ class AuxiliaryLoss():
 
 @register
 class KnowledgeDistillLoss():
+    """Apply Knowledge Distillation."""
+
     def __init__(self, kd_model_constructor=None, kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
         if kd_model_constructor is not None:
-            kd_model = self.load_model(kd_model, kd_model_constructor)
+            kd_model = self._load_model(kd_model, kd_model_constructor)
         self.kd_model = kd_model
         self.kd_ratio = kd_ratio
         self.loss_scale = loss_scale
@@ -114,8 +158,7 @@ class KnowledgeDistillLoss():
         else:
             raise ValueError('unsupported loss_type: {}'.format(loss_type))
 
-    def load_model(self, kd_model, kd_model_constructor):
-        kd_model = None
+    def _load_model(self, kd_model, kd_model_constructor):
         if not isinstance(kd_model_constructor, list):
             kd_model_constructor = [kd_model_constructor]
         for con_conf in kd_model_constructor:
@@ -123,6 +166,7 @@ class KnowledgeDistillLoss():
         return kd_model
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
+        """Return loss."""
         with torch.no_grad():
             self.kd_model.to(device=X.device)
             soft_logits = self.kd_model(X)
@@ -132,6 +176,8 @@ class KnowledgeDistillLoss():
 
 
 class AggMetricsLoss():
+    """Compute loss from Metrics."""
+
     def __init__(self, metrics, target_val=None, target_decay=0.1):
         super().__init__()
         if target_val is not None:
@@ -140,7 +186,7 @@ class AggMetricsLoss():
         self.target_decay = target_decay
         self.metrics = metrics
 
-    def get_metrics(self, estim):
+    def _get_metrics(self, estim):
         mt = estim.compute_metrics(name=self.metrics, to_scalar=False)[self.metrics]
         mt_val = mt.detach().item()
         target_val = self.target_val
@@ -153,6 +199,8 @@ class AggMetricsLoss():
 
 @register
 class AddMetricsLoss(AggMetricsLoss):
+    """Compute loss by adding Metrics value."""
+
     def __init__(
         self,
         metrics,
@@ -164,31 +212,38 @@ class AddMetricsLoss(AggMetricsLoss):
         self.lamd = lamd
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        mt = self.get_metrics(estim)
+        """Return loss."""
+        mt = self._get_metrics(estim)
         return loss + self.lamd * (mt.to(device=loss.device) / self.target_val - 1.)
 
 
 @register
 class MultMetricsLoss(AggMetricsLoss):
+    """Compute loss by multiplying Metrics value."""
+
     def __init__(self, metrics, target_val=None, target_decay=0.1, alpha=1., beta=0.6):
         super().__init__(metrics, target_val, target_decay)
         self.alpha = alpha
         self.beta = beta
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        mt = self.get_metrics(estim)
+        """Return loss."""
+        mt = self._get_metrics(estim)
         return self.alpha * loss * (mt.to(device=loss.device) / self.target_val)**self.beta
 
 
 @register
 class MultLogMetricsLoss(AggMetricsLoss):
+    """Compute loss by multiplying logarithm of Metrics value."""
+
     def __init__(self, metrics, target_val=None, target_decay=0.1, alpha=1., beta=0.6):
         super().__init__(metrics, target_val, target_decay)
         self.alpha = alpha
         self.beta = beta
 
     def __call__(self, loss, estim, model, X, y_pred, y_true):
-        mt = self.get_metrics(estim)
+        """Return loss."""
+        mt = self._get_metrics(estim)
         return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val))**self.beta
 
 

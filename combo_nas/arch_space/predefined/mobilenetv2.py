@@ -1,4 +1,5 @@
 import math
+from functools import partial
 from collections import OrderedDict
 import torch.nn as nn
 from ..slot import Slot
@@ -10,16 +11,8 @@ from ..slot import register_slot_builder
 from .. import register
 
 
-kernel_sizes = [3, 5, 7, 9]
-expand_ratios = [1, 3, 6, 9]
-for k in kernel_sizes:
-    for e in expand_ratios:
-        p = get_same_padding(k)
-        builder = lambda C_in, C_out, stride, ks=k, exp=e, pd=p: MobileInvertedConv(C_in, C_out, C_in * exp, stride, ks, pd)
-        register_slot_builder(builder, 'MB{}E{}'.format(k, e), 'i1o1s2')
-
-
 def round_filters(filters, width_coeff, divisor, min_depth=None):
+    """Return rounded channel number."""
     multiplier = width_coeff
     if not multiplier:
         return filters
@@ -32,6 +25,7 @@ def round_filters(filters, width_coeff, divisor, min_depth=None):
 
 
 def round_repeats(repeats, depth_coeff):
+    """Return rounded repeat number."""
     multiplier = depth_coeff
     if not multiplier:
         return repeats
@@ -39,33 +33,38 @@ def round_repeats(repeats, depth_coeff):
 
 
 class MobileInvertedConv(nn.Sequential):
-    def __init__(self, chn_in, chn_out, C, stride, kernel_size=3, padding=1, activation=nn.ReLU6):
-        nets = [] if chn_in == C else [
-            nn.Conv2d(chn_in, C, kernel_size=1, bias=False),
-            nn.BatchNorm2d(C),
+    """MobileNetV2 Inverted Residual Convolution."""
+
+    def __init__(self, chn_in, chn_out, stride, expansion=6, kernel_size=3, padding=1, activation=nn.ReLU6):
+        chn = chn_in * expansion
+        nets = [] if chn_in == chn else [
+            nn.Conv2d(chn_in, chn, kernel_size=1, bias=False),
+            nn.BatchNorm2d(chn),
             activation(inplace=True),
         ]
         nets.extend([
-            nn.Conv2d(C, C, kernel_size=kernel_size, stride=stride, padding=padding, bias=False, groups=C),
-            nn.BatchNorm2d(C),
+            nn.Conv2d(chn, chn, kernel_size=kernel_size, stride=stride, padding=padding, bias=False, groups=chn),
+            nn.BatchNorm2d(chn),
             activation(inplace=True),
-            nn.Conv2d(C, chn_out, kernel_size=1, bias=False),
+            nn.Conv2d(chn, chn_out, kernel_size=1, bias=False),
             nn.BatchNorm2d(chn_out)
         ])
         super().__init__(*nets)
 
 
 class MobileInvertedResidualBlock(nn.Module):
+    """MobileNetV2 Inverted Residual Block."""
+
     def __init__(self, chn_in, chn_out, stride=1, t=6, activation=nn.ReLU6):
         super(MobileInvertedResidualBlock, self).__init__()
         self.stride = stride
         self.t = t
         self.chn_in = chn_in
         self.chn_out = chn_out
-        C = chn_in * t
-        self.conv = Slot(_chn_in=chn_in, _chn_out=chn_out, _stride=stride, C=C, activation=activation)
+        self.conv = Slot(_chn_in=chn_in, _chn_out=chn_out, _stride=stride, expansion=t, activation=activation)
 
     def forward(self, x):
+        """Compute network output."""
         residual = x
         out = self.conv(x)
         if self.stride == 1 and self.chn_in == self.chn_out:
@@ -75,6 +74,8 @@ class MobileInvertedResidualBlock(nn.Module):
 
 @register
 class MobileNetV2(nn.Module):
+    """MobileNetV2 Architecture Backbone."""
+
     def __init__(self,
                  chn_in,
                  n_classes,
@@ -118,7 +119,11 @@ class MobileNetV2(nn.Module):
             # First module is the only one utilizing stride
             s = stride if i == 0 else 1
             name = stage_name + "_{}".format(i)
-            module = MobileInvertedResidualBlock(chn_in=chn_in, chn_out=chn_out, stride=s, t=t, activation=self.activation)
+            module = MobileInvertedResidualBlock(chn_in=chn_in,
+                                                 chn_out=chn_out,
+                                                 stride=s,
+                                                 t=t,
+                                                 activation=self.activation)
             modules[name] = module
             chn_in = chn_out
         return nn.Sequential(modules)
@@ -138,6 +143,7 @@ class MobileNetV2(nn.Module):
         return nn.Sequential(modules)
 
     def forward(self, x):
+        """Compute network output."""
         x = self.conv_first(x)
         x = self.bottlenecks(x)
         x = self.conv_last(x)
@@ -153,17 +159,23 @@ class MobileNetV2(nn.Module):
 
 
 def mbv2_predefined_convert_fn(slot):
+    """MobileNetV2 predefined converter."""
     return MobileInvertedConv(slot.chn_in, slot.chn_out, stride=slot.stride, **slot.kwargs)
 
 
 @register_constructor
 class MobileNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
+    """MobileNetV2 predefined Constructor."""
+
     def convert(self, slot):
+        """Convert Slot to MobileNetV2 predefined module."""
         return mbv2_predefined_convert_fn(slot)
 
 
 @register_constructor
 class MobileNetV2SearchConstructor(DefaultMixedOpConstructor):
+    """MobileNetV2 mixed operator search space Constructor."""
+
     def __init__(self, *args, fix_first=True, add_zero_op=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.fix_first = fix_first
@@ -172,6 +184,7 @@ class MobileNetV2SearchConstructor(DefaultMixedOpConstructor):
         self.predefined_fn = mbv2_predefined_convert_fn
 
     def convert(self, slot):
+        """Convert Slot to MixedOp."""
         if self.fix_first and self.first:
             ent = self.predefined_fn(slot)
             self.first = False
@@ -186,6 +199,8 @@ class MobileNetV2SearchConstructor(DefaultMixedOpConstructor):
 
 @register_constructor
 class MobileNetV2ArchDescConstructor(DefaultSlotArchDescConstructor):
+    """MobileNetV2 archdesc Constructor."""
+
     def __init__(self, *args, fix_first=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.fix_first = fix_first
@@ -193,6 +208,7 @@ class MobileNetV2ArchDescConstructor(DefaultSlotArchDescConstructor):
         self.predefined_fn = mbv2_predefined_convert_fn
 
     def convert(self, slot):
+        """Convert Slot to module from archdesc."""
         if self.fix_first and self.first:
             ent = self.predefined_fn(slot)
             self.first = False
@@ -204,6 +220,7 @@ class MobileNetV2ArchDescConstructor(DefaultSlotArchDescConstructor):
 
 @register
 def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
+    """Return MobileNetV2 ImageNet model."""
     default_cfgs = [
         # t, c, n, s,
         [0, 32, 1, 2],
@@ -222,6 +239,7 @@ def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
 
 @register
 def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
+    """Return MobileNetV2 CIFAR model."""
     default_cfgs = [
         # t, c, n, s,
         [0, 32, 1, 1],  # stride = 1
@@ -236,3 +254,12 @@ def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
     if cfgs is None:
         cfgs = default_cfgs
     return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
+
+
+kernel_sizes = [3, 5, 7, 9]
+expand_ratios = [1, 3, 6, 9]
+for k in kernel_sizes:
+    for e in expand_ratios:
+        p = get_same_padding(k)
+        builder = partial(MobileInvertedConv, expansion=e, kernel_size=k, padding=p)
+        register_slot_builder(builder, 'MB{}E{}'.format(k, e), 'i1o1s2')

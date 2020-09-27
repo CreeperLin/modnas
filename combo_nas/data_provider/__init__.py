@@ -1,28 +1,27 @@
-import copy
-from ..utils.registration import get_registry_utils
-registry, register, get_builder, build, register_as = get_registry_utils('data_provider')
+from ..registry.data_provider import register, get_builder, build, register_as
+from ..utils import merge_config
 from . import dataloader
 from . import dataset
 from . import default
 
 
+def get_data(configs):
+    config = None
+    for conf in configs:
+        if conf is None:
+            continue
+        config = conf if config is None else merge_config(config, conf)
+    if config is None:
+        return None
+    return dataset.build(config.type, **config.get('args', {}))
+
+
 def get_data_provider(config, logger):
-    data_conf = config.get('data', {})
-    data_type = data_conf.get('type')
-    data_args = data_conf.get('args', {})
-    trn_data_conf = config.get('train_data', {})
-    val_data_conf = config.get('valid_data', {})
-    trn_data_args = copy.deepcopy(data_args)
-    val_data_args = copy.deepcopy(data_args)
-    trn_data_args.update(trn_data_conf.get('args', {}))
-    val_data_args.update(val_data_conf.get('args', {}))
+    """Return a new DataProvider."""
+    trn_data = get_data([config.get('data'), config.get('train_data')])
+    val_data = get_data([config.get('data'), config.get('valid_data')])
     dloader_conf = config.get('data_loader', None)
     data_prov_conf = config.get('data_provider', {})
-    trn_data, val_data = None, None
-    if trn_data_conf or data_type:
-        trn_data = dataset.build(trn_data_conf.get('type', data_type), **trn_data_args)
-    if val_data_conf:
-        val_data = dataset.build(val_data_conf.get('type', data_type), **val_data_args)
     data_provd_args = data_prov_conf.get('args', {})
     if dloader_conf is not None:
         trn_loader, val_loader = dataloader.build(dloader_conf.type,

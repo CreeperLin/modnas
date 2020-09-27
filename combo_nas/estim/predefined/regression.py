@@ -47,7 +47,7 @@ class RegressionEstim(EstimBase):
                     best_gt_batch = arch_desc
                 self.results.append(score)
             # save
-            if config.save_gt:
+            if config.save_arch_desc:
                 self.save_arch_desc(epoch, arch_desc=best_gt_batch)
             self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             logger.info('Search: [{:3d}/{}] Prec@1: {:.4f} Best: {:.4f}'.format(epoch + 1, tot_epochs, best_score_batch or 0,

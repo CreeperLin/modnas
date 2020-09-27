@@ -131,7 +131,7 @@ class DAGLayer(nn.Module):
         return desc
 
     def build_from_arch_desc(self, desc, *args, **kwargs):
-        """ generate discrete ops from desc """
+        """Build layer ops from desc."""
         chn_states = self.chn_states[:self.n_input]
         num_edges = 0
         self.topology = []

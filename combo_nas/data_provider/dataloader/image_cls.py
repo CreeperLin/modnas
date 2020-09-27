@@ -30,6 +30,12 @@ def get_dataset_label(data):
     raise RuntimeError('data labels not found')
 
 
+def get_dataset_class(data):
+    if hasattr(data, 'classes'):
+        return data.classes
+    return []
+
+
 def filter_class(data_idx, labels, classes):
     return [idx for idx in data_idx if get_label_class(labels[idx]) in classes]
 
@@ -76,12 +82,10 @@ def ImageClsDataLoader(trn_data,
                        valid_size=0,
                        valid_ratio=0.,
                        valid_seed=1):
+    """Return image classification DataLoader."""
     # classes
     trn_labels = get_dataset_label(trn_data)
-    if hasattr(trn_data, 'classes'):
-        class_name = trn_data.classes
-    else:
-        class_name = []
+    class_name = get_dataset_class(trn_data)
     all_classes = list(set(trn_labels))
     if isinstance(classes, list):
         all_classes = []
