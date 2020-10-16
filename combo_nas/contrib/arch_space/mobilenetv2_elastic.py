@@ -1,6 +1,6 @@
 """MobileNetV2 Elastic Constructors & Exporters."""
 from functools import partial
-from combo_nas.arch_space.predefined.mobilenetv2 import MobileNetV2PredefinedConstructor
+from combo_nas.arch_space.construct.default import DefaultSlotTraversalConstructor
 from combo_nas.arch_space.construct import register as register_constructor
 from combo_nas.arch_space.export import register as register_exporter
 from .elastic.spatial import ElasticSpatialGroup,\
@@ -39,11 +39,11 @@ class MobileNetV2ElasticArchDescExporter():
 
 
 @register_constructor
-class MobileNetV2ElasticSpatialConstructor(MobileNetV2PredefinedConstructor):
+class MobileNetV2ElasticSpatialConstructor(DefaultSlotTraversalConstructor):
     """MobileNetV2 Elastic Spatial Constructor."""
 
     def __init__(self, fix_first=True, expansion_range=[1, 3, 6], rank_fn='l1_fan_in', search=True):
-        super().__init__()
+        super().__init__(skip_exist=False)
         self.fix_first = fix_first
         self.first = False
         self.last_conv = None
@@ -55,22 +55,20 @@ class MobileNetV2ElasticSpatialConstructor(MobileNetV2PredefinedConstructor):
 
     def convert(self, slot):
         """Convert Slot to elastic spatial MBV2 module."""
+        ent = slot.get_entity()
         if not self.first:
             self.first = True
             if self.fix_first:
-                ent = super().convert(slot)
                 self.last_conv = ent[3]
                 self.last_bn = ent[4]
-                return ent
+                return
             else:
                 self.last_conv = self.model.conv_first[0]
                 self.last_bn = self.model.conv_first[1]
-        ent = super().convert(slot)
         expansion_range = self.expansion_range
         if isinstance(expansion_range[0], list):
             expansion_range = expansion_range[self.spa_group_cnt]
         self.add_spa_group(slot, ent, expansion_range)
-        return ent
 
     def add_spa_group(self, slot, ent, expansion_range):
         """Create a elastic spatial group from a MBV2 block."""
@@ -118,7 +116,7 @@ class MobileNetV2ElasticSpatialConstructor(MobileNetV2PredefinedConstructor):
 
 
 @register_constructor
-class MobileNetV2ElasticSequentialConstructor(MobileNetV2PredefinedConstructor):
+class MobileNetV2ElasticSequentialConstructor():
     """MobileNetV2 Elastic Sequential Constructor."""
 
     def __init__(self, repeat_range=[1, 2, 3, 4], search=True):
@@ -128,7 +126,6 @@ class MobileNetV2ElasticSequentialConstructor(MobileNetV2PredefinedConstructor):
 
     def __call__(self, model):
         """Enable elastic sequential transformation on MBV2 model."""
-        model = super().__call__(model)
         self.make_sequential_groups(model)
         return model
 

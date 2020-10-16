@@ -61,7 +61,7 @@ class DefaultRecursiveExporter():
         if slot in self.visited:
             return None
         self.visited.add(slot)
-        export_fn = getattr(slot.ent, self.export_fn, None)
+        export_fn = getattr(slot.get_entity(), self.export_fn, None)
         return None if export_fn is None else export_fn(*args, **kwargs)
 
     def visit(self, module):
@@ -115,7 +115,7 @@ class DefaultSlotTraversalExporter():
         if slot in self.visited:
             return None
         self.visited.add(slot)
-        export_fn = getattr(slot.ent, self.export_fn, None)
+        export_fn = getattr(slot.get_entity(), self.export_fn, None)
         return None if export_fn is None else export_fn(*args, **kwargs)
 
     def __call__(self, model):

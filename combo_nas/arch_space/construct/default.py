@@ -62,8 +62,9 @@ class ExternalModelConstructor():
 class DefaultSlotTraversalConstructor():
     """Constructor that traverses and converts Slots."""
 
-    def __init__(self, gen=None, convert_fn=None, args=None):
+    def __init__(self, gen=None, convert_fn=None, args=None, skip_exist=True):
         self.gen = gen
+        self.skip_exist = skip_exist
         if convert_fn:
             self.convert = get_convert_fn(convert_fn, **(args or {}))
 
@@ -76,10 +77,11 @@ class DefaultSlotTraversalConstructor():
         gen = self.gen or Slot.gen_slots_model(model)
         all_slots = list(gen())
         for m in all_slots:
-            if m.ent is not None:
+            if self.skip_exist and m.get_entity() is not None:
                 continue
             ent = self.convert(m)
-            m.set_entity(ent)
+            if ent is not None:
+                m.set_entity(ent)
         return model
 
 

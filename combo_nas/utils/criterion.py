@@ -5,9 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..arch_space.construct import build as build_constructor
-from .registration import get_registry_utils
-
-registry, register, get_builder, build, register_as = get_registry_utils('criterion')
+from ..registry.criterion import register, get_builder, build, register_as
 
 
 def get_criterion(config, device_ids=None):

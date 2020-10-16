@@ -12,7 +12,7 @@ from .. import register
 class DARTSOptim(GradientBasedOptim):
     """Optimizer with DARTS algorithm."""
 
-    def __init__(self, space, a_optim, w_momentum, w_weight_decay, logger=None):
+    def __init__(self, space, a_optim=None, w_momentum=0.9, w_weight_decay=0.0003, logger=None):
         super().__init__(space, a_optim, logger)
         self.v_net = None
         self.w_momentum = w_momentum
@@ -95,8 +95,17 @@ class DARTSOptim(GradientBasedOptim):
 class BinaryGateOptim(GradientBasedOptim):
     """Optimizer with BinaryGate (ProxylessNAS) algorithm."""
 
-    def __init__(self, space, a_optim, n_samples, renorm, logger=None):
-        super().__init__(space, a_optim, logger)
+    _default_optimizer_conf = {
+        'type': 'Adam',
+        'args': {
+            'lr': 0.006,
+            'betas': [0.0, 0.999],
+            'weight_decay': 0,
+        }
+    }
+
+    def __init__(self, space, a_optim=None, n_samples=2, renorm=True, logger=None):
+        super().__init__(space, a_optim or BinaryGateOptim._default_optimizer_conf, logger)
         self.n_samples = n_samples
         self.sample = (self.n_samples != 0)
         self.renorm = renorm and self.sample
@@ -153,7 +162,7 @@ class BinaryGateOptim(GradientBasedOptim):
 class DirectGradOptim(GradientBasedOptim):
     """Optimizer by backwarding training loss."""
 
-    def __init__(self, space, a_optim, logger=None):
+    def __init__(self, space, a_optim=None, logger=None):
         super().__init__(space, a_optim, logger)
 
     def step(self, estim):
@@ -166,7 +175,7 @@ class DirectGradOptim(GradientBasedOptim):
 class DirectGradBiLevelOptim(GradientBasedOptim):
     """Optimizer by backwarding validating loss."""
 
-    def __init__(self, space, a_optim, logger=None):
+    def __init__(self, space, a_optim=None, logger=None):
         super().__init__(space, a_optim, logger)
 
     def step(self, estim):
@@ -182,7 +191,7 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
 class REINFORCEOptim(GradientBasedOptim):
     """Optimizer with REINFORCE algorithm."""
 
-    def __init__(self, space, a_optim, batch_size, logger=None):
+    def __init__(self, space, a_optim=None, batch_size=10, logger=None):
         super().__init__(space, a_optim, logger)
         self.batch_size = batch_size
         self.baseline = None
@@ -242,7 +251,7 @@ class GumbelAnnealingOptim(GradientBasedOptim):
 
     def __init__(self,
                  space,
-                 a_optim,
+                 a_optim=None,
                  init_temp=1e4,
                  exp_anneal_rate=0.0015,
                  anneal_interval=1,

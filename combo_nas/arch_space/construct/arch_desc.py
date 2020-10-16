@@ -77,8 +77,7 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
     def convert(self, slot, desc, *args, **kwargs):
         """Convert Slot to module from archdesc."""
         desc = desc[0] if isinstance(desc, list) else desc
-        ent = build_module(desc, slot, *args, **kwargs)
-        return ent
+        return build_module(desc, slot, *args, **kwargs)
 
 
 @register

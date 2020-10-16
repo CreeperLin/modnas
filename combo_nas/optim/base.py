@@ -48,9 +48,18 @@ class OptimBase():
 class GradientBasedOptim(OptimBase):
     """Gradient-based Optimizer class."""
 
+    _default_optimizer_conf = {
+        'type': 'Adam',
+        'args': {
+            'lr': 0.0003,
+            'betas': [0.5, 0.999],
+            'weight_decay': 0.001,
+        }
+    }
+
     def __init__(self, space=None, a_optim=None, logger=None):
         super().__init__(space, logger)
-        self.a_optim = get_optimizer(self.space.tensor_values(), a_optim)
+        self.a_optim = get_optimizer(self.space.tensor_values(), a_optim or GradientBasedOptim._default_optimizer_conf)
 
     def state_dict(self):
         """Return current states."""

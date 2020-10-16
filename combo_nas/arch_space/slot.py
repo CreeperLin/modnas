@@ -174,7 +174,9 @@ class Slot(nn.Module):
     def build_from_arch_desc(self, *args, **kwargs):
         """Convert Slot to module from archdesc."""
         if self.ent is None:
-            self.set_entity(Slot._convert_fn(self, *args, **kwargs))
+            ent = Slot._convert_fn(self, *args, **kwargs)
+            if ent is not None:
+                self.set_entity(ent)
         else:
             logging.warning('slot {} already built'.format(self.sid))
 
