@@ -30,7 +30,7 @@ def merge_config(src, dest, overwrite=True):
 
 def env_info():
     """Return dependency versions."""
-    return 'environment info:\ncombo_nas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
+    return 'environment info:\nmodnas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
         __version__,
         sys.version.split()[0],
         torch.__version__,

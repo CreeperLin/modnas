@@ -3,11 +3,11 @@ import itertools
 import time
 import random
 import torch
-from combo_nas.estim.base import EstimBase
-from combo_nas.estim import register
-from combo_nas.contrib.arch_space.elastic.spatial import ElasticSpatial
-from combo_nas.contrib.arch_space.elastic.sequential import ElasticSequential
-from combo_nas.utils import recompute_bn_running_statistics
+from modnas.estim.base import EstimBase
+from modnas.estim import register
+from modnas.contrib.arch_space.elastic.spatial import ElasticSpatial
+from modnas.contrib.arch_space.elastic.sequential import ElasticSequential
+from modnas.utils import recompute_bn_running_statistics
 
 
 @register

@@ -1,8 +1,8 @@
 import os
 import tempfile
 import torch
-from combo_nas.metrics import build, register
-from combo_nas.metrics.base import MetricsBase
+from modnas.metrics import build, register
+from modnas.metrics.base import MetricsBase
 
 
 @register

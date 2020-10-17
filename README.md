@@ -1,4 +1,4 @@
-# combo_nas
+# ModularNAS
 
 A Nerual Architecture Search framework for rapid experiment, development and tuning
 

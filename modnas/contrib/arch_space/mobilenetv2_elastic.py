@@ -1,12 +1,12 @@
 """MobileNetV2 Elastic Constructors & Exporters."""
 from functools import partial
-from combo_nas.arch_space.construct.default import DefaultSlotTraversalConstructor
-from combo_nas.arch_space.construct import register as register_constructor
-from combo_nas.arch_space.export import register as register_exporter
-from .elastic.spatial import ElasticSpatialGroup,\
+from modnas.arch_space.construct.default import DefaultSlotTraversalConstructor
+from modnas.arch_space.construct import register as register_constructor
+from modnas.arch_space.export import register as register_exporter
+from modnas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
     conv2d_rank_weight_l1norm_fan_in, conv2d_rank_weight_l1norm_fan_out, batchnorm2d_rank_weight_l1norm
-from .elastic.sequential import ElasticSequentialGroup
-from combo_nas.core.param_space import ArchParamSpace, ArchParamCategorical
+from modnas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
+from modnas.core.param_space import ArchParamSpace, ArchParamCategorical
 
 
 @register_exporter

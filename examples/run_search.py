@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-from combo_nas.utils.wrapper import run_search
+from modnas.utils.wrapper import run_search
+
 
 def main():
     parser = argparse.ArgumentParser(description='ComboNAS search routine')

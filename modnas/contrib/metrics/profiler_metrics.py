@@ -1,7 +1,7 @@
 import time
 import torch
-from combo_nas.metrics import register
-from combo_nas.metrics.base import MetricsBase
+from modnas.metrics import register
+from modnas.metrics.base import MetricsBase
 
 
 @register

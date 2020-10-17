@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from combo_nas.arch_space.ops import register
+from modnas.arch_space.ops import register
 
 
 class HardSigmoid(nn.Module):

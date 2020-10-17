@@ -1,8 +1,8 @@
 """Uniformly samples and trains subnets."""
 import random
-from combo_nas.estim.predefined.default import DefaultEstim
-from combo_nas.estim import register
-from combo_nas.core.param_space import ArchParamSpace
+from modnas.estim.predefined.default import DefaultEstim
+from modnas.estim import register
+from modnas.core.param_space import ArchParamSpace
 
 
 @register

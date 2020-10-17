@@ -1,7 +1,7 @@
-from combo_nas.arch_space import build
-from combo_nas.arch_space.construct import register
-from combo_nas.arch_space.construct.default import DefaultMixedOpConstructor
-from combo_nas.arch_space.construct.arch_desc import DefaultRecursiveArchDescConstructor
+from modnas.arch_space import build
+from modnas.arch_space.construct import register
+from modnas.arch_space.construct.default import DefaultMixedOpConstructor
+from modnas.arch_space.construct.arch_desc import DefaultRecursiveArchDescConstructor
 
 
 @register

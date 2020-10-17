@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-from combo_nas.utils.wrapper import run_hptune
+from modnas.utils.wrapper import run_hptune
+
 
 def main():
     parser = argparse.ArgumentParser(description='ComboNAS hparam tuning routine')

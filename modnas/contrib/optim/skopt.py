@@ -1,9 +1,9 @@
 import time
 import numpy as np
 from collections import OrderedDict
-from combo_nas.optim import register
-from combo_nas.optim.base import OptimBase
-from combo_nas.core.param_space import ParamCategorical, ParamNumeric
+from modnas.optim import register
+from modnas.optim.base import OptimBase
+from modnas.core.param_space import ParamCategorical, ParamNumeric
 try:
     import skopt
     from skopt import Optimizer

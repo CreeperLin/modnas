@@ -1,5 +1,5 @@
 import torch.nn as nn
-from combo_nas.arch_space.ops import register
+from modnas.arch_space.ops import register
 
 # torch activations
 register(nn.ELU)

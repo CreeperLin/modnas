@@ -1,7 +1,7 @@
-from combo_nas.core.param_space import ArchParamCategorical
-from combo_nas.estim.predefined.regression import RegressionEstim
-from combo_nas.arch_space.construct import register as register_constructor
-from combo_nas.estim import register as register_estim
+from modnas.core.param_space import ArchParamCategorical
+from modnas.estim.predefined.regression import RegressionEstim
+from modnas.arch_space.construct import register as register_constructor
+from modnas.estim import register as register_estim
 try:
     from nasbench import api
 except ImportError:
