@@ -7,8 +7,6 @@ from functools import partial
 from ..registry.runner import register, get_builder, build, register_as
 from .exp_manager import ExpManager
 from .config import Config
-from . import optimizer
-from . import lr_scheduler
 from ..data_provider import get_data_provider
 from ..arch_space.construct import build as build_con
 from ..arch_space.export import build as build_exp
@@ -18,7 +16,6 @@ from ..optim import build as build_optim
 from ..estim import build as build_estim
 from ..trainer import build as build_trainer
 from .. import utils
-from ..hparam.space import build_hparam_space_from_dict, HParamSpace
 
 
 def import_modules(modules):
@@ -258,8 +255,13 @@ def init_all_hptune(config, name, exp='exp', measure_fn=None, config_override=No
     Config.apply(config, config_override or {})
     Config.apply(config, config.pop('hptune', {}))
     # hpspace
-    HParamSpace.reset()
-    build_hparam_space_from_dict(config.hpspace.get('hp_dict', {}))
+    if not config.get('construct', {}):
+        config['construct'] = {
+            'hparams': {
+                'type': 'DefaultHParamSpaceConstructor',
+                'args': {'params': config.get('hp_space', {})}
+            }
+        }
     hptune_config = list(config.estimator.values())[0]
     hptune_args = hptune_config.get('args', {})
     hptune_args['measure_fn'] = measure_fn

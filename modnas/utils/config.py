@@ -37,6 +37,14 @@ class Config(dict):
         yaml.add_representer(Config,
                              lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
 
+    def to_dict(self):
+        dct = {}
+        for k, v in self.items():
+            if isinstance(v, Config):
+                v = v.to_dict()
+            dct[k] = v
+        return dct
+
     def __deepcopy__(self, memo):
         """Return deepcopy."""
         return Config(None, copy.deepcopy(dict(self)))

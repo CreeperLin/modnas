@@ -1,4 +1,4 @@
-from modnas.core.param_space import ArchParamCategorical
+from modnas.core.param_space import ParamCategorical
 from modnas.estim.predefined.regression import RegressionEstim
 from modnas.arch_space.construct import register as register_constructor
 from modnas.estim import register as register_estim
@@ -25,8 +25,8 @@ class NASBenchSpaceConstructor():
         n_nodes = self.n_nodes
         n_states = n_nodes - 2
         n_edges = n_nodes * (n_nodes - 1) // 2
-        _ = [ArchParamCategorical([0, 1]) for i in range(n_edges)]
-        _ = [ArchParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]) for i in range(n_states)]
+        _ = [ParamCategorical([0, 1]) for i in range(n_edges)]
+        _ = [ParamCategorical([CONV1X1, CONV3X3, MAXPOOL3X3]) for i in range(n_states)]
 
 
 class NASBenchPredictor():

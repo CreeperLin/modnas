@@ -1,11 +1,17 @@
 import copy
 import itertools
 import traceback
+from multiprocessing import Process, Pipe
 from ..base import EstimBase
 from ... import utils
 from ...utils.config import Config
 from ...utils.wrapper import build as build_runner
 from .. import register
+
+
+def default_trial_runner(conn, trial_proc, trial_args):
+    ret = build_runner(trial_proc, **trial_args)
+    conn.send(ret)
 
 
 @register
@@ -35,11 +41,17 @@ class HPTuneEstim(EstimBase):
     def default_measure_fn(self, hp, **kwargs):
         trial_config = copy.deepcopy(Config.load(self.trial_config))
         Config.apply(trial_config, hp)
-        trial_args = copy.deepcopy(self.trial_args)
-        trial_args.name = '{}_{}'.format(trial_args.get('name', 'trial'), self.trial_index)
-        trial_args.exp = self.expman.subdir(trial_args.get('exp', ''))
-        trial_args.config = trial_config
-        ret = build_runner(self.trial_proc, **trial_args)
+        trial_args = dict(copy.deepcopy(self.trial_args))
+        trial_args['name'] = '{}_{}'.format(trial_args.get('name', 'trial'), self.trial_index)
+        trial_args['exp'] = self.expman.subdir(trial_args.get('exp', ''))
+        trial_args['config'] = trial_config.to_dict()
+        p_con, c_con = Pipe()
+        proc = Process(target=default_trial_runner, args=(c_con, self.trial_proc, trial_args))
+        proc.start()
+        proc.join()
+        if not p_con.poll(0):
+            return 0
+        ret = p_con.recv()
         return ret['final'].get('best_score', list(ret.values())[0])
 
     def step(self, hp):

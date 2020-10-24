@@ -1,5 +1,5 @@
 import numpy as np
-from modnas.core.param_space import ArchParamSpace, ArchParamCategorical
+from modnas.core.param_space import ArchParamSpace, ParamCategorical
 from modnas.estim.predefined.regression import RegressionEstim
 from modnas.arch_space.construct import register as register_constructor
 from modnas.estim import register as register_estim
@@ -13,7 +13,7 @@ class FakeDataSpaceConstructor():
 
     def __call__(self, model):
         del model
-        _ = [ArchParamCategorical(list(range(self.dim))) for _ in range(self.n_nodes)]
+        _ = [ParamCategorical(list(range(self.dim))) for _ in range(self.n_nodes)]
 
 
 class FakeDataPredictor():

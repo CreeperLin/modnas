@@ -36,6 +36,8 @@ class ToDevice():
 
     def __call__(self, model):
         """Run constructor."""
+        if model is None:
+            return
         device_ids = self.device_ids
         model.to(device=device_ids[0])
         if self.data_parallel and len(device_ids) > 1:

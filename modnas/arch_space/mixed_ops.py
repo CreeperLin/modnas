@@ -3,7 +3,7 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..core.param_space import ArchParamCategorical, ArchParamTensor
+from ..core.param_space import ParamCategorical, ParamTensor
 from . import register
 
 
@@ -20,7 +20,7 @@ class MixedOp(nn.Module):
             raise ValueError('unsupported primitives type')
         if arch_param_map is None:
             arch_param_map = {
-                'default': ArchParamTensor(len(self._ops)),
+                'default': ParamTensor(len(self._ops)),
             }
         self.arch_param_map = arch_param_map
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
@@ -291,7 +291,7 @@ class IndexMixedOp(MixedOp):
     def __init__(self, primitives, arch_param_map=None):
         if arch_param_map is None:
             arch_param_map = {
-                'prims': ArchParamCategorical(list(primitives.keys())),
+                'prims': ParamCategorical(list(primitives.keys())),
             }
         super().__init__(primitives, arch_param_map)
         self.last_samples = list(range(len(self.primitives())))

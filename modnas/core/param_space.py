@@ -145,6 +145,7 @@ class Param():
     def __init__(self, space, name, on_update):
         self.name = None
         self.on_update_handler = on_update
+        space = space or ArchParamSpace
         space.register(self, name)
 
     def __repr__(self):
@@ -200,7 +201,7 @@ def _default_real_sampler(bound):
 class ParamNumeric(Param):
     """Numerical Parameter class."""
 
-    def __init__(self, space, low, high, ntype=None, sampler=None, name=None, on_update=None):
+    def __init__(self, low, high, space=None, ntype=None, sampler=None, name=None, on_update=None):
         super().__init__(space, name, on_update)
         self.bound = (low, high)
         self.ntype = 'i' if (all(isinstance(b, int) for b in self.bound) and ntype != 'r') else 'r'
@@ -240,7 +241,7 @@ class ParamNumeric(Param):
 class ParamCategorical(Param):
     """Categorical Parameter class."""
 
-    def __init__(self, space, choices, sampler=None, name=None, on_update=None):
+    def __init__(self, choices, space=None, sampler=None, name=None, on_update=None):
         super().__init__(space, name, on_update)
         self.sample = _default_categorical_sampler if sampler is None else sampler
         self.choices = choices
@@ -292,7 +293,7 @@ class ParamCategorical(Param):
 class ParamTensor(Param):
     """Tensor Parameter class."""
 
-    def __init__(self, space, shape, sampler=None, name=None, on_update=None):
+    def __init__(self, shape, space=None, sampler=None, name=None, on_update=None):
         super().__init__(space, name, on_update)
         self.sample = _default_tensor_sampler if sampler is None else sampler
         self.shape = shape
@@ -319,17 +320,3 @@ class ParamTensor(Param):
 
 
 ArchParamSpace = ParamSpace()
-
-
-class ArchParamTensor(ParamTensor):
-    """Tensor Architecture Parameter class."""
-
-    def __init__(self, shape, sampler=None, name=None, on_update=None):
-        ParamTensor.__init__(self, ArchParamSpace, shape, sampler, name, on_update)
-
-
-class ArchParamCategorical(ParamCategorical):
-    """Tensor Categorical Parameter class."""
-
-    def __init__(self, choices, sampler=None, name=None, on_update=None):
-        ParamCategorical.__init__(self, ArchParamSpace, choices, sampler, name, on_update)
