@@ -11,6 +11,12 @@ except ImportError:
     SummaryWriter = None
 
 
+def get_exp_name(config):
+    if 'name' in config:
+        return config['name']
+    return time.strftime('%Y%m%d%H%M.', time.localtime()) + hex(hash(str(config))).split('x')[1][:4]
+
+
 def merge_config(src, dest, overwrite=True):
     if isinstance(src, dict) and isinstance(dest, dict):
         for k, v in dest.items():

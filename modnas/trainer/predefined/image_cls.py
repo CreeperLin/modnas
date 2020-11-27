@@ -135,10 +135,11 @@ class ImageClsTrainer(TrainerBase):
         losses = self.losses
         print_freq = self.print_freq
         model.train()
-        trn_X, trn_y = self.get_next_train_batch()
+        batch = self.get_next_train_batch()
+        trn_X, trn_y = batch
         N = trn_X.size(0)
         optimizer.zero_grad()
-        loss, logits = estim.loss_logits(trn_X, trn_y, model=model, mode='train')
+        loss, logits = estim.loss_logits(batch, model=model, mode='train')
         loss.backward()
         # gradient clipping
         if self.w_grad_clip > 0:
@@ -183,8 +184,9 @@ class ImageClsTrainer(TrainerBase):
         print_freq = self.print_freq
         model.eval()
         with torch.no_grad():
-            val_X, val_y = self.get_next_valid_batch()
-            loss, logits = estim.loss_logits(val_X, val_y, model=model, mode='eval')
+            batch = self.get_next_valid_batch()
+            val_X, val_y = batch
+            loss, logits = estim.loss_logits(batch, model=model, mode='eval')
         prec1, prec5 = utils.accuracy(logits, val_y, topk=(1, 5))
         N = val_X.size(0)
         losses.update(loss.item(), N)

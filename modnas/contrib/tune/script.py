@@ -27,7 +27,7 @@ def tune_script():
     parser.add_option('-c', '--config', default=None, help="yaml config file")
     parser.add_option('-p', '--hparam', default=None, help="hparam")
     parser.add_option('-e', '--exp', default='exp', help="experiment root dir")
-    parser.add_option('-o', '--config_override', default=None, help="override config")
+    parser.add_option('-o', '--config_override', action="append", type=str, default=None, help="override config")
 
     (options, args) = parser.parse_args()
 
@@ -39,14 +39,18 @@ def tune_script():
     options = vars(options)
     funcname = options.pop('func', None)
     opts = {
-        'name': options.pop('name') or progname,
-        'config': options.pop('config') or _default_hptune_config.copy(),
+        'name': options.pop('name') or os.path.basename(progname),
+        'config': [_default_hptune_config.copy()],
     }
     hparam = options.pop('hparam')
     if hparam is None and 'hp_space' not in opts['config']:
         raise RuntimeError('Argument -p is required')
     hp_dict = yaml.load(hparam, Loader=yaml.FullLoader)
-    opts['config']['hp_space'] = hp_dict
+    opts['config'][0]['hp_space'] = hp_dict
+    opts['config'].extend(options.pop('config') or [])
+    overrides = options.pop('config_override')
+    if overrides is None:
+        overrides = []
     opts.update(options)
 
     sys.argv[:] = args[:]

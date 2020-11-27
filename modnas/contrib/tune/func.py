@@ -15,7 +15,7 @@ _default_hptune_config = {
 }
 
 
-def tune_func(*dec_args, tune_options=None, tuned_args=None, **dec_kwargs):
+def tune_func(*dec_args, tune_config=None, tune_options=None, tuned_args=None, **dec_kwargs):
     tuned_args = tuned_args or {}
     tuned_args.update(dec_kwargs)
     tuned_args.update({'#{}'.format(i): v for i, v in enumerate(dec_args) if v is not None})
@@ -35,10 +35,11 @@ def tune_func(*dec_args, tune_options=None, tuned_args=None, **dec_kwargs):
 
             opts = {
                 'name': func.__name__,
-                'config': _default_hptune_config.copy(),
+                'config': [_default_hptune_config.copy()],
             }
-            opts['config']['hp_space'] = tuned_args
-            opts['config'].update(tune_options or {})
+            opts['config'][0]['hp_space'] = tuned_args
+            opts['config'].extend(tune_config or [])
+            opts['config_override'] = tune_options
             tune_res = run_hptune(measure_fn=measure_fn, **opts)
             best_hparams = list(tune_res.values())[0]['best_hparams']
             logging.info('tune_func: best hparams: {}'.format(dict(best_hparams)))

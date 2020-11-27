@@ -4,10 +4,9 @@ import yaml
 import copy
 
 
-def load_config(filename):
+def load_config_file(filename):
     """Load configuration from YAML file."""
-    stream = open(filename, 'r')
-    docs = yaml.load_all(stream, Loader=yaml.Loader)
+    docs = yaml.load_all(open(filename, 'r'), Loader=yaml.Loader)
     config_dict = dict()
     for doc in docs:
         for k, v in doc.items():
@@ -25,7 +24,7 @@ class Config(dict):
     def __init__(self, file=None, dct={}):
         super().__init__()
         if file is not None:
-            dct = load_config(file)
+            dct = load_config_file(file)
         for key, value in dct.items():
             if hasattr(value, 'keys'):
                 value = Config(None, value)

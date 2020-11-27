@@ -18,10 +18,10 @@ class DARTSOptim(GradientBasedOptim):
         self.w_momentum = w_momentum
         self.w_weight_decay = w_weight_decay
 
-    def _virtual_step(self, trn_X, trn_y, lr, optimizer, estim):
+    def _virtual_step(self, trn_batch, lr, optimizer, estim):
         # forward & calc loss
         model = estim.model
-        loss = estim.loss(trn_X, trn_y, mode='train')  # L_trn(w)
+        loss = estim.loss(trn_batch, mode='train')  # L_trn(w)
         # compute gradient
         gradients = torch.autograd.grad(loss, model.parameters())
         # do virtual step (update gradient)
@@ -33,17 +33,17 @@ class DARTSOptim(GradientBasedOptim):
     def step(self, estim):
         """Update Optimizer states using Estimator."""
         self.optim_reset()
-        trn_X, trn_y = estim.get_cur_train_batch()
-        val_X, val_y = estim.get_next_valid_batch()
+        trn_batch = estim.get_cur_train_batch()
+        val_batch = estim.get_next_valid_batch()
         lr = estim.trainer.get_lr()
         optimizer = estim.trainer.get_optimizer()
         model = estim.model
         if self.v_net is None:
             self.v_net = copy.deepcopy(model)
         # do virtual step (calc w`)
-        self._virtual_step(trn_X, trn_y, lr, optimizer, estim)
+        self._virtual_step(trn_batch, lr, optimizer, estim)
         # calc unrolled loss
-        loss = estim.loss(val_X, val_y, model=self.v_net, mode='valid')  # L_val(w`)
+        loss = estim.loss(val_batch, model=self.v_net, mode='valid')  # L_val(w`)
         # compute gradient
         alphas = ArchParamSpace.tensor_values()
         v_alphas = tuple(alphas)
@@ -51,14 +51,14 @@ class DARTSOptim(GradientBasedOptim):
         v_grads = torch.autograd.grad(loss, v_alphas + v_weights)
         dalpha = v_grads[:len(v_alphas)]
         dw = v_grads[len(v_alphas):]
-        hessian = self._compute_hessian(dw, trn_X, trn_y, estim)
+        hessian = self._compute_hessian(dw, trn_batch, estim)
         # update final gradient = dalpha - lr*hessian
         with torch.no_grad():
             for a, da, h in zip(alphas, dalpha, hessian):
                 a.grad = da - lr * h
         self.optim_step()
 
-    def _compute_hessian(self, dw, trn_X, trn_y, estim):
+    def _compute_hessian(self, dw, trn_batch, estim):
         """Compute Hessian matrix.
 
         dw = dw` { L_val(w`, alpha) }
@@ -75,13 +75,13 @@ class DARTSOptim(GradientBasedOptim):
         with torch.no_grad():
             for p, d in zip(model.parameters(), dw):
                 p += eps * d
-        loss = estim.loss(trn_X, trn_y, mode='train')
+        loss = estim.loss(trn_batch, mode='train')
         dalpha_pos = torch.autograd.grad(loss, alphas)  # dalpha { L_trn(w+) }
         # w- = w - eps*dw`
         with torch.no_grad():
             for p, d in zip(model.parameters(), dw):
                 p -= 2. * eps * d
-        loss = estim.loss(trn_X, trn_y, mode='train')
+        loss = estim.loss(trn_batch, mode='train')
         dalpha_neg = torch.autograd.grad(loss, alphas)  # dalpha { L_trn(w-) }
         # recover w
         with torch.no_grad():
@@ -114,7 +114,7 @@ class BinaryGateOptim(GradientBasedOptim):
         """Update Optimizer states using Estimator."""
         self.optim_reset()
         model = estim.model
-        val_X, val_y = estim.get_next_valid_batch()
+        val_batch = estim.get_next_valid_batch()
         # sample k
         if self.sample:
             for m in MixedOp.gen(model):
@@ -122,7 +122,7 @@ class BinaryGateOptim(GradientBasedOptim):
         # loss
         for m in MixedOp.gen(model):
             m.arch_param_grad(enabled=True)
-        loss = estim.loss(val_X, val_y, mode='valid')
+        loss = estim.loss(val_batch, mode='valid')
         # backward
         loss.backward()
         # renormalization
@@ -181,8 +181,7 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
     def step(self, estim):
         """Update Optimizer states using Estimator."""
         self.optim_reset()
-        val_X, val_y = estim.get_next_valid_batch()
-        loss = estim.loss(val_X, val_y, mode='valid')
+        loss = estim.loss(estim.get_next_valid_batch(), mode='valid')
         loss.backward()
         self.optim_step()
 
@@ -203,7 +202,6 @@ class REINFORCEOptim(GradientBasedOptim):
         self.optim_reset()
         grad_batch = []
         reward_batch = []
-        val_X, val_y = estim.get_next_valid_batch()
         for _ in range(self.batch_size):
             # calculate reward according to net_info
             reward = estim.get_score(estim.compute_metrics())
@@ -272,8 +270,7 @@ class GumbelAnnealingOptim(GradientBasedOptim):
         self.optim_reset()
         model = estim.model
         self._apply_temp(model)
-        val_X, val_y = estim.get_next_valid_batch()
-        loss = estim.loss(val_X, val_y, mode='valid')
+        loss = estim.loss(estim.get_next_valid_batch(), mode='valid')
         loss.backward()
         self.optim_step()
         self.cur_step += 1

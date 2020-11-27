@@ -49,9 +49,10 @@ def build_criterions_all(crit_configs, device_ids=None):
 
 def torch_criterion_wrapper(cls):
     """Return a Criterion class that wraps a torch loss function."""
-    def call_fn(self, loss, estim, model, X, y_pred, y_true):
+    def call_fn(self, loss, estim, model, *args):
+        y_pred, X, y_true = args[0], args[1:-1], args[-1]
         if y_pred is None:
-            y_pred = model(X)
+            y_pred = model(*X)
         return cls.__call__(self, y_pred, y_true)
 
     new_cls = type(cls.__name__, (cls, ), {'__call__': call_fn})
@@ -97,7 +98,7 @@ class MixUpLoss():
         self.use_flip = use_flip
         self.criterion = build(crit_type, **(crit_args or {}))
 
-    def __call__(self, loss, estim, model, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, y_pred, X, y_true):
         """Return loss."""
         alpha = self.alpha
         lam = random.betavariate(alpha, alpha) if alpha > 0 else 1
@@ -112,8 +113,8 @@ class MixUpLoss():
         mixed_x = lam * X + (1 - lam) * alt_X
         mixed_y_pred = model(mixed_x)
         loss = loss or 0
-        return lam * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, y_true)
-        +(1 - lam) * self.criterion(loss, estim, model, mixed_x, mixed_y_pred, alt_y_true)
+        return lam * self.criterion(loss, estim, model, mixed_y_pred, mixed_x, y_true)
+        +(1 - lam) * self.criterion(loss, estim, model, mixed_y_pred, mixed_x, alt_y_true)
 
 
 @register
@@ -129,7 +130,7 @@ class AuxiliaryLoss():
         else:
             raise ValueError('unsupported loss type: {}'.format(loss_type))
 
-    def __call__(self, loss, estim, model, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, y_pred, X, y_true):
         """Return loss."""
         aux_logits = getattr(model, self.fwd_func)(X)
         if aux_logits is None:
@@ -163,7 +164,7 @@ class KnowledgeDistillLoss():
             kd_model = build_constructor(con_conf.type, **(con_conf.get('args') or {}))(kd_model)
         return kd_model
 
-    def __call__(self, loss, estim, model, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, y_pred, X, y_true):
         """Return loss."""
         with torch.no_grad():
             self.kd_model.to(device=X.device)
@@ -209,7 +210,7 @@ class AddMetricsLoss(AggMetricsLoss):
         super().__init__(metrics, target_val, target_decay)
         self.lamd = lamd
 
-    def __call__(self, loss, estim, model, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, y_pred, X, y_true):
         """Return loss."""
         mt = self._get_metrics(estim)
         return loss + self.lamd * (mt.to(device=loss.device) / self.target_val - 1.)
@@ -224,7 +225,7 @@ class MultMetricsLoss(AggMetricsLoss):
         self.alpha = alpha
         self.beta = beta
 
-    def __call__(self, loss, estim, model, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, y_pred, X, y_true):
         """Return loss."""
         mt = self._get_metrics(estim)
         return self.alpha * loss * (mt.to(device=loss.device) / self.target_val)**self.beta
@@ -239,7 +240,7 @@ class MultLogMetricsLoss(AggMetricsLoss):
         self.alpha = alpha
         self.beta = beta
 
-    def __call__(self, loss, estim, model, X, y_pred, y_true):
+    def __call__(self, loss, estim, model, y_pred, X, y_true):
         """Return loss."""
         mt = self._get_metrics(estim)
         return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val))**self.beta

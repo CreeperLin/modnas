@@ -2,7 +2,6 @@
 import itertools
 import time
 import random
-import torch
 from modnas.estim.base import EstimBase
 from modnas.estim import register
 from modnas.contrib.arch_space.elastic.spatial import ElasticSpatial
@@ -127,11 +126,11 @@ class ProgressiveShrinkingEstim(EstimBase):
             config.update(self.sample_sequential_config(seed=seed))
         return config
 
-    def loss_logits(self, X, y, model=None, mode=None):
-        """Compute loss & logits from subnet(s)."""
+    def loss(self, data, output=None, model=None, mode=None):
+        """Compute loss from subnet(s)."""
         model = self.model if model is None else model
+        output = None
         if mode == 'train':
-            subnet_logits = []
             visited = set()
             loss = None
             for _ in range(self.n_subnet_batch):
@@ -142,16 +141,11 @@ class ProgressiveShrinkingEstim(EstimBase):
                 if loss is not None:
                     loss.backward()
                 self.apply_subnet_config(config)
-                logits = model(X)
-                loss = self.criterion(X, logits, y, model=model, mode=mode)
-                subnet_logits.append(logits)
+                loss = super().loss(data, output, model, mode)
                 visited.add(key)
-            if len(visited) > 1:
-                logits = torch.mean(torch.stack(subnet_logits), dim=0)
         else:
-            logits = model(X)
-            loss = self.criterion(X, logits, y, model=model, mode=mode)
-        return loss, logits
+            loss = super().loss(data, output, model, mode)
+        return loss
 
     def train_stage(self):
         """Train and evaluate supernet with current stage config."""

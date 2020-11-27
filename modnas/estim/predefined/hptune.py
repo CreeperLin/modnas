@@ -16,6 +16,8 @@ def default_trial_runner(conn, trial_proc, trial_args):
 
 @register
 class HPTuneEstim(EstimBase):
+    """Hyperparameter-tuning Estimator class."""
+
     def __init__(self,
                  measure_fn=None,
                  batch_size=1,
@@ -34,7 +36,7 @@ class HPTuneEstim(EstimBase):
         self.trial_args = trial_args
         self.results_all = list()
         self.best_hparams = None
-        self.best_score = 0
+        self.best_score = None
         self.best_iter = 0
         self.trial_index = 0
 
@@ -95,7 +97,7 @@ class HPTuneEstim(EstimBase):
             for hp in self.inputs:
                 res = self.step(hp)
                 score = 0 if res['error_no'] else res['score']
-                if score > self.best_score:
+                if self.best_score is None or score > self.best_score:
                     self.best_score = score
                     self.best_hparams = hp
                     self.best_iter = epoch

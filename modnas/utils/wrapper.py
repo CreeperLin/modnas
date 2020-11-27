@@ -1,7 +1,6 @@
 """Wrapper for routine initialization and execution."""
-import os
-import queue
 import importlib
+import argparse
 from collections import OrderedDict
 from functools import partial
 from ..registry.runner import register, get_builder, build, register_as
@@ -17,11 +16,69 @@ from ..estim import build as build_estim
 from ..trainer import build as build_trainer
 from .. import utils
 
+_default_arg_specs = [
+    {
+        'flags': ['-n', '--name'],
+        'type': str,
+        'required': True,
+        'help': 'name of the model'
+    },
+    {
+        'flags': ['-r', '--routine'],
+        'type': str,
+        'default': None,
+        'help': 'routine type'
+    },
+    {
+        'flags': ['-c', '--config'],
+        'type': str,
+        'required': True,
+        'action': 'append',
+        'help': 'yaml config file'
+    },
+    {
+        'flags': ['-p', '--chkpt'],
+        'type': str,
+        'default': None,
+        'help': 'checkpoint file'
+    },
+    {
+        'flags': ['-d', '--device'],
+        'type': str,
+        'default': 'all',
+        'help': 'override device ids'
+    },
+    {
+        'flags': ['-g', '--arch_desc'],
+        'type': str,
+        'default': None,
+        'help': 'override arch_desc file'
+    },
+    {
+        'flags': ['-o', '--config_override'],
+        'type': str,
+        'default': None,
+        'help': 'override config',
+        'action': 'append'
+    },
+]
+
+
+def parse_routine_args(name='default', arg_specs=None):
+    """Return default arguments."""
+    parser = argparse.ArgumentParser(description='ModularNAS {} routine'.format(name))
+    arg_specs = arg_specs or _default_arg_specs
+    for spec in arg_specs:
+        parser.add_argument(*spec.pop('flags'), **spec)
+    return vars(parser.parse_args())
+
 
 def import_modules(modules):
     """Import modules by name."""
     if modules is None:
         return
+    if isinstance(modules, str):
+        modules = [modules]
     for m in modules:
         importlib.import_module(m)
 
@@ -101,8 +158,7 @@ def build_trainer_all(trainer_config, trainer_comp=None):
         if isinstance(trner_conf, str):
             trner_conf = {'type': trner_conf}
         trner_args = trner_conf.get('args', {})
-        trner_args.update(trainer_comp or {})
-        trner = build_trainer(trner_conf['type'], **trner_args)
+        trner = build_trainer(trner_conf['type'], **trner_args, **(trainer_comp or {}))
         trners[trner_name] = trner
     return trners
 
@@ -113,7 +169,7 @@ def build_estim_all(estim_config, estim_comp=None):
     if isinstance(estim_config, list):
         estim_config = OrderedDict([(c.get('name', str(i)), c) for i, c in enumerate(estim_config)])
     for estim_name, estim_conf in estim_config.items():
-        estim_type = estim_conf.type
+        estim_type = estim_conf['type']
         estim_args = estim_conf.get('args', {})
         estim_args.update(estim_comp or {})
         estim_args['name'] = estim_name
@@ -132,7 +188,7 @@ def bind_trainer(estims, trners):
 
 def estims_routine(logger, optim, estims):
     """Run a chain of estimator routines."""
-    results = {}
+    results, ret = {}, None
     for estim_name, estim in estims.items():
         logger.info('Running estim: {} type: {}'.format(estim_name, estim.__class__.__name__))
         ret = estim.run(optim)
@@ -157,14 +213,27 @@ def default_constructor(model, logger=None, construct_fn=None, construct_config=
     return model
 
 
-def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=None):
-    """Initialize all components."""
-    # dir
+def init_all(config,
+             name=None,
+             routine=None,
+             chkpt=None,
+             device=None,
+             arch_desc=None,
+             construct_fn=None,
+             config_override=None,
+             model=None):
+    """Initialize all components from config."""
+    config = load_config(config)
+    Config.apply(config, config_override or {})
+    if routine:
+        Config.apply(config, config.pop(routine, {}))
     utils.check_config(config)
-    expman = ExpManager(exp, name, **config.get('expman', {}))
+    # dir
+    name = name or utils.get_exp_name(config)
+    expman = ExpManager(name, **config.get('expman', {}))
     logger = utils.get_logger(expman.subdir('logs'), name, **config.get('logger', {}))
     writer = utils.get_writer(expman.subdir('writer'), **config.get('writer', {}))
-    logger.info('config loaded:\n{}'.format(config))
+    logger.info('routine: {} config:\n{}'.format(routine, config))
     logger.info(utils.env_info())
     # imports
     import_modules(config.get('imports', None))
@@ -226,30 +295,7 @@ def init_all(config, name, exp, chkpt, device, arch_desc, construct_fn, model=No
     return {'logger': logger, 'optim': optim, 'estims': estims}
 
 
-def init_all_search(config, name, exp='exp', chkpt=None, device=None, arch_desc=None, construct_fn=None, config_override=None):
-    """Initialize all components from search config."""
-    config = load_config(config)
-    Config.apply(config, config_override or {})
-    Config.apply(config, config.pop('search', {}))
-    return init_all(config, name, exp, chkpt, device, arch_desc, construct_fn)
-
-
-def init_all_augment(config,
-                     name,
-                     exp='exp',
-                     chkpt=None,
-                     device=None,
-                     arch_desc=None,
-                     construct_fn=None,
-                     config_override=None):
-    """Initialize all components from augment config."""
-    config = load_config(config)
-    Config.apply(config, config_override or {})
-    Config.apply(config, config.pop('augment', {}))
-    return init_all(config, name, exp, chkpt, device, arch_desc, construct_fn)
-
-
-def init_all_hptune(config, name, exp='exp', measure_fn=None, config_override=None):
+def init_all_hptune(config, *args, config_override=None, measure_fn=None, **kwargs):
     """Initialize all components from hptune config."""
     config = load_config(config)
     Config.apply(config, config_override or {})
@@ -259,26 +305,49 @@ def init_all_hptune(config, name, exp='exp', measure_fn=None, config_override=No
         config['construct'] = {
             'hparams': {
                 'type': 'DefaultHParamSpaceConstructor',
-                'args': {'params': config.get('hp_space', {})}
+                'args': {
+                    'params': config.get('hp_space', {})
+                }
             }
         }
     hptune_config = list(config.estimator.values())[0]
     hptune_args = hptune_config.get('args', {})
     hptune_args['measure_fn'] = measure_fn
     hptune_config['args'] = hptune_args
-    return init_all(config, name, exp, None, None, None, None)
+    return init_all(config, *args, **kwargs)
+
+
+def init_all_pipeline(config, *args, config_override=None, **kwargs):
+    """Initialize all components from pipeline config."""
+    config = load_config(config)
+    Config.apply(config, config_override or {})
+    config_override = {
+        'estimator': {
+            'pipeline': {
+                'type': 'PipelineEstim',
+                'pipeline': config.get('pipeline', {})
+            }
+        }
+    }
+    return init_all(config, *args, config_override=config_override, **kwargs)
+
+
+@register_as('default')
+def run_default(*args, **kwargs):
+    """Run search routines."""
+    return estims_routine(**init_all(*args, **kwargs))
 
 
 @register_as('search')
 def run_search(*args, **kwargs):
     """Run search routines."""
-    return estims_routine(**init_all_search(*args, **kwargs))
+    return estims_routine(**init_all(*args, routine='search', **kwargs))
 
 
 @register_as('augment')
 def run_augment(*args, **kwargs):
     """Run augment routines."""
-    return estims_routine(**init_all_augment(*args, **kwargs))
+    return estims_routine(**init_all(*args, routine='augment', **kwargs))
 
 
 @register_as('hptune')
@@ -288,59 +357,14 @@ def run_hptune(*args, **kwargs):
 
 
 @register_as('pipeline')
-def run_pipeline(config, name, exp='exp', config_override=None):
+def run_pipeline(*args, **kwargs):
     """Run pipeline routines."""
-    config = load_config(config)
-    Config.apply(config, config_override or {})
-    utils.check_config(config)
-    # dir
-    expman = ExpManager(exp, name, **config.get('expman', {}))
-    logger = utils.get_logger(expman.subdir('logs'), name, **config.get('logger', {}))
-    logger.info('config loaded:\n{}'.format(config))
-    logger.info(utils.env_info())
-    # imports
-    import_modules(config.get('imports', None))
-    # pipeline
-    pipeconf = config.pipeline
-    pending = queue.Queue()
-    for pn in pipeconf.keys():
-        pending.put(pn)
-    finished = set()
-    ret_values = dict()
-    while not pending.empty():
-        pname = pending.get()
-        pconf = pipeconf.get(pname)
-        dep_sat = True
-        for dep in pconf.get('depends', []):
-            if dep not in finished:
-                dep_sat = False
-                break
-        if not dep_sat:
-            pending.put(pname)
-            continue
-        ptype = pconf.type
-        proc = get_builder(ptype)
-        pargs = pconf.get('args', {})
-        pargs.exp = os.path.join(expman.root_dir, pargs.get('exp', ''))
-        pargs.name = pargs.get('name', pname)
-        for inp_kw, inp_idx in pconf.get('inputs', {}).items():
-            keys = inp_idx.split('.')
-            inp_val = ret_values
-            for k in keys:
-                inp_val = inp_val[k]
-            pargs[inp_kw] = inp_val
-        logger.info('pipeline: running {}, type={}'.format(pname, ptype))
-        ret = proc(**pargs)
-        ret_values[pname] = ret
-        logger.info('pipeline: finished {}, results={}'.format(pname, ret))
-        finished.add(pname)
-    ret_values['final'] = ret
-    logger.info('pipeline: all finished')
-    return ret_values
+    return estims_routine(**init_all_pipeline(*args, **kwargs))
 
 
-def run(config, *args, proc=None, **kwargs):
+def run(*args, routine=None, **kwargs):
     """Run routine."""
-    config = Config.load(config)
-    proc = proc or config.get('proc', None)
-    return build(proc, *args, config=config, **kwargs)
+    if not args and not kwargs:
+        kwargs = parse_routine_args(name='default')
+    routine = kwargs.pop('routine', 'default')
+    return build(routine, *args, **kwargs)

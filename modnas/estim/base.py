@@ -19,8 +19,7 @@ class EstimBase():
                  model=None,
                  writer=None,
                  logger=None,
-                 name=None,
-                 profiling=False):
+                 name=None):
         self.name = '' if name is None else name
         self.config = config
         self.expman = expman
@@ -43,7 +42,7 @@ class EstimBase():
         """Set current trainer."""
         self.trainer = trainer
 
-    def criterion(self, X, y_pred, y_true, model=None, mode=None):
+    def loss(self, data, output=None, model=None, mode=None):
         """Return loss."""
         model = self.model if model is None else model
         if mode is None:
@@ -59,21 +58,21 @@ class EstimBase():
         crits = self.criterions_all + crits
         loss = None
         if hasattr(self.trainer, 'loss'):
-            loss = self.trainer.loss(model(X) if y_pred is None else y_pred, y_true)
+            loss = self.trainer.loss(self.logits(data, model) if output is None else output, data[-1])
         for crit in crits:
-            loss = crit(loss, self, model, X, y_pred, y_true)
+            loss = crit(loss, self, model, output, *data)
         return loss
 
-    def loss(self, X, y, output=None, model=None, mode=None):
-        """Return loss."""
+    def logits(self, data, model=None):
+        """Return logits."""
         model = self.model if model is None else model
-        return self.criterion(X, output, y, model, mode)
+        return model(*data[:-1])
 
-    def loss_logits(self, X, y, model=None, mode=None):
+    def loss_logits(self, data, model=None, mode=None):
         """Return loss and logits."""
         model = self.model if model is None else model
-        output = model(X)
-        return self.loss(X, y, output, model, mode), output
+        output = self.logits(data, model)
+        return self.loss(data, output, model, mode), output
 
     def step(self, params):
         """Return evaluation results of a parameter set."""

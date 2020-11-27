@@ -14,10 +14,9 @@ class RandomSamplingEstim(DefaultEstim):
         random.seed(seed)
         self.space_size = ArchParamSpace.categorical_size()
 
-    def loss(self, X, y, output=None, model=None, mode=None):
+    def loss(self, data, output=None, model=None, mode=None):
         """Sample a subnet and compute its loss & logits."""
-        model = self.model if model is None else model
-        loss = self.criterion(X, output, y, model, mode)
+        loss = super().loss(data, output, model, mode)
         params = ArchParamSpace.get_categorical_params(random.randint(0, self.space_size - 1))
         ArchParamSpace.update_params(params)
         return loss

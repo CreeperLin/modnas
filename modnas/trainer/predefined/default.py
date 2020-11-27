@@ -86,7 +86,7 @@ class DefaultTrainer(TrainerBase):
 
     def proc_batch(self, batch):
         """Process batch."""
-        return (v.to(device=self.device, non_blocking=True) for v in batch)
+        return tuple(v.to(device=self.device, non_blocking=True) for v in batch)
 
     def reset_stats(self):
         """Reset stats."""
@@ -145,10 +145,10 @@ class DefaultTrainer(TrainerBase):
         losses = self.losses
         print_freq = self.print_freq
         model.train()
-        trn_X, trn_y = self.get_next_train_batch()
-        N = trn_X.size(0)
+        batch = self.get_next_train_batch()
+        N = batch[-1].size(0)
         optimizer.zero_grad()
-        loss, logits = estim.loss_logits(trn_X, trn_y, model=model, mode='train')
+        loss = estim.loss(batch, model=model, mode='train')
         loss.backward()
         # gradient clipping
         if self.w_grad_clip > 0:
@@ -186,9 +186,9 @@ class DefaultTrainer(TrainerBase):
         print_freq = self.print_freq
         model.eval()
         with torch.no_grad():
-            val_X, val_y = self.get_next_valid_batch()
-            loss, logits = estim.loss_logits(val_X, val_y, model=model, mode='eval')
-        N = val_X.size(0)
+            batch = self.get_next_valid_batch()
+            loss = estim.loss(batch, model=model, mode='eval')
+        N = batch[-1].size(0)
         losses.update(loss.item(), N)
         if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
             logger.info("Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {:.3f}".format(epoch + 1, tot_epochs, step + 1,

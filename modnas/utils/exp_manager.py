@@ -6,7 +6,7 @@ import time
 class ExpManager():
     """Experiment file manager class."""
 
-    def __init__(self, root_dir, name, subdir_timefmt=None):
+    def __init__(self, name, root_dir='exp', subdir_timefmt='%Y-%m-%d_%H-%M'):
         if subdir_timefmt is None:
             root_dir = os.path.join(root_dir, name)
         else:
