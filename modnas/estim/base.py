@@ -1,7 +1,7 @@
 """Base Estimator."""
 import traceback
 import pickle
-from .. import utils
+from ..utils.torch import param_count, param_size
 from ..utils.criterion import build_criterions_all
 from ..metrics import build_metrics_all
 from ..arch_space.export import build as build_exporter
@@ -82,8 +82,8 @@ class EstimBase():
         """Output model information."""
         model = self.model
         if model is not None:
-            self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(utils.param_count(model, factor=2),
-                                                                                    utils.param_size(model, factor=2)))
+            self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(param_count(model, factor=2),
+                                                                                    param_size(model, factor=2)))
 
     def get_last_results(self):
         """Return last evaluation results."""

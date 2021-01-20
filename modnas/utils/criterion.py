@@ -49,6 +49,7 @@ def build_criterions_all(crit_configs, device_ids=None):
 
 def torch_criterion_wrapper(cls):
     """Return a Criterion class that wraps a torch loss function."""
+
     def call_fn(self, loss, estim, model, *args):
         y_pred, X, y_true = args[0], args[1:-1], args[-1]
         if y_pred is None:
@@ -65,7 +66,7 @@ def label_smoothing(y_pred, y_true, eta):
     # convert to one-hot
     y_true = torch.unsqueeze(y_true, 1)
     soft_y_true = torch.zeros_like(y_pred)
-    soft_y_true.scatter_(1, y_true.to(dtype=int), 1)
+    soft_y_true.scatter_(1, y_true.to(dtype=torch.long), 1)
     # label smoothing
     soft_y_true = soft_y_true * (1 - eta) + eta / n_classes * 1
     return soft_y_true
@@ -113,8 +114,8 @@ class MixUpLoss():
         mixed_x = lam * X + (1 - lam) * alt_X
         mixed_y_pred = model(mixed_x)
         loss = loss or 0
-        return lam * self.criterion(loss, estim, model, mixed_y_pred, mixed_x, y_true)
-        +(1 - lam) * self.criterion(loss, estim, model, mixed_y_pred, mixed_x, alt_y_true)
+        return lam * self.criterion(loss, estim, model, mixed_y_pred, mixed_x, y_true) + (1 - lam) * self.criterion(
+            loss, estim, model, mixed_y_pred, mixed_x, alt_y_true)
 
 
 @register

@@ -2,7 +2,8 @@
 import itertools
 import traceback
 from ..base import EstimBase
-from ... import utils
+from ...utils import ETAMeter
+from ...utils.torch import recompute_bn_running_statistics
 from ...core.param_space import ArchParamSpace
 from .. import register
 
@@ -51,7 +52,7 @@ class SubNetEstim(EstimBase):
         if self.rebuild_subnet:
             self.model = self.constructor(arch_desc=arch_desc)
         else:
-            utils.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
+            recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
     def run(self, optim):
         """Run Estimator routine."""
@@ -61,7 +62,7 @@ class SubNetEstim(EstimBase):
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
         arch_batch_size = config.arch_update_batch
-        eta_m = utils.ETAMeter(tot_epochs, self.cur_epoch)
+        eta_m = ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
             if epoch >= tot_epochs:

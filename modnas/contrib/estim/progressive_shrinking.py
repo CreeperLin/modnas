@@ -6,7 +6,7 @@ from modnas.estim.base import EstimBase
 from modnas.estim import register
 from modnas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from modnas.contrib.arch_space.elastic.sequential import ElasticSequential
-from modnas.utils import recompute_bn_running_statistics
+from modnas.utils.torch import recompute_bn_running_statistics
 
 
 @register

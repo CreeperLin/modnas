@@ -3,7 +3,7 @@ import sys
 import time
 import logging
 import numpy as np
-import torch
+import hashlib
 from ..version import __version__
 try:
     from tensorboardX import SummaryWriter
@@ -14,7 +14,7 @@ except ImportError:
 def get_exp_name(config):
     if 'name' in config:
         return config['name']
-    return time.strftime('%Y%m%d%H%M.', time.localtime()) + hex(hash(str(config))).split('x')[1][:4]
+    return '{}.{}'.format(hashlib.sha1(str(config).encode()).hexdigest()[:4], time.strftime('%Y%m%d%H%M', time.localtime()))
 
 
 def merge_config(src, dest, overwrite=True):
@@ -35,26 +35,14 @@ def merge_config(src, dest, overwrite=True):
 
 
 def env_info():
-    """Return dependency versions."""
-    return 'environment info:\nmodnas: {}\npython: {}\npytorch: {}\ncudnn: {}'.format(
-        __version__,
-        sys.version.split()[0],
-        torch.__version__,
-        torch.backends.cudnn.version(),
-    )
-
-
-def parse_device(device):
-    """Return device ids from config."""
-    if not isinstance(device, str):
-        return []
-    device = device.lower()
-    if device in ['cpu', 'nil', 'none']:
-        return []
-    if device == 'all':
-        return list(range(torch.cuda.device_count()))
-    else:
-        return [int(s) for s in device.split(',')]
+    """Return environment info."""
+    info = {
+        'platform': sys.platform,
+        'python': sys.version.split()[0],
+        'numpy': np.__version__,
+        'modnas': __version__,
+    }
+    return 'env info: {}'.format(', '.join(['{k}={{{k}}}'.format(k=k) for k in info])).format(**info)
 
 
 def check_config(config):
@@ -104,21 +92,6 @@ def check_config(config):
         check_field(config, key, val)
 
 
-def init_device(device='all', seed=11235):
-    """Initialize device and set seed."""
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    device_ids = parse_device(device)
-    if not len(device_ids):
-        device = torch.device('cpu')
-    else:
-        device = torch.device('cuda')
-        torch.cuda.set_device(device_ids[0])
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.benchmark = True
-    return device, device_ids
-
-
 def get_logger(log_dir, name, debug=False):
     """Return a new logger."""
     level = logging.DEBUG if debug else logging.INFO
@@ -165,16 +138,6 @@ def get_same_padding(kernel_size):
     return kernel_size // 2
 
 
-def param_count(model, factor=0, divisor=1000):
-    """Return number of model parameters."""
-    return sum(p.data.nelement() for p in model.parameters()) / divisor**factor
-
-
-def param_size(model, factor=0, divisor=1024):
-    """Return size of model parameters."""
-    return 4 * param_count(model) / divisor**factor
-
-
 class AverageMeter():
     """Compute and store the average and current value."""
 
@@ -194,52 +157,6 @@ class AverageMeter():
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
-
-def accuracy(output, target, topk=(1, )):
-    """Compute the precision@k for the specified values of k."""
-    maxk = max(topk)
-    batch_size = target.size(0)
-
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    # one-hot case
-    if target.ndimension() > 1:
-        target = target.max(1)[1]
-
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(1.0 / batch_size))
-
-    return res
-
-
-def clear_bn_running_statistics(model):
-    """Clear BatchNorm running statistics."""
-    for m in model.modules():
-        if isinstance(m, torch.nn.BatchNorm2d):
-            m.reset_running_stats()
-
-
-def recompute_bn_running_statistics(model, trainer, num_batch=100, clear=True):
-    """Recompute BatchNorm running statistics."""
-    if clear:
-        clear_bn_running_statistics(model)
-    is_training = model.training
-    model.train()
-    with torch.no_grad():
-        for _ in range(num_batch):
-            try:
-                trn_X, _ = trainer.get_next_train_batch()
-            except StopIteration:
-                break
-            model(trn_X)
-            del trn_X
-    if not is_training:
-        model.eval()
 
 
 def format_time(sec):

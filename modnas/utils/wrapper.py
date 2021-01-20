@@ -18,23 +18,23 @@ from .. import utils
 
 _default_arg_specs = [
     {
-        'flags': ['-n', '--name'],
+        'flags': ['-c', '--config'],
         'type': str,
         'required': True,
-        'help': 'name of the model'
+        'action': 'append',
+        'help': 'yaml config file'
+    },
+    {
+        'flags': ['-n', '--name'],
+        'type': str,
+        'default': None,
+        'help': 'name of the job to run'
     },
     {
         'flags': ['-r', '--routine'],
         'type': str,
         'default': None,
         'help': 'routine type'
-    },
-    {
-        'flags': ['-c', '--config'],
-        'type': str,
-        'required': True,
-        'action': 'append',
-        'help': 'yaml config file'
     },
     {
         'flags': ['-p', '--chkpt'],
@@ -94,9 +94,11 @@ def load_config(conf):
     return config
 
 
-def get_init_constructor():
+def get_init_constructor(config, device):
     """Return default init constructor."""
-    return {'type': 'DefaultInitConstructor'}
+    default_conf = {'type': 'DefaultInitConstructor', 'args': {'device': device}}
+    default_conf.update(config)
+    return default_conf
 
 
 def get_model_constructor(config):
@@ -239,16 +241,17 @@ def init_all(config,
     import_modules(config.get('imports', None))
     # device
     device_conf = config.get('device', {})
-    if device:
+    if device is not None:
         device_conf['device'] = device
-    device, device_ids = utils.init_device(**device_conf)
+    else:
+        device = device_conf.get('device', device)
     # data
     data_provider = get_data_provider(config, logger)
     # ops
     configure_ops(**config.get('ops', {}))
     # construct
     con_config = OrderedDict()
-    con_config['init'] = get_init_constructor()
+    con_config['init'] = get_init_constructor(config.get('init', {}), device)
     if 'model' in config:
         con_config['model'] = get_model_constructor(config.model)
     if 'mixed_op' in config:
@@ -256,8 +259,7 @@ def init_all(config,
     if arch_desc is not None:
         con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
     con_config = utils.merge_config(con_config, config.get('construct', {}))
-    if device_ids and len(con_config) > 1:
-        con_config['device'] = {'type': 'ToDevice', 'args': {'device_ids': device_ids}}
+    con_config['device'] = {'type': 'ToDevice', 'args': device_conf}
     if chkpt is not None:
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
     # model
@@ -321,14 +323,7 @@ def init_all_pipeline(config, *args, config_override=None, **kwargs):
     """Initialize all components from pipeline config."""
     config = load_config(config)
     Config.apply(config, config_override or {})
-    config_override = {
-        'estimator': {
-            'pipeline': {
-                'type': 'PipelineEstim',
-                'pipeline': config.get('pipeline', {})
-            }
-        }
-    }
+    config_override = {'estimator': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.get('pipeline', {})}}}
     return init_all(config, *args, config_override=config_override, **kwargs)
 
 
@@ -365,6 +360,6 @@ def run_pipeline(*args, **kwargs):
 def run(*args, routine=None, **kwargs):
     """Run routine."""
     if not args and not kwargs:
-        kwargs = parse_routine_args(name='default')
-    routine = kwargs.pop('routine', 'default')
-    return build(routine, *args, **kwargs)
+        kwargs = parse_routine_args()
+    routine_parsed = kwargs.pop('routine', 'default')
+    return build(routine or routine_parsed, *args, **kwargs)

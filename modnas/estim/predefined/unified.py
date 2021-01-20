@@ -1,7 +1,7 @@
 """Unified Estimator."""
 import itertools
 from ..base import EstimBase
-from ... import utils
+from ...utils import ETAMeter
 from ...core.param_space import ArchParamSpace
 from .. import register
 
@@ -68,7 +68,7 @@ class UnifiedEstim(EstimBase):
         arch_batch_size = config.arch_update_batch
         train_steps = self.train_steps
         self.cur_epoch += 1
-        eta_m = utils.ETAMeter(tot_epochs, self.cur_epoch)
+        eta_m = ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
         for epoch_step in itertools.count(0):
             n_epoch_steps = 1 if train_steps == 0 else (self.get_num_train_batch() + train_steps - 1) // train_steps

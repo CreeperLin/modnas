@@ -4,9 +4,30 @@ import torch.nn as nn
 from ...utils.optimizer import get_optimizer
 from ...utils.lr_scheduler import get_lr_scheduler
 from ...data_provider import build as build_data_provider
-from ... import utils
+from ...utils import AverageMeter
 from ..base import TrainerBase
 from .. import register
+
+
+def accuracy(output, target, topk=(1, )):
+    """Compute the precision@k for the specified values of k."""
+    maxk = max(topk)
+    batch_size = target.size(0)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    # one-hot case
+    if target.ndimension() > 1:
+        target = target.max(1)[1]
+
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0)
+        res.append(correct_k.mul_(1.0 / batch_size))
+
+    return res
 
 
 @register
@@ -84,9 +105,9 @@ class ImageClsTrainer(TrainerBase):
         return tuple(v.to(device=self.device, non_blocking=True) for v in batch)
 
     def reset_stats(self):
-        self.top1 = utils.AverageMeter()
-        self.top5 = utils.AverageMeter()
-        self.losses = utils.AverageMeter()
+        self.top1 = AverageMeter()
+        self.top5 = AverageMeter()
+        self.losses = AverageMeter()
 
     def state_dict(self):
         return {
@@ -145,7 +166,7 @@ class ImageClsTrainer(TrainerBase):
         if self.w_grad_clip > 0:
             nn.utils.clip_grad_norm_(model.weights(), self.w_grad_clip)
         optimizer.step()
-        prec1, prec5 = utils.accuracy(logits, trn_y, topk=(1, 5))
+        prec1, prec5 = accuracy(logits, trn_y, topk=(1, 5))
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)
         top5.update(prec5.item(), N)
@@ -187,7 +208,7 @@ class ImageClsTrainer(TrainerBase):
             batch = self.get_next_valid_batch()
             val_X, val_y = batch
             loss, logits = estim.loss_logits(batch, model=model, mode='eval')
-        prec1, prec5 = utils.accuracy(logits, val_y, topk=(1, 5))
+        prec1, prec5 = accuracy(logits, val_y, topk=(1, 5))
         N = val_X.size(0)
         losses.update(loss.item(), N)
         top1.update(prec1.item(), N)

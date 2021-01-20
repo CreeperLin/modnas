@@ -4,7 +4,7 @@ import torch.nn as nn
 from ...data_provider import build as build_data_provider
 from ...utils.optimizer import get_optimizer
 from ...utils.lr_scheduler import get_lr_scheduler
-from ... import utils
+from ...utils import AverageMeter
 from ..base import TrainerBase
 from .. import register
 
@@ -90,7 +90,7 @@ class DefaultTrainer(TrainerBase):
 
     def reset_stats(self):
         """Reset stats."""
-        self.losses = utils.AverageMeter()
+        self.losses = AverageMeter()
 
     def state_dict(self):
         """Return current states."""

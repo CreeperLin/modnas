@@ -2,7 +2,7 @@
 import itertools
 from ..base import EstimBase
 from ...core.param_space import ArchParamSpace
-from ... import utils
+from ...utils import ETAMeter
 from .. import register
 
 
@@ -29,7 +29,7 @@ class SuperNetEstim(EstimBase):
         model = self.model
         config = self.config
         tot_epochs = config.epochs
-        eta_m = utils.ETAMeter(tot_epochs, self.cur_epoch)
+        eta_m = ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
             if epoch == tot_epochs:
