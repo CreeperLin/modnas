@@ -80,15 +80,30 @@ def get_registry_utils(_reg_path):
     return _reg_path, _register, _get_builder, _build, _register_as
 
 
+def get_registry_name(path):
+    return '.'.join(path[path.index('modnas') + 2:])
+
+
 class RegistryModule():
     """Registry as a module."""
 
     def __init__(self, fullname):
-        registry_name = fullname.split('.')[-1]
+        path = fullname.split('.')
+        registry_name = get_registry_name(path)
         self.__package__ = fullname
-        self.__path__ = fullname.split('.')
+        self.__path__ = path
         self.__name__ = registry_name
+        self.__loader__ = None
+        self.__spec__ = None
         self.reg_path, self.register, self.get_builder, self.build, self.register_as = get_registry_utils(registry_name)
+
+    def __getattr__(self, attr):
+        if attr in self.__dict__:
+            return self.__dict__.get(attr)
+        try:
+            return self.get_builder(attr)
+        except ValueError:
+            raise AttributeError()
 
 
 class RegistryImporter():
@@ -101,6 +116,14 @@ class RegistryImporter():
 
     def load_module(self, fullname):
         """Create and find registry by import path."""
+        path = fullname.split('.')
+        reg_path, reg_id = path[:-1], path[-1]
+        reg_fullname = '.'.join(reg_path)
+        registry_name = get_registry_name(reg_path)
+        if reg_fullname in sys.modules and len(registry_name):
+            mod = get_builder(registry_name, reg_id)
+            sys.modules[fullname] = mod
+            return mod
         mod = sys.modules.get(fullname, RegistryModule(fullname))
         sys.modules[fullname] = mod
         return mod
