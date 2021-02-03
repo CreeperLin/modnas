@@ -8,7 +8,7 @@ class ValidateMetrics(MetricsBase):
         super().__init__(logger)
         self.field = field
 
-    def compute(self, model):
+    def __call__(self, model):
         estim = self.estim
         val_res = estim.valid_epoch(model=model)
         if isinstance(val_res, dict):

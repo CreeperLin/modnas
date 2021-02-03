@@ -109,7 +109,7 @@ class EstimBase():
         model = self.model if model is None else model
         names = [name] if name is not None else self.metrics.keys()
         for mt_name in names:
-            res = self.metrics[mt_name].compute(model, *args, **kwargs)
+            res = self.metrics[mt_name](model, *args, **kwargs)
             merge_results(ret, mt_name, flatten_dict(mt_name, res))
         return ret
 

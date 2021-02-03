@@ -14,7 +14,7 @@ class RASPStatsMetrics(MetricsBase):
         super().__init__(logger)
         self.item = item
 
-    def compute(self, node):
+    def __call__(self, node):
         return node[self.item]
 
 
@@ -54,13 +54,13 @@ class RASPTraversalMetrics(MetricsBase):
         if node in self.excluded:
             return ret
         if node.num_children == 0:
-            ret = self.metrics.compute(node)
+            ret = self.metrics(node)
             return ret
         if node.tape is None:
             return ret
         for cur_node in node.tape.items:
             if cur_node['prim_type']:
-                n_ret = self.metrics.compute(cur_node)
+                n_ret = self.metrics(cur_node)
             else:
                 n_ret = self.traverse_tape_nodes(cur_node)
             if n_ret is None:
@@ -73,7 +73,7 @@ class RASPTraversalMetrics(MetricsBase):
         for cur_node in node.tape.items_all:
             if cur_node in self.excluded:
                 continue
-            n_ret = self.metrics.compute(cur_node)
+            n_ret = self.metrics(cur_node)
             if n_ret is None:
                 n_ret = 0
             ret += n_ret
@@ -88,7 +88,7 @@ class RASPTraversalMetrics(MetricsBase):
         F.unhook_compute(module)
         F.unhook_timing(module)
 
-    def compute(self, net):
+    def __call__(self, net):
         self.excluded.clear()
         root = F.get_stats_node(net)
         if root is None:
@@ -114,7 +114,7 @@ class RASPTraversalMetrics(MetricsBase):
                         subn['in_shape'] = m_in
                     self.stat(subn.module, subn['in_shape'])
                     subn['compute_updated'] = True
-                subn_mt = self.metrics.compute(subn)
+                subn_mt = self.metrics(subn)
                 if subn_mt is None:
                     subn_mt = self.traverse(subn)
                 if subn_mt is None:
@@ -141,7 +141,7 @@ class RASPRootMetrics(MetricsBase):
         self.input_shape = input_shape
         self.device = device
 
-    def compute(self, net):
+    def __call__(self, net):
         root = F.get_stats_node(net)
         if root is None:
             root = F.reg_stats_node(net)
@@ -153,4 +153,4 @@ class RASPRootMetrics(MetricsBase):
             F.run(net, inputs, self.device)
             F.unhook_compute(net)
             F.unhook_timing(net)
-        return self.metrics.compute(root)
+        return self.metrics(root)

@@ -12,7 +12,7 @@ class MetricsBase(object):
         self.logger = logging.getLogger('metrics') if logger is None else logger
         self.estim = MetricsBase.get_estim()
 
-    def compute(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         """Compute metrics."""
         raise NotImplementedError
 

@@ -12,7 +12,7 @@ class LocalProfilerMetrics(MetricsBase):
         self.warmup = warmup
         self.device = device
 
-    def compute(self, node):
+    def __call__(self, node):
         in_shape = node['in_shape']
         op = node.module
         plist = list(op.parameters())

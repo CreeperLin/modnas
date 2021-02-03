@@ -9,11 +9,11 @@ class MixedOpTraversalMetrics(MetricsBase):
         super().__init__(logger)
         self.metrics = build(metrics, logger, **args)
 
-    def compute(self, estim):
+    def __call__(self, estim):
         mt = 0
         for m in estim.model.mixed_ops():
             for p, op in zip(m.prob(), m.primitives()):
-                mt = mt + self.metrics.compute(op) * p
+                mt = mt + self.metrics(op) * p
         return mt
 
 
@@ -23,12 +23,12 @@ class ModuleTraversalMetrics(MetricsBase):
         super().__init__(logger)
         self.metrics = build(metrics, logger, **args)
 
-    def compute(self, estim):
+    def __call__(self, estim):
         mt = 0
         for m in estim.model.modules():
             if not isinstance(m, MixedOp):
-                mt = mt + self.metrics.compute(m)
+                mt = mt + self.metrics(m)
             else:
                 for p, op in zip(m.prob(), m.primitives()):
-                    mt = mt + self.metrics.compute(op) * p
+                    mt = mt + self.metrics(op) * p
         return mt

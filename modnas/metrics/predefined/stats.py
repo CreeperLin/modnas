@@ -16,7 +16,7 @@ class StatsLUTMetrics(MetricsBase):
         self.head = head
         self.warned = set()
 
-    def compute(self, stats):
+    def __call__(self, stats):
         key = '#'.join([str(stats[k]) for k in self.head if not stats.get(k, None) is None])
         val = self.lut.get(key, None)
         if val is None:
@@ -42,11 +42,11 @@ class StatsRecordMetrics(MetricsBase):
         if save_path is not None:
             self.save_file = open(save_path, 'w')
 
-    def compute(self, stats):
+    def __call__(self, stats):
         key = '#'.join([str(stats[k]) for k in self.head if stats[k] is not None])
         if key in self.record:
             return self.record[key]
-        val = self.metrics.compute(stats)
+        val = self.metrics(stats)
         self.record[key] = val
         self.logger.info('StatsRecord:\t{}: {}'.format(key, val))
         if self.save_file is not None:
@@ -62,6 +62,6 @@ class StatsModelMetrics(MetricsBase):
             self.model = pickle.load(f)
         self.head = head
 
-    def compute(self, stats):
+    def __call__(self, stats):
         feats = [stats.get(c, None) for c in self.head]
         return self.model.predict(feats)

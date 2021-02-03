@@ -20,11 +20,11 @@ class OnnxExportMetrics(MetricsBase):
         self.verbose = verbose
         self.exported = {}
 
-    def compute(self, node):
+    def __call__(self, node):
         key = '#'.join([str(node[k]) for k in self.head if node[k] is not None])
         onnx_info = self.exported.get(key, None)
         if onnx_info is not None:
-            return self.metrics.compute(onnx_info)
+            return self.metrics(onnx_info)
         in_shape = node['in_shape']
         module = node.module
         plist = list(module.parameters())
@@ -52,6 +52,6 @@ class OnnxExportMetrics(MetricsBase):
             'output_shapes': output_shapes
         }
         self.exported[key] = onnx_info
-        ret = self.metrics.compute(onnx_info)
+        ret = self.metrics(onnx_info)
         self.logger.info('onnx export: {}: {}'.format(key, ret))
         return ret
