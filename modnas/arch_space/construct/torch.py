@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from . import register
 from ..slot import Slot
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 
 
 def parse_device(device):
@@ -39,7 +39,7 @@ class DefaultInitConstructor():
     def __call__(self, model):
         """Run constructor."""
         Slot.reset()
-        ArchParamSpace.reset()
+        ParamSpace().reset()
         seed = self.seed
         if seed:
             init_device(self.device, seed)

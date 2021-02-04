@@ -5,8 +5,10 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import random
+from .singleton import singleton
 
 
+@singleton
 class ParamSpace():
     """Parameter Space class."""
 
@@ -145,7 +147,7 @@ class Param():
     def __init__(self, space, name, on_update):
         self.name = None
         self.on_update_handler = on_update
-        space = space or ArchParamSpace
+        space = space or ParamSpace()
         space.register(self, name)
 
     def __repr__(self):
@@ -317,6 +319,3 @@ class ParamTensor(Param):
     def set_value(self, value):
         """Set parameter value."""
         self.val = value
-
-
-ArchParamSpace = ParamSpace()

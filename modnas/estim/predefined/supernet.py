@@ -1,7 +1,7 @@
 """Supernet-based Estimator."""
 import itertools
 from ..base import EstimBase
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 from ...utils import ETAMeter
 from .. import register
 
@@ -18,7 +18,7 @@ class SuperNetEstim(EstimBase):
     def print_tensor_params(self, max_num=3):
         """Log current tensor parameter values."""
         logger = self.logger
-        ap_cont = tuple(a.detach().softmax(dim=-1).cpu().numpy() for a in ArchParamSpace.tensor_values())
+        ap_cont = tuple(a.detach().softmax(dim=-1).cpu().numpy() for a in ParamSpace().tensor_values())
         max_num = min(len(ap_cont) // 2, max_num)
         logger.info('TENSOR: {}\n{}'.format(
             len(ap_cont), '\n'.join([str(a) for a in (ap_cont[:max_num] + ('...', ) + ap_cont[-max_num:])])))

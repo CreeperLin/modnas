@@ -1,6 +1,6 @@
 import itertools
 from ..base import EstimBase
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 from .. import register
 
 
@@ -13,7 +13,7 @@ class RegressionEstim(EstimBase):
         self.best_arch_desc = None
 
     def step(self, params):
-        ArchParamSpace.update_params(params)
+        ParamSpace().update_params(params)
         predictor = self.predictor
         arch_desc = self.exporter(self.model)
         score = predictor.predict(arch_desc)

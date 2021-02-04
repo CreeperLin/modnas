@@ -4,7 +4,7 @@ import traceback
 from ..base import EstimBase
 from ...utils import ETAMeter
 from ...utils.torch import recompute_bn_running_statistics
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 from .. import register
 
 
@@ -22,7 +22,7 @@ class SubNetEstim(EstimBase):
 
     def step(self, params):
         """Return evaluation results of a parameter set."""
-        ArchParamSpace.update_params(params)
+        ParamSpace().update_params(params)
         arch_desc = self.exporter(self.model)
         config = self.config
         try:

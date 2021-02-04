@@ -10,7 +10,7 @@ from ..data_provider import get_data_provider
 from ..arch_space.construct import build as build_con
 from ..arch_space.export import build as build_exp
 from ..arch_space.ops import configure_ops
-from ..core.param_space import ArchParamSpace
+from ..core.param_space import ParamSpace
 from ..optim import build as build_optim
 from ..estim import build as build_estim
 from ..trainer import build as build_trainer
@@ -275,7 +275,7 @@ def init_all(config,
     optim = None
     if 'optim' in config:
         optim_kwargs = config.optim.get('args', {})
-        optim = build_optim(config.optim.type, space=ArchParamSpace, logger=logger, **optim_kwargs)
+        optim = build_optim(config.optim.type, space=ParamSpace(), logger=logger, **optim_kwargs)
     # trainer
     trner_comp = {
         'data_provider': data_provider,

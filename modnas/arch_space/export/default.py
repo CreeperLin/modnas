@@ -5,7 +5,7 @@ import json
 import yaml
 from ..slot import Slot
 from ..mixed_ops import MixedOp
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 from . import register, build
 
 
@@ -90,9 +90,9 @@ class DefaultParamsExporter():
     def __call__(self, model):
         """Run Exporter."""
         if self.with_keys:
-            params = {k: p.value() for k, p in ArchParamSpace.named_params()}
+            params = {k: p.value() for k, p in ParamSpace().named_params()}
         else:
-            params = [p.value() for p in ArchParamSpace.params()]
+            params = [p.value() for p in ParamSpace().params()]
         if self.export_fmt:
             if self.with_keys:
                 return self.export_fmt.format(**params)

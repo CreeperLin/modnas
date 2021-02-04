@@ -3,7 +3,7 @@ import math
 import copy
 import torch
 from ..base import GradientBasedOptim
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 from ...arch_space.mixed_ops import MixedOp
 from .. import register
 
@@ -45,7 +45,7 @@ class DARTSOptim(GradientBasedOptim):
         # calc unrolled loss
         loss = estim.loss(val_batch, model=self.v_net, mode='valid')  # L_val(w`)
         # compute gradient
-        alphas = ArchParamSpace.tensor_values()
+        alphas = ParamSpace().tensor_values()
         v_alphas = tuple(alphas)
         v_weights = tuple(self.v_net.parameters())
         v_grads = torch.autograd.grad(loss, v_alphas + v_weights)
@@ -68,7 +68,7 @@ class DARTSOptim(GradientBasedOptim):
         eps = 0.01 / ||dw||
         """
         model = estim.model
-        alphas = ArchParamSpace.tensor_values()
+        alphas = ParamSpace().tensor_values()
         norm = torch.cat([w.view(-1) for w in dw]).norm()
         eps = 0.01 / norm
         # w+ = w + eps*dw`

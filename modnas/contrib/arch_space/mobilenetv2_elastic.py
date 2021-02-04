@@ -6,7 +6,7 @@ from modnas.arch_space.export import register as register_exporter
 from modnas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
     conv2d_rank_weight_l1norm_fan_in, conv2d_rank_weight_l1norm_fan_out, batchnorm2d_rank_weight_l1norm
 from modnas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
-from modnas.core.param_space import ArchParamSpace, ParamCategorical
+from modnas.core.param_space import ParamSpace, ParamCategorical
 
 
 @register_exporter
@@ -23,7 +23,7 @@ class MobileNetV2ElasticArchDescExporter():
         max_stage_depth = self.max_stage_depth
         if self.fix_first:
             arch_desc.append(None)
-        params = {k: p.value() for k, p in ArchParamSpace.named_params()}
+        params = {k: p.value() for k, p in ParamSpace().named_params()}
         seq_values = [v for k, v in params.items() if k.startswith('seq')]
         n_sequential = len(seq_values)
         spa_values = [v for k, v in params.items() if k.startswith('spa')]

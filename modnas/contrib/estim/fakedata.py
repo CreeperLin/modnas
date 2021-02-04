@@ -1,5 +1,5 @@
 import numpy as np
-from modnas.core.param_space import ArchParamSpace, ParamCategorical
+from modnas.core.param_space import ParamSpace, ParamCategorical
 from modnas.estim.predefined.regression import RegressionEstim
 from modnas.arch_space.construct import register as register_constructor
 from modnas.estim import register as register_estim
@@ -30,7 +30,7 @@ class FakeDataPredictor():
     def predict(self, params):
         score = 0
         for pn, v in params.items():
-            p = ArchParamSpace.get_param(pn)
+            p = ParamSpace().get_param(pn)
             idx = p.get_index(v)
             dim = len(p)
             if pn not in self.scores:

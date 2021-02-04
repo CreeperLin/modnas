@@ -1,14 +1,14 @@
 """Basic Optimizer classes."""
 import random
 from ..utils.optimizer import get_optimizer
-from ..core.param_space import ArchParamSpace
+from ..core.param_space import ParamSpace
 
 
 class OptimBase():
     """Base Optimizer class."""
 
     def __init__(self, space=None, logger=None):
-        self.space = space or ArchParamSpace
+        self.space = space or ParamSpace()
         self.logger = logger
 
     def state_dict(self):

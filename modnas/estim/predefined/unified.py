@@ -2,7 +2,7 @@
 import itertools
 from ..base import EstimBase
 from ...utils import ETAMeter
-from ...core.param_space import ArchParamSpace
+from ...core.param_space import ParamSpace
 from .. import register
 
 
@@ -24,7 +24,7 @@ class UnifiedEstim(EstimBase):
 
     def step(self, params):
         """Return evaluation results of a parameter set."""
-        ArchParamSpace.update_params(params)
+        ParamSpace().update_params(params)
         n_train_batch = self.get_num_train_batch()
         n_valid_batch = self.get_num_valid_batch()
         train_epochs = self.train_epochs
