@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from modnas.optim import register
 from modnas.optim.base import OptimBase
-from modnas.core.param_space import ParamNumeric
+from modnas.core.params import Numeric
 
 
 @register
@@ -12,7 +12,7 @@ class HITLOptim(OptimBase):
         return True
 
     def parse_input(self, param, inp):
-        if isinstance(param, ParamNumeric):
+        if isinstance(param, Numeric):
             return float(inp)
         try:
             return int(inp)

@@ -6,7 +6,8 @@ from modnas.arch_space.export import register as register_exporter
 from modnas.contrib.arch_space.elastic.spatial import ElasticSpatialGroup,\
     conv2d_rank_weight_l1norm_fan_in, conv2d_rank_weight_l1norm_fan_out, batchnorm2d_rank_weight_l1norm
 from modnas.contrib.arch_space.elastic.sequential import ElasticSequentialGroup
-from modnas.core.param_space import ParamSpace, ParamCategorical
+from modnas.core.param_space import ParamSpace
+from modnas.core.params import Categorical
 
 
 @register_exporter
@@ -109,7 +110,7 @@ class MobileNetV2ElasticSpatialConstructor(DefaultSlotTraversalConstructor):
                 g.set_width(chn_in * param.value())
 
             param_choice = [e for e in expansion_range]
-            _ = ParamCategorical(param_choice, name='spa', on_update=partial(on_update_handler, slot.chn_in))
+            _ = Categorical(param_choice, name='spa', on_update=partial(on_update_handler, slot.chn_in))
         self.last_conv = pw_conv
         self.last_bn = pw_bn
         self.spa_group_cnt += 1
@@ -152,7 +153,7 @@ class MobileNetV2ElasticSequentialConstructor():
             def on_update_handler(group, param):
                 group.set_depth(param.value())
 
-            _ = ParamCategorical(repeat_range, name='seq', on_update=partial(on_update_handler, g))
+            _ = Categorical(repeat_range, name='seq', on_update=partial(on_update_handler, g))
 
 
 @register_constructor

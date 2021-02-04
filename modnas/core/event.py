@@ -9,6 +9,10 @@ class EventManager():
         self.handlers = {}
         self.event_queue = []
 
+    def reset(self):
+        self.handlers.clear()
+        self.event_queue.clear()
+
     def get_handlers(self, ev):
         ev_handlers = self.handlers.get(ev, [])
         for p, h in ev_handlers:
@@ -82,3 +86,4 @@ def event_unhooked(func, remove_all=False, before=False, after=False):
 
 event_on = EventManager().on
 event_off = EventManager().off
+event_fire = EventManager().fire

@@ -1,5 +1,5 @@
 from . import register
-from ...core.param_space import ParamNumeric, ParamCategorical
+from ...core.params import Numeric, Categorical
 
 
 @register
@@ -15,8 +15,8 @@ class DefaultHParamSpaceConstructor():
         del model
         for k, v in self.params:
             if isinstance(v, list) and len(v) == 1 and isinstance(v[0], list):
-                _ = ParamNumeric(low=v[0][0], high=v[0][1], name=k)
+                _ = Numeric(low=v[0][0], high=v[0][1], name=k)
             elif isinstance(v, list):
-                _ = ParamCategorical(choices=v, name=k)
+                _ = Categorical(choices=v, name=k)
             else:
                 raise ValueError('support categorical and numeric hparams only')

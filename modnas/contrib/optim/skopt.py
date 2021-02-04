@@ -3,7 +3,7 @@ import numpy as np
 from collections import OrderedDict
 from modnas.optim import register
 from modnas.optim.base import OptimBase
-from modnas.core.param_space import ParamCategorical, ParamNumeric
+from modnas.core.params import Categorical as ParamCategorical, Numeric
 try:
     import skopt
     from skopt import Optimizer
@@ -21,7 +21,7 @@ class SkoptOptim(OptimBase):
         skopt_dims = []
         param_names = []
         for n, p in self.space.named_params():
-            if isinstance(p, ParamNumeric):
+            if isinstance(p, Numeric):
                 if p.is_int():
                     sd = Integer(*p.bound, name=n)
                 else:
