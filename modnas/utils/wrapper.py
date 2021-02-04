@@ -1,5 +1,4 @@
 """Wrapper for routine initialization and execution."""
-import importlib
 import argparse
 from collections import OrderedDict
 from functools import partial
@@ -71,16 +70,6 @@ def parse_routine_args(name='default', arg_specs=None):
     for spec in arg_specs:
         parser.add_argument(*spec.pop('flags'), **spec)
     return vars(parser.parse_args())
-
-
-def import_modules(modules):
-    """Import modules by name."""
-    if modules is None:
-        return
-    if isinstance(modules, str):
-        modules = [modules]
-    for m in modules:
-        importlib.import_module(m)
 
 
 def load_config(conf):
@@ -238,7 +227,7 @@ def init_all(config,
     logger.info('routine: {} config:\n{}'.format(routine, config))
     logger.info(utils.env_info())
     # imports
-    import_modules(config.get('imports', None))
+    utils.import_modules(config.get('imports', None))
     # device
     device_conf = config.get('device', {})
     if device is not None:
@@ -361,5 +350,5 @@ def run(*args, routine=None, **kwargs):
     """Run routine."""
     if not args and not kwargs:
         kwargs = parse_routine_args()
-    routine_parsed = kwargs.pop('routine', 'default')
+    routine_parsed = kwargs.pop('routine', None) or 'default'
     return build(routine or routine_parsed, *args, **kwargs)

@@ -6,6 +6,7 @@ from ...utils.optimizer import get_optimizer
 from ...utils.lr_scheduler import get_lr_scheduler
 from ...utils import AverageMeter
 from ..base import TrainerBase
+from ...core.event import event_hooked
 from .. import register
 
 
@@ -122,6 +123,7 @@ class DefaultTrainer(TrainerBase):
         """Return loss."""
         return None if self.criterion is None else self.criterion(y_true, y_pred)
 
+    @event_hooked
     def train_epoch(self, estim, model, tot_steps, epoch, tot_epochs):
         """Train for one epoch."""
         self.data_provider.reset_train_iter()
@@ -131,6 +133,7 @@ class DefaultTrainer(TrainerBase):
             'loss': self.losses.avg,
         }
 
+    @event_hooked
     def train_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
         """Train for one step."""
         cur_step = epoch * tot_steps + step
@@ -164,6 +167,7 @@ class DefaultTrainer(TrainerBase):
             logger.info("Train: [{:3d}/{}] Loss {:.3f}".format(epoch + 1, tot_epochs, losses.avg))
         return loss
 
+    @event_hooked
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
         """Validate for one epoch."""
         self.data_provider.reset_valid_iter()
@@ -175,6 +179,7 @@ class DefaultTrainer(TrainerBase):
             'loss': self.losses.avg,
         }
 
+    @event_hooked
     def valid_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
         """Validate for one step."""
         if step == 0:

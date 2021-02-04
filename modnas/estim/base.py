@@ -5,6 +5,7 @@ from ..utils.torch import param_count, param_size
 from ..utils.criterion import build_criterions_all
 from ..metrics import build_metrics_all
 from ..arch_space.export import build as build_exporter
+from ..core.event import event_hooked
 
 
 class EstimBase():
@@ -42,6 +43,7 @@ class EstimBase():
         """Set current trainer."""
         self.trainer = trainer
 
+    @event_hooked
     def loss(self, data, output=None, model=None, mode=None):
         """Return loss."""
         model = self.model if model is None else model
@@ -74,6 +76,7 @@ class EstimBase():
         output = self.logits(data, model)
         return self.loss(data, output, model, mode), output
 
+    @event_hooked
     def step(self, params):
         """Return evaluation results of a parameter set."""
         raise NotImplementedError
@@ -89,6 +92,7 @@ class EstimBase():
         """Return last evaluation results."""
         return self.inputs, self.results
 
+    @event_hooked
     def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
         """Return Metrics results."""
         def fmt_key(n, k):
@@ -113,6 +117,7 @@ class EstimBase():
             merge_results(ret, mt_name, flatten_dict(mt_name, res))
         return ret
 
+    @event_hooked
     def run(self, optim):
         """Run Estimator routine."""
         raise NotImplementedError
@@ -126,6 +131,7 @@ class EstimBase():
             score = 0 if len(res) == 0 else list(res.values())[0]
         return score
 
+    @event_hooked
     def train_epoch(self, epoch, tot_epochs, model=None):
         """Train model for one epoch."""
         model = self.model if model is None else model
@@ -136,6 +142,7 @@ class EstimBase():
                                        tot_epochs=tot_epochs)
         return ret
 
+    @event_hooked
     def train_step(self, epoch, tot_epochs, step, tot_steps, model=None):
         """Train model for one step."""
         model = self.model if model is None else model
@@ -146,6 +153,7 @@ class EstimBase():
                                        step=step,
                                        tot_steps=tot_steps)
 
+    @event_hooked
     def valid_epoch(self, epoch=0, tot_epochs=1, model=None):
         """Validate model for one epoch."""
         model = self.model if model is None else model
@@ -155,6 +163,7 @@ class EstimBase():
                                         epoch=epoch,
                                         tot_epochs=tot_epochs)
 
+    @event_hooked
     def valid_step(self, epoch, tot_epochs, step, tot_steps, model=None):
         """Validate model for one step."""
         model = self.model if model is None else model

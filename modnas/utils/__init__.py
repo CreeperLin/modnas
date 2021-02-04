@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import logging
+import importlib
 import numpy as np
 import hashlib
 from ..version import __version__
@@ -9,6 +10,29 @@ try:
     from tensorboardX import SummaryWriter
 except ImportError:
     SummaryWriter = None
+
+
+def import_file(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+
+
+def import_modules(modules):
+    """Import modules by name."""
+    if modules is None:
+        return
+    if isinstance(modules, str):
+        modules = [modules]
+    for m in modules:
+        if isinstance(m, str):
+            importlib.import_module(m)
+        elif isinstance(m, (list, tuple)):
+            n, p = m
+            import_file(n, p)
+        else:
+            raise ValueError('Invalid import spec')
 
 
 def get_exp_name(config):
