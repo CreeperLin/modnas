@@ -1,7 +1,7 @@
 """Architecture Parameter Space."""
 import logging
 from collections import OrderedDict
-from .singleton import singleton
+from . import singleton
 
 
 @singleton

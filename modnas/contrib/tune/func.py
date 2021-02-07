@@ -3,6 +3,7 @@ import logging
 from functools import partial
 from modnas.utils.wrapper import run_hptune
 
+
 _default_hptune_config = {
     'optim': {
         'type': 'RandomSearchOptim'
@@ -47,22 +48,17 @@ def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tune
     return ret
 
 
-def wrap_tune(func, *dec_args, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **dec_kwargs):
-    tuned_args = tuned_args or {}
-    tuned_args.update(dec_kwargs)
-    tuned_args.update({'#{}'.format(i): v for i, v in enumerate(dec_args) if v is not None})
-
-    return lambda *args, **kwargs: tune(
-        func, *args, tune_config=tune_config, tune_options=tune_options, tuned_args=tuned_args, tuned=tuned, **kwargs)
+def tune_template(*args, **kwargs):
+    tuned_args = {}
+    tuned_args.update(kwargs)
+    tuned_args.update({'#{}'.format(i): v for i, v in enumerate(args) if v is not None})
+    return lambda func: partial(func, tuned_args=tuned_args)
 
 
-def tune_func(*args, **kwargs):
-    def tuner(func):
-        return wrap_tune(func, *args, **kwargs)
-
-    return tuner
+def tunes(*args, **kwargs):
+    def wrapper(func):
+        return partial(tune, func, *args, **kwargs)
+    return wrapper
 
 
 tuned = partial(tune, tuned=True)
-wrap_tuned = partial(wrap_tune, tuned=True)
-tuned_func = partial(tune_func, tuned=True)
