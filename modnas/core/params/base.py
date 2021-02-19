@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from ..event import event_fire, event_on
+from ..event import event_emit, event_on
 from ..param_space import ParamSpace
 
 
@@ -31,7 +31,7 @@ class Param():
         self.val = value
 
     def on_update(self):
-        event_fire('update:' + self.name, self)
+        event_emit('update:' + self.name, self)
 
     def __deepcopy__(self, memo):
         # disable deepcopy

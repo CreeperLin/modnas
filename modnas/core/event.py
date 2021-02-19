@@ -1,3 +1,4 @@
+import logging
 import inspect
 from functools import wraps
 from . import singleton, make_decorator
@@ -9,6 +10,7 @@ class EventManager():
     def __init__(self):
         self.handlers = {}
         self.event_queue = []
+        self.logger = logging.getLogger(__name__)
 
     def reset(self):
         self.handlers.clear()
@@ -20,12 +22,14 @@ class EventManager():
             yield h
 
     def on(self, ev, handler, priority=0):
+        self.logger.debug('on: {} {} {}'.format(ev, handler, priority))
         ev_handlers = self.handlers.get(ev, [])
         ev_handlers.append((priority, handler))
         ev_handlers.sort(key=lambda s: -s[0])
         self.handlers[ev] = ev_handlers
 
-    def fire(self, ev, *args, callback=None, delayed=False, **kwargs):
+    def emit(self, ev, *args, callback=None, delayed=False, **kwargs):
+        self.logger.debug('emit: {} delayed: {}'.format(ev, delayed))
         if ev not in self.handlers:
             return
         self.event_queue.append((ev, args, kwargs, callback))
@@ -34,6 +38,7 @@ class EventManager():
         return self.dispatch_all()[ev]
 
     def off(self, ev, handler=None):
+        self.logger.debug('off: {} {}'.format(ev, handler))
         ev_handlers = self.handlers.get(ev, None)
         if ev_handlers is None:
             return
@@ -71,12 +76,12 @@ def event_hooked(func, name=None, before=True, after=True, qual=True, module=Fal
     @wraps(func)
     def wrapped(*args, **kwargs):
         if wrapped.before:
-            hret = EventManager().fire('before:' + ev, *args, **kwargs)
+            hret = EventManager().emit('before:' + ev, *args, **kwargs)
             if hret is not None:
                 args, kwargs = hret[0] or args, hret[1] or kwargs
         fret = func(*args, **kwargs)
         if wrapped.after:
-            hret = EventManager().fire('after:' + ev, fret, *args, **kwargs)
+            hret = EventManager().emit('after:' + ev, fret, *args, **kwargs)
             if hret is not None:
                 fret = hret
         return fret
@@ -96,6 +101,27 @@ def event_unhooked(func, remove_all=False, before=False, after=False):
 
 
 @make_decorator
+def event_hooked_method(obj, name=None, attr=None, *args, base_qual=True, **kwargs):
+    if name is None and inspect.ismethod(obj):
+        name = obj.__name__
+        attr, obj = obj, obj.__self__
+    if name is None:
+        name = obj.__name__
+    if attr is None:
+        attr = getattr(obj, name)
+    if base_qual:
+        cls = obj if inspect.isclass(obj) else obj.__class__
+        bases = (cls,) + inspect.getmro(cls)
+        for base in bases:
+            if name not in base.__dict__:
+                continue
+            cls = base
+        kwargs['qual'] = cls.__name__
+    setattr(obj, name, event_hooked(attr, *args, **kwargs))
+    return obj
+
+
+@make_decorator
 def event_hooked_members(obj, *args, methods=None, is_method=False, is_function=False, **kwargs):
     for name, attr in inspect.getmembers(obj):
         if methods is not None and name not in methods:
@@ -104,7 +130,7 @@ def event_hooked_members(obj, *args, methods=None, is_method=False, is_function=
             continue
         if is_function and not inspect.isfunction(attr):
             continue
-        setattr(obj, name, event_hooked(attr, *args, **kwargs))
+        event_hooked_method(obj, name=name, attr=attr, *args, **kwargs)
     return obj
 
 
@@ -125,13 +151,11 @@ def event_hooked_class(cls, *args, **kwargs):
 
 
 @make_decorator
-def event_hooked_subclass(cls, base_qual=True, *args, **kwargs):
+def event_hooked_subclass(cls, *args, **kwargs):
     ori_init = cls.__init__
 
     def new_init(self, *fn_args, **fn_kwargs):
         ori_init(self, *fn_args, **fn_kwargs)
-        if base_qual:
-            kwargs['qual'] = cls.__name__
         event_hooked_members(self, *args, is_method=True, **kwargs)
     setattr(cls, '__init__', new_init)
     return cls
@@ -139,4 +163,4 @@ def event_hooked_subclass(cls, base_qual=True, *args, **kwargs):
 
 event_on = EventManager().on
 event_off = EventManager().off
-event_fire = EventManager().fire
+event_emit = EventManager().emit

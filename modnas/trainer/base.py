@@ -1,8 +1,10 @@
 """Base Trainer."""
-from ..utils import DummyWriter
 import logging
+from ..utils import DummyWriter
+from ..core.event import event_hooked_subclass
 
 
+@event_hooked_subclass
 class TrainerBase():
     """Base Trainer class."""
 

@@ -2,8 +2,10 @@
 import random
 from ..utils.optimizer import get_optimizer
 from ..core.param_space import ParamSpace
+from ..core.event import event_hooked_subclass
 
 
+@event_hooked_subclass
 class OptimBase():
     """Base Optimizer class."""
 
