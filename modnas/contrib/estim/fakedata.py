@@ -49,6 +49,9 @@ class FakeDataPredictor():
 
 @register_estim
 class FakeDataEstim(RegressionEstim):
+    def __init__(self, *args, pred_conf=None, **kwargs):
+        super().__init__(*args, predictor=FakeDataPredictor(**(pred_conf or {})), **kwargs)
+
     def run(self, optim):
         self.predictor = FakeDataPredictor()
         self.model = None

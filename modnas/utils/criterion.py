@@ -10,10 +10,8 @@ from ..registry.criterion import register, get_builder, build, register_as
 
 def get_criterion(config, device_ids=None):
     """Return a new Criterion."""
-    crit_type = config['type']
-    crit_args = config.get('args', {})
     n_parallel = 1 if device_ids is None else len(device_ids)
-    criterion = build(crit_type, **crit_args)
+    criterion = build(config)
     if n_parallel > 1 and isinstance(criterion, torch.nn.Module):
         criterion = torch.nn.DataParallel(criterion, device_ids=device_ids).module
     return criterion
@@ -162,7 +160,7 @@ class KnowledgeDistillLoss():
         if not isinstance(kd_model_constructor, list):
             kd_model_constructor = [kd_model_constructor]
         for con_conf in kd_model_constructor:
-            kd_model = build_constructor(con_conf.type, **(con_conf.get('args') or {}))(kd_model)
+            kd_model = build_constructor(con_conf)(kd_model)
         return kd_model
 
     def __call__(self, loss, estim, model, y_pred, X, y_true):

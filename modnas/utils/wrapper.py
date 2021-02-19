@@ -127,7 +127,7 @@ def get_arch_desc_constructor(arch_desc):
 
 def build_constructor_all(config):
     """Build and return all constructors."""
-    return OrderedDict([(k, build_con(conf['type'], **conf.get('args', {}))) for k, conf in config.items()])
+    return OrderedDict([(k, build_con(conf)) for k, conf in config.items()])
 
 
 def build_exporter_all(config):
@@ -138,7 +138,7 @@ def build_exporter_all(config):
         return build_exp('MergeExporter', config)
     if len(config) == 1:
         conf = list(config.values())[0]
-        return build_exp(conf['type'], **conf.get('args', {}))
+        return build_exp(conf)
     return None
 
 
@@ -146,10 +146,7 @@ def build_trainer_all(trainer_config, trainer_comp=None):
     """Build and return all trainers."""
     trners = {}
     for trner_name, trner_conf in trainer_config.items():
-        if isinstance(trner_conf, str):
-            trner_conf = {'type': trner_conf}
-        trner_args = trner_conf.get('args', {})
-        trner = build_trainer(trner_conf['type'], **trner_args, **(trainer_comp or {}))
+        trner = build_trainer(trner_conf, **(trainer_comp or {}))
         trners[trner_name] = trner
     return trners
 
@@ -160,12 +157,7 @@ def build_estim_all(estim_config, estim_comp=None):
     if isinstance(estim_config, list):
         estim_config = OrderedDict([(c.get('name', str(i)), c) for i, c in enumerate(estim_config)])
     for estim_name, estim_conf in estim_config.items():
-        estim_type = estim_conf['type']
-        estim_args = estim_conf.get('args', {})
-        estim_args.update(estim_comp or {})
-        estim_args['name'] = estim_name
-        estim_args['config'] = estim_conf
-        estim = build_estim(estim_type, **estim_args)
+        estim = build_estim(estim_conf, name=estim_name, config=estim_conf, **(estim_comp or {}))
         estim.load(estim_conf.get('chkpt', None))
         estims[estim_name] = estim
     return estims
@@ -263,8 +255,7 @@ def init_all(config,
     # optim
     optim = None
     if 'optim' in config:
-        optim_kwargs = config.optim.get('args', {})
-        optim = build_optim(config.optim.type, space=ParamSpace(), logger=logger, **optim_kwargs)
+        optim = build_optim(config.optim, space=ParamSpace(), logger=logger)
     # trainer
     trner_comp = {
         'data_provider': data_provider,

@@ -13,7 +13,7 @@ def get_data(configs):
         config = conf if config is None else merge_config(config, conf)
     if config is None:
         return None
-    return dataset.build(config.type, **config.get('args', {}))
+    return dataset.build(config)
 
 
 def get_data_provider(config, logger):
@@ -24,10 +24,9 @@ def get_data_provider(config, logger):
     data_prov_conf = config.get('data_provider', {})
     data_provd_args = data_prov_conf.get('args', {})
     if dloader_conf is not None:
-        trn_loader, val_loader = dataloader.build(dloader_conf.type,
+        trn_loader, val_loader = dataloader.build(dloader_conf,
                                                   trn_data=trn_data,
-                                                  val_data=val_data,
-                                                  **dloader_conf.get('args', {}))
+                                                  val_data=val_data)
         data_provd_args['train_loader'] = trn_loader
         data_provd_args['valid_loader'] = val_loader
     elif not data_prov_conf:

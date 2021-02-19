@@ -7,10 +7,9 @@ from .. import register
 class ModelBasedOptim(CategoricalSpaceOptim):
     def __init__(self, space, cost_model_config, model_optimizer_config, greedy_e=0.05, n_next_pts=32, logger=None):
         super().__init__(space, logger)
-        self.cost_model = cost_model.build(cost_model_config['type'], space=space, **cost_model_config.get('args', {}))
-        self.model_optimizer = model_optimizer.build(model_optimizer_config['type'],
-                                                     space=space,
-                                                     **model_optimizer_config.get('args', {}))
+        self.cost_model = cost_model.build(cost_model_config, space=space)
+        self.model_optimizer = model_optimizer.build(model_optimizer_config,
+                                                     space=space)
         self.n_next_pts = n_next_pts
         self.greedy_e = greedy_e
         self.train_x = []

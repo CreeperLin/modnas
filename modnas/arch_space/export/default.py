@@ -40,7 +40,7 @@ class MergeExporter():
     """Exporter that merges outputs of multiple Exporters."""
 
     def __init__(self, exporters):
-        self.exporters = {k: build(exp['type'], **exp.get('args', {})) for k, exp in exporters.items()}
+        self.exporters = {k: build(exp_conf) for k, exp_conf in exporters.items()}
 
     def __call__(self, model):
         """Run Exporter."""

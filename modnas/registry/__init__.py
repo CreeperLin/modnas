@@ -59,6 +59,9 @@ def get_builder(_reg_path, _reg_id):
 
 def build(_reg_path, _reg_id, *args, **kwargs):
     """Instantiate class by name."""
+    if isinstance(_reg_id, dict) and not len(args):
+        kwargs.update(_reg_id.get('args', {}))
+        _reg_id = _reg_id.get('type')
     return registry.get(get_full_path(_reg_path, _reg_id))(*args, **kwargs)
 
 

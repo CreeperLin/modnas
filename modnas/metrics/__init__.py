@@ -12,11 +12,7 @@ def build_metrics_all(mt_configs, estim=None, logger=None):
     if not isinstance(mt_configs, dict):
         mt_configs = {'default': mt_configs}
     for mt_name, mt_conf in mt_configs.items():
-        if isinstance(mt_conf, str):
-            mt_conf = {'type': mt_conf}
-        mt_type = mt_conf['type']
-        mt_args = mt_conf.get('args', {})
-        mt = build(mt_type, logger, **mt_args)
+        mt = build(mt_conf, logger=logger)
         metrics[mt_name] = mt
     MetricsBase.set_estim(None)
     return metrics

@@ -14,13 +14,12 @@ class RegressionEstim(EstimBase):
 
     def step(self, params):
         ParamSpace().update_params(params)
-        predictor = self.predictor
-        arch_desc = self.exporter(self.model)
-        score = predictor.predict(arch_desc)
+        arch_desc = self.get_arch_desc()
+        score = self.predictor.predict(arch_desc)
         if score > self.best_score:
             self.best_score = score
             self.best_arch_desc = arch_desc
-        return arch_desc, score
+        return score
 
     def run(self, optim):
         config = self.config
@@ -41,10 +40,10 @@ class RegressionEstim(EstimBase):
             best_gt_batch = None
             for params in self.inputs:
                 # estim step
-                arch_desc, score = self.step(params)
+                score = self.step(params)
                 if score > best_score_batch:
                     best_score_batch = score
-                    best_gt_batch = arch_desc
+                    best_gt_batch = self.get_arch_desc()
                 self.results.append(score)
             # save
             if config.save_arch_desc:
