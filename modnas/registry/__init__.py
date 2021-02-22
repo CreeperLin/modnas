@@ -114,7 +114,7 @@ class RegistryImporter():
 
     def find_module(self, fullname, path=None):
         """Handle registry imports."""
-        if fullname.startswith('modnas.registry'):
+        if 'modnas.registry' in fullname:
             return self
 
     def load_module(self, fullname):

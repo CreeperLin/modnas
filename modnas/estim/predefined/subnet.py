@@ -33,7 +33,7 @@ class SubNetEstim(EstimBase):
             return ret
         tot_epochs = config.subnet_epochs
         if tot_epochs > 0:
-            self.reset_trainer(tot_epochs=tot_epochs)
+            self.reset_trainer(epochs=tot_epochs)
             for epoch in itertools.count(0):
                 if epoch == tot_epochs:
                     break

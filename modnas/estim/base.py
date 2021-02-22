@@ -44,9 +44,14 @@ class EstimBase():
         """Set current trainer."""
         self.trainer = trainer
 
+    def model_output(self, *args, data=None, model=None, **kwargs):
+        model = self.model if model is None else model
+        return self.trainer.model_output(*args, data=data, model=model, **kwargs)
+
     def loss(self, data, output=None, model=None, mode=None):
         """Return loss."""
         model = self.model if model is None else model
+        output = self.model_output(data=data, model=model) if output is None else output
         if mode is None:
             crits = []
         elif mode == 'train':
@@ -58,22 +63,15 @@ class EstimBase():
         else:
             raise ValueError('invalid criterion mode: {}'.format(mode))
         crits = self.criterions_all + crits
-        loss = None
-        if hasattr(self.trainer, 'loss'):
-            loss = self.trainer.loss(self.logits(data, model) if output is None else output, data[-1])
+        loss = self.trainer.loss(model=model, output=output, data=data)
         for crit in crits:
-            loss = crit(loss, self, model, output, *data)
+            loss = crit(loss, self, output, *data)
         return loss
 
-    def logits(self, data, model=None):
-        """Return logits."""
+    def loss_output(self, data, model=None, mode=None):
+        """Return loss and model output."""
         model = self.model if model is None else model
-        return model(*data[:-1])
-
-    def loss_logits(self, data, model=None, mode=None):
-        """Return loss and logits."""
-        model = self.model if model is None else model
-        output = self.logits(data, model)
+        output = self.model_output(data=data, model=model)
         return self.loss(data, output, model, mode), output
 
     def step(self, params):
@@ -167,25 +165,14 @@ class EstimBase():
                                        step=step,
                                        tot_steps=tot_steps)
 
-    def reset_trainer(self,
-                      tot_epochs=None,
-                      config=None,
-                      device=None,
-                      optimizer_config=None,
-                      lr_scheduler_config=None,
-                      model=None,
-                      scale_lr=True):
+    def reset_trainer(self, *args, config=None, model=None, **kwargs):
         """Reinitialize trainer."""
         model = self.model if model is None else model
         config = self.config if config is None else config
-        tot_epochs = config.epochs if tot_epochs is None else tot_epochs
+        trainer_config = config.copy()
+        trainer_config.update(kwargs)
         if self.trainer is not None:
-            self.trainer.init(model,
-                              optimizer_config=optimizer_config,
-                              tot_epochs=tot_epochs,
-                              scale_lr=scale_lr,
-                              lr_scheduler_config=lr_scheduler_config,
-                              device=device)
+            self.trainer.init(*args, model=model, config=trainer_config)
         self.cur_epoch = -1
 
     def get_num_train_batch(self, epoch=None):

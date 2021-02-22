@@ -16,6 +16,24 @@ class TrainerBase():
             writer = DummyWriter()
         self.writer = writer
 
+    def init(self, model, config=None):
+        raise NotImplementedError
+
+    def model_input(self, data):
+        """Return model input."""
+        return data[:-1], {}
+
+    def model_output(self, *args, data=None, model=None, attr=None, **kwargs):
+        """Return model output."""
+        model_fn = model if attr is None else getattr(model, attr)
+        if data is not None:
+            args, kwargs = self.model_input(data)
+        return model_fn(*args, **kwargs)
+
+    def loss(self, output=None, data=None, model=None):
+        """Return loss."""
+        return None
+
     def train_epoch(self):
         """Train for one epoch."""
         raise NotImplementedError

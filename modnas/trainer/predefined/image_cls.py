@@ -43,6 +43,7 @@ class ImageClsTrainer(TrainerBase):
                  w_grad_clip=0,
                  print_freq=200):
         super().__init__(logger, writer)
+        self.config = None
         self.device = device
         self.top1 = None
         self.top5 = None
@@ -67,27 +68,22 @@ class ImageClsTrainer(TrainerBase):
             self.data_provider = data_provider
         self.reset_stats()
 
-    def init(self,
-             model,
-             optimizer_config=None,
-             lr_scheduler_config=None,
-             data_provider_config=None,
-             tot_epochs=None,
-             scale_lr=True,
-             device=None):
-        if optimizer_config is None:
-            optimizer_config = self.optimizer_config
-        if lr_scheduler_config is None:
-            lr_scheduler_config = self.lr_scheduler_config
-        data_prvd_config = data_provider_config or self.data_provider_config
-        if optimizer_config is not None:
-            self.optimizer = get_optimizer(model.parameters(), optimizer_config, device, scale_lr)
-        if lr_scheduler_config is not None:
-            self.lr_scheduler = get_lr_scheduler(self.optimizer, lr_scheduler_config, tot_epochs)
-        if data_prvd_config is not None:
-            self.data_provider = build_data_provider(data_prvd_config.type, **(data_prvd_config.args or {}))
-        if device is not None:
-            self.device = device
+    def init(self, model, config=None):
+        config = config or {}
+        optimizer_config = self.optimizer_config or {}
+        lr_scheduler_config = self.lr_scheduler_config or {}
+        data_provider_config = self.data_provider_config or {}
+        optimizer_config.update(config.get('optimizer', {}))
+        lr_scheduler_config.update(config.get('lr_scheduler', {}))
+        data_provider_config.update(config.get('data_provider', {}))
+        if optimizer_config:
+            self.optimizer = get_optimizer(model.parameters(), optimizer_config, config)
+        if lr_scheduler_config:
+            self.lr_scheduler = get_lr_scheduler(self.optimizer, lr_scheduler_config, config)
+        if data_provider_config:
+            self.data_provider = build_data_provider(data_provider_config)
+        self.device = config.get('device', self.device)
+        self.config = config
 
     def get_num_train_batch(self, epoch):
         return 0 if self.data_provider is None else self.data_provider.get_num_train_batch(epoch=epoch)
@@ -160,7 +156,7 @@ class ImageClsTrainer(TrainerBase):
         trn_X, trn_y = batch
         N = trn_X.size(0)
         optimizer.zero_grad()
-        loss, logits = estim.loss_logits(batch, model=model, mode='train')
+        loss, logits = estim.loss_output(batch, model=model, mode='train')
         loss.backward()
         # gradient clipping
         if self.w_grad_clip > 0:
@@ -207,7 +203,7 @@ class ImageClsTrainer(TrainerBase):
         with torch.no_grad():
             batch = self.get_next_valid_batch()
             val_X, val_y = batch
-            loss, logits = estim.loss_logits(batch, model=model, mode='eval')
+            loss, logits = estim.loss_output(batch, model=model, mode='eval')
         prec1, prec5 = accuracy(logits, val_y, topk=(1, 5))
         N = val_X.size(0)
         losses.update(loss.item(), N)

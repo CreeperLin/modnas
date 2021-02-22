@@ -24,12 +24,12 @@ class DefaultTrainer(TrainerBase):
                  w_grad_clip=0,
                  print_freq=200):
         super().__init__(logger, writer)
+        self.config = None
         self.print_freq = print_freq
         self.w_grad_clip = w_grad_clip
         self.expman = expman
         self.device = device
         self.losses = None
-        self.criterion = None
         self.optimizer = self.optimizer_config = None
         self.lr_scheduler = self.lr_scheduler_config = None
         self.data_provider = self.data_provider_config = None
@@ -47,26 +47,22 @@ class DefaultTrainer(TrainerBase):
             self.data_provider = data_provider
         self.reset_stats()
 
-    def init(self,
-             model,
-             optimizer_config=None,
-             lr_scheduler_config=None,
-             data_provider_config=None,
-             tot_epochs=None,
-             scale_lr=True,
-             device=None):
-        """Initialize Trainer."""
-        optimizer_config = optimizer_config or self.optimizer_config
-        lr_scheduler_config = lr_scheduler_config or self.lr_scheduler_config
-        data_prvd_config = data_provider_config or self.data_provider_config
-        if optimizer_config is not None:
-            self.optimizer = get_optimizer(model.parameters(), optimizer_config, device, scale_lr)
-        if lr_scheduler_config is not None:
-            self.lr_scheduler = get_lr_scheduler(self.optimizer, lr_scheduler_config, tot_epochs)
-        if data_prvd_config is not None:
-            self.data_provider = build_data_provider(data_prvd_config.type, **(data_prvd_config.args or {}))
-        if device is not None:
-            self.device = device
+    def init(self, model, config=None):
+        config = config or {}
+        optimizer_config = self.optimizer_config or {}
+        lr_scheduler_config = self.lr_scheduler_config or {}
+        data_provider_config = self.data_provider_config or {}
+        optimizer_config.update(config.get('optimizer', {}))
+        lr_scheduler_config.update(config.get('lr_scheduler', {}))
+        data_provider_config.update(config.get('data_provider', {}))
+        if optimizer_config:
+            self.optimizer = get_optimizer(model.parameters(), optimizer_config, config)
+        if lr_scheduler_config:
+            self.lr_scheduler = get_lr_scheduler(self.optimizer, lr_scheduler_config, config)
+        if data_provider_config:
+            self.data_provider = build_data_provider(data_provider_config)
+        self.device = config.get('device', self.device)
+        self.config = config
 
     def get_num_train_batch(self, epoch):
         """Return number of train batches in current epoch."""
@@ -117,10 +113,6 @@ class DefaultTrainer(TrainerBase):
     def get_optimizer(self):
         """Return optimizer."""
         return self.optimizer
-
-    def loss(self, y_true, y_pred):
-        """Return loss."""
-        return None if self.criterion is None else self.criterion(y_true, y_pred)
 
     def train_epoch(self, estim, model, tot_steps, epoch, tot_epochs):
         """Train for one epoch."""

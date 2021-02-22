@@ -34,7 +34,7 @@ class UnifiedEstim(EstimBase):
         elif train_steps == -1:
             train_steps = max(round(n_train_batch / (n_valid_batch or 1)), 1)
         if self.reset_training:
-            self.reset_trainer(tot_epochs=train_epochs)
+            self.reset_trainer(epochs=train_epochs)
         for epoch in range(train_epochs):
             for _ in range(train_steps):
                 self.cur_step += 1
