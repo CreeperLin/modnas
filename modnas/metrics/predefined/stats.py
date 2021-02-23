@@ -32,10 +32,10 @@ class StatsLUTMetrics(MetricsBase):
 
 @register
 class StatsRecordMetrics(MetricsBase):
-    def __init__(self, logger, metrics, head=None, args=None, save_path=None):
+    def __init__(self, logger, metrics, head=None, save_path=None):
         super().__init__(logger)
         self.head = head
-        self.metrics = build(metrics, logger, **(args or {}))
+        self.metrics = build(metrics, logger=logger)
         self.record = dict()
         self.save_path = save_path
         self.save_file = None

@@ -24,7 +24,6 @@ class RASPTraversalMetrics(MetricsBase):
                  logger,
                  input_shape,
                  metrics,
-                 args={},
                  compute=True,
                  timing=False,
                  device='cuda',
@@ -34,7 +33,7 @@ class RASPTraversalMetrics(MetricsBase):
         super().__init__(logger)
         if rasp is None:
             raise ValueError('package RASP is not found')
-        self.metrics = build(metrics, logger, **args)
+        self.metrics = build(metrics, logger=logger)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape
@@ -131,11 +130,11 @@ class RASPTraversalMetrics(MetricsBase):
 
 @register
 class RASPRootMetrics(MetricsBase):
-    def __init__(self, logger, input_shape, metrics, args={}, compute=True, timing=False, device=None):
+    def __init__(self, logger, input_shape, metrics, compute=True, timing=False, device=None):
         super().__init__(logger)
         if rasp is None:
             raise ValueError('package RASP is not found')
-        self.metrics = build(metrics, logger, **args)
+        self.metrics = build(metrics, logger=logger)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape

@@ -7,9 +7,9 @@ from modnas.metrics.base import MetricsBase
 
 @register
 class OnnxExportMetrics(MetricsBase):
-    def __init__(self, logger, metrics, head=None, export_dir=None, verbose=False, args={}):
+    def __init__(self, logger, metrics, head=None, export_dir=None, verbose=False):
         super().__init__(logger)
-        self.metrics = build(metrics, logger, **args)
+        self.metrics = build(metrics, logger)
         if head is None:
             head = 'name'
         self.head = head

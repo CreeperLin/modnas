@@ -1,13 +1,13 @@
 """Parameter Optimizer."""
 import torch
 from ..registry.optimizer import register, get_builder, build, register_as
+from ..registry import parse_spec
 
 
 def get_optimizer(params, config, trainer_config=None):
     """Return a new Optimizer."""
     trainer_config = trainer_config or {}
-    optim_type = config['type']
-    optim_args = config.get('args', {})
+    optim_type, optim_args = parse_spec(config)
     device_ids = trainer_config.get('device', [None])
     n_parallel = len(device_ids)
     if trainer_config.get('scale_lr', True) and 'lr' in optim_args:

@@ -2,18 +2,19 @@ import traceback
 import queue
 from multiprocessing import Process, Pipe
 from ..base import EstimBase
-from ...utils.wrapper import build as build_runner
+from ...registry.runner import build as build_runner
+from ...registry import parse_spec
 from .. import register
 
 
-def mp_step_runner(conn, step_proc, step_args):
-    ret = build_runner(step_proc, **step_args)
+def mp_step_runner(conn, step_conf):
+    ret = build_runner(step_conf)
     conn.send(ret)
 
 
-def mp_runner(step_proc, step_args):
+def mp_runner(step_conf):
     p_con, c_con = Pipe()
-    proc = Process(target=mp_step_runner, args=(c_con, step_proc, step_args))
+    proc = Process(target=mp_step_runner, args=(c_con, step_conf))
     proc.start()
     proc.join()
     if not p_con.poll(0):
@@ -21,8 +22,8 @@ def mp_runner(step_proc, step_args):
     return p_con.recv()
 
 
-def default_runner(step_proc, step_args):
-    return build_runner(step_proc, **step_args)
+def default_runner(step_conf):
+    return build_runner(step_conf)
 
 
 @register
@@ -33,9 +34,9 @@ class PipelineEstim(EstimBase):
         super().__init__(*args, **kwargs)
         self.runner = mp_runner if use_multiprocessing else default_runner
 
-    def step(self, step_proc, step_args):
+    def step(self, step_conf):
         try:
-            return self.runner(step_proc, step_args)
+            return self.runner(step_conf)
         except RuntimeError:
             self.logger.info('pipeline step failed with error: {}'.format(traceback.format_exc()))
         return None
@@ -61,9 +62,8 @@ class PipelineEstim(EstimBase):
             if not dep_sat:
                 pending.put(pname)
                 continue
-            ptype = pconf.type
-            pargs = pconf.get('args', {})
-            pargs.name = pargs.get('name', pname)
+            ptype, pargs = parse_spec(pconf)
+            pargs['name'] = pargs.get('name', pname)
             for inp_kw, inp_idx in pconf.get('inputs', {}).items():
                 keys = inp_idx.split('.')
                 inp_val = ret_values
@@ -73,7 +73,7 @@ class PipelineEstim(EstimBase):
                     inp_val = inp_val[k]
                 pargs[inp_kw] = inp_val
             logger.info('pipeline: running {}, type={}'.format(pname, ptype))
-            ret = self.step(ptype, pargs)
+            ret = self.step(pconf)
             ret_values[pname] = ret
             logger.info('pipeline: finished {}, results={}'.format(pname, ret))
             finished.add(pname)

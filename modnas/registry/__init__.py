@@ -57,12 +57,21 @@ def get_builder(_reg_path, _reg_id):
     return registry.get(get_full_path(_reg_path, _reg_id))
 
 
-def build(_reg_path, _reg_id, *args, **kwargs):
+def parse_spec(spec):
+    if isinstance(spec, dict):
+        return spec.get('type'), spec.get('args', {})
+    if isinstance(spec, (tuple, list)):
+        return spec[0], {} if len(spec) < 2 else spec[1]
+    if isinstance(spec, str):
+        return spec, {}
+    raise ValueError('Invalid build spec')
+
+
+def build(_reg_path, _spec, *args, **kwargs):
     """Instantiate class by name."""
-    if isinstance(_reg_id, dict) and not len(args):
-        kwargs.update(_reg_id.get('args', {}))
-        _reg_id = _reg_id.get('type')
-    return registry.get(get_full_path(_reg_path, _reg_id))(*args, **kwargs)
+    reg_id, sp_kwargs = parse_spec(_spec)
+    kwargs.update(sp_kwargs)
+    return registry.get(get_full_path(_reg_path, reg_id))(*args, **kwargs)
 
 
 def register_as(_reg_path, _reg_id=None):
