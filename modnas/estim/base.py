@@ -1,11 +1,38 @@
 """Base Estimator."""
 import traceback
 import pickle
-from ..utils.torch import param_count, param_size
-from ..utils.criterion import build_criterions_all
+from .. import backend
 from ..metrics import build_metrics_all
 from ..arch_space.export import build as build_exporter
 from ..core.event import event_hooked
+
+
+def build_criterions_all(crit_configs, device_ids=None):
+    """Build Criterions from configs."""
+    crits_all = []
+    crits_train = []
+    crits_eval = []
+    crits_valid = []
+    if crit_configs is None:
+        crit_configs = []
+    if not isinstance(crit_configs, list):
+        crit_configs = [crit_configs]
+    for crit_conf in crit_configs:
+        if isinstance(crit_conf, str):
+            crit_conf = {'type': crit_conf}
+        crit = backend.get_criterion(crit_conf, device_ids=device_ids)
+        crit_mode = crit_conf.get('mode', 'all')
+        if not isinstance(crit_mode, list):
+            crit_mode = [crit_mode]
+        if 'all' in crit_mode:
+            crits_all.append(crit)
+        if 'train' in crit_mode:
+            crits_train.append(crit)
+        if 'eval' in crit_mode:
+            crits_eval.append(crit)
+        if 'valid' in crit_mode:
+            crits_valid.append(crit)
+    return crits_all, crits_train, crits_eval, crits_valid
 
 
 class EstimBase():
@@ -85,8 +112,7 @@ class EstimBase():
         """Output model information."""
         model = self.model
         if model is not None:
-            self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(param_count(model, factor=2),
-                                                                                    param_size(model, factor=2)))
+            self.logger.info(backend.model_summary(model))
 
     def get_last_results(self):
         """Return last evaluation results."""

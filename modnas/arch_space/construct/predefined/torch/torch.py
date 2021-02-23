@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from . import register
 from ..slot import Slot
+from .... import ops
 from ...core.param_space import ParamSpace
 from ...core.event import EventManager
 
@@ -29,13 +30,26 @@ def init_device(device=None, seed=11235):
         torch.backends.cudnn.benchmark = True
 
 
+def configure_ops(new_config):
+    config = ops.config
+    config.update(new_config)
+    if isinstance(config.ops_order, str):
+        config.ops_order = config.ops_order.split('_')
+    if config.ops_order[-1] == 'bn':
+        config.conv.bias = False
+    if config.ops_order[0] == 'act':
+        config.act.inplace = False
+    logging.info('ops config: {}'.format(config))
+
+
 @register
 class DefaultInitConstructor():
     """Constructor that initializes the architecture space."""
 
-    def __init__(self, seed=None, device=None):
+    def __init__(self, seed=None, device=None, ops_conf=None):
         self.seed = seed
         self.device = device
+        self.ops_conf = ops_conf
 
     def __call__(self, model):
         """Run constructor."""
@@ -45,6 +59,7 @@ class DefaultInitConstructor():
         seed = self.seed
         if seed:
             init_device(self.device, seed)
+        configure_ops(self.ops_conf or {})
         return model
 
 

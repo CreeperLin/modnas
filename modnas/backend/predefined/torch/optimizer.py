@@ -1,6 +1,6 @@
 """Parameter Optimizer."""
 import torch
-from ..registry.optimizer import register, get_builder, build, register_as
+from modnas.registry.optimizer import register, get_builder, build, register_as
 
 
 def get_optimizer(params, config, device_ids=None, scale_lr=True):

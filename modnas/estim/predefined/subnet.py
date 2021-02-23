@@ -3,7 +3,7 @@ import itertools
 import traceback
 from ..base import EstimBase
 from ...utils import ETAMeter
-from ...utils.torch import recompute_bn_running_statistics
+from ...import backend
 from ...core.param_space import ParamSpace
 from .. import register
 
@@ -52,7 +52,7 @@ class SubNetEstim(EstimBase):
         if self.rebuild_subnet:
             self.model = self.constructor(arch_desc=arch_desc)
         else:
-            recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
+            backend.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
     def run(self, optim):
         """Run Estimator routine."""

@@ -108,7 +108,6 @@ def check_config(config):
         'estimator.*.arch_update_epoch_intv': 1,
         'estimator.*.arch_update_intv': -1,
         'estimator.*.arch_update_batch': 1,
-        'estimator.*.criterion': 'CrossEntropyLoss',
         'estimator.*.metrics': 'ValidateMetrics',
     }
 
@@ -188,6 +187,21 @@ def format_time(sec):
     m, s = divmod(sec, 60)
     h, m = divmod(m, 60)
     return "%d h %d m %d s" % (h, m, s)
+
+
+def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
+    units = [None, 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+    div = (1024. if binary else 1000.) if div is None else div
+    if factor is None:
+        factor = 0
+        tot_div = 1
+        while value > tot_div:
+            factor += 1
+            tot_div *= div
+    else:
+        tot_div = div ** factor
+    value = round(value // tot_div, prec)
+    return '{} {}'.format(value, units[factor]) if unit else value
 
 
 class ETAMeter():

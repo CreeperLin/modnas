@@ -8,12 +8,13 @@ from .config import Config
 from ..data_provider import get_data_provider
 from ..arch_space.construct import build as build_con
 from ..arch_space.export import build as build_exp
-from ..arch_space.ops import configure_ops
+# from ..arch_space.ops import configure_ops
 from ..core.param_space import ParamSpace
 from ..optim import build as build_optim
 from ..estim import build as build_estim
 from ..trainer import build as build_trainer
 from .. import utils
+from ..preset import default
 
 _default_arg_specs = [
     {
@@ -44,7 +45,7 @@ _default_arg_specs = [
     {
         'flags': ['-d', '--device'],
         'type': str,
-        'default': 'all',
+        'default': None,
         'help': 'override device ids'
     },
     {
@@ -236,8 +237,6 @@ def init_all(config,
         device = device_conf.get('device', device)
     # data
     data_provider = get_data_provider(config, logger)
-    # ops
-    configure_ops(**config.get('ops', {}))
     # construct
     con_config = OrderedDict()
     con_config['init'] = get_init_constructor(config.get('init', {}), device)
@@ -248,7 +247,8 @@ def init_all(config,
     if arch_desc is not None:
         con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
     con_config = utils.merge_config(con_config, config.get('construct', {}))
-    con_config['device'] = {'type': 'ToDevice', 'args': device_conf}
+    if device_conf:
+        con_config['device'] = {'type': 'ToDevice', 'args': device_conf}
     if chkpt is not None:
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
     # model

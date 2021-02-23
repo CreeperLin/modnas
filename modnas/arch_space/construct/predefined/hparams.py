@@ -1,5 +1,5 @@
-from . import register
-from ...core.params import Numeric, Categorical
+from modnas.registry.construct import register
+from modnas.core.params import Numeric, Categorical
 
 
 @register

@@ -4,8 +4,8 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..arch_space.construct import build as build_constructor
-from ..registry.criterion import register, get_builder, build, register_as
+from modnas.arch_space.construct import build as build_constructor
+from modnas.registry.criterion import register, get_builder, build, register_as
 
 
 def get_criterion(config, device_ids=None):
@@ -17,34 +17,6 @@ def get_criterion(config, device_ids=None):
     if n_parallel > 1 and isinstance(criterion, torch.nn.Module):
         criterion = torch.nn.DataParallel(criterion, device_ids=device_ids).module
     return criterion
-
-
-def build_criterions_all(crit_configs, device_ids=None):
-    """Build Criterions from configs."""
-    crits_all = []
-    crits_train = []
-    crits_eval = []
-    crits_valid = []
-    if crit_configs is None:
-        crit_configs = []
-    if not isinstance(crit_configs, list):
-        crit_configs = [crit_configs]
-    for crit_conf in crit_configs:
-        if isinstance(crit_conf, str):
-            crit_conf = {'type': crit_conf}
-        crit = get_criterion(crit_conf, device_ids=device_ids)
-        crit_mode = crit_conf.get('mode', 'all')
-        if not isinstance(crit_mode, list):
-            crit_mode = [crit_mode]
-        if 'all' in crit_mode:
-            crits_all.append(crit)
-        if 'train' in crit_mode:
-            crits_train.append(crit)
-        if 'eval' in crit_mode:
-            crits_eval.append(crit)
-        if 'valid' in crit_mode:
-            crits_valid.append(crit)
-    return crits_all, crits_train, crits_eval, crits_valid
 
 
 def torch_criterion_wrapper(cls):

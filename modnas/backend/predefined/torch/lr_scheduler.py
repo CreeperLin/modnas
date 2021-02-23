@@ -1,6 +1,6 @@
 """LR Scheduler."""
 import torch
-from ..registry.lr_scheduler import register, get_builder, build, register_as
+from modnas.registry.lr_scheduler import register, get_builder, build, register_as
 
 
 def get_lr_scheduler(optimizer, config, epochs):
