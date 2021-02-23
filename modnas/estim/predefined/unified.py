@@ -21,6 +21,7 @@ class UnifiedEstim(EstimBase):
         self.cur_step = -1
         self.best_score = None
         self.best_arch_desc = None
+        self.batch_best = None
 
     def step(self, params):
         """Return evaluation results of a parameter set."""
@@ -51,10 +52,6 @@ class UnifiedEstim(EstimBase):
         arch_desc = self.exporter(self.model)
         ret = self.compute_metrics()
         self.logger.info('Evaluate: {} -> {}'.format(arch_desc, ret))
-        score = self.get_score(ret)
-        if self.best_score is None or (score is not None and score > self.best_score):
-            self.best_score = score
-            self.best_arch_desc = arch_desc
         return ret
 
     def run(self, optim):
@@ -82,17 +79,21 @@ class UnifiedEstim(EstimBase):
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
             self.inputs = optim.next(batch_size=arch_batch_size)
-            self.results = []
-            batch_best = None
+            self.clear_buffer()
+            self.batch_best = None
             for params in self.inputs:
                 # estim step
-                result = self.step(params)
-                self.results.append(result)
-                val_score = self.get_score(result)
-                if batch_best is None or val_score > batch_best:
-                    batch_best = val_score
+                self.stepped(params)
+            self.wait_done()
             if (epoch_step + 1) % n_epoch_steps != 0:
                 continue
+            for _, res, arch_desc in self.buffer():
+                score = self.get_score(res)
+                if self.best_score is None or (score is not None and score > self.best_score):
+                    self.best_score = score
+                    self.best_arch_desc = arch_desc
+                if self.batch_best is None or (score is not None and score > self.batch_best):
+                    self.batch_best = score
             # save
             if config.save_arch_desc:
                 self.save_arch_desc()
@@ -101,7 +102,7 @@ class UnifiedEstim(EstimBase):
             self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             eta_m.step()
             logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-                self.cur_epoch + 1, tot_epochs, batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
+                self.cur_epoch + 1, tot_epochs, self.batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
             self.cur_epoch += 1
         return {
             'best_score': self.best_score,

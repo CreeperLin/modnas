@@ -19,6 +19,7 @@ class SubNetEstim(EstimBase):
         self.clear_subnet_bn = clear_subnet_bn
         self.best_score = None
         self.best_arch_desc = None
+        self.batch_best = None
 
     def step(self, params):
         """Return evaluation results of a parameter set."""
@@ -40,10 +41,6 @@ class SubNetEstim(EstimBase):
                 # train
                 self.train_epoch(epoch=epoch, tot_epochs=tot_epochs)
         ret = self.compute_metrics()
-        best_score = self.get_score(ret)
-        if self.best_score is None or (best_score is not None and best_score > self.best_score):
-            self.best_score = best_score
-            self.best_arch_desc = arch_desc
         self.logger.info('Evaluate: {} -> {}'.format(arch_desc, ret))
         return ret
 
@@ -73,16 +70,20 @@ class SubNetEstim(EstimBase):
                 break
             if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
                 optim.step(self)
-            self.inputs = optim.next(batch_size=arch_batch_size)
-            self.results = []
-            batch_best = None
-            for params in self.inputs:
+            inputs = optim.next(batch_size=arch_batch_size)
+            self.clear_buffer()
+            self.batch_best = None
+            for params in inputs:
                 # estim step
-                result = self.step(params)
-                self.results.append(result)
-                val_score = self.get_score(result)
-                if batch_best is None or val_score > batch_best:
-                    batch_best = val_score
+                self.stepped(params)
+            self.wait_done()
+            for _, res, arch_desc in self.buffer():
+                score = self.get_score(res)
+                if self.best_score is None or (score is not None and score > self.best_score):
+                    self.best_score = score
+                    self.best_arch_desc = arch_desc
+                if self.batch_best is None or (score is not None and score > self.batch_best):
+                    self.batch_best = score
             # save
             if config.save_arch_desc:
                 self.save_arch_desc(epoch)
@@ -91,7 +92,7 @@ class SubNetEstim(EstimBase):
             self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
             eta_m.step()
             logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-                epoch + 1, tot_epochs, batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
+                epoch + 1, tot_epochs, self.batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
             'best_arch': self.best_arch_desc,

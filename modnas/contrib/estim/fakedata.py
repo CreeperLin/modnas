@@ -53,10 +53,9 @@ class FakeDataEstim(RegressionEstim):
         super().__init__(*args, predictor=FakeDataPredictor(**(pred_conf or {})), **kwargs)
 
     def run(self, optim):
-        self.predictor = FakeDataPredictor()
-        self.model = None
         ret = super().run(optim)
-        scores = np.array(list(self.predictor.scores.values()))
-        self.logger.info('global optimum arch_desc: {}, score: {}'.format(scores.argmax(1),
-                                                                          sum(np.max(scores, 1)) / scores.shape[0]))
+        if self.predictor.scores:
+            scores = np.array(list(self.predictor.scores.values()))
+            self.logger.info('global optimum arch_desc: {}, score: {}'.format(scores.argmax(1),
+                                                                              sum(np.max(scores, 1)) / scores.shape[0]))
         return ret

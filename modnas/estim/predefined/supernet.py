@@ -26,7 +26,6 @@ class SuperNetEstim(EstimBase):
     def run(self, optim):
         """Run Estimator routine."""
         self.reset_trainer()
-        model = self.model
         config = self.config
         tot_epochs = config.epochs
         eta_m = ETAMeter(tot_epochs, self.cur_epoch)
@@ -36,9 +35,9 @@ class SuperNetEstim(EstimBase):
                 break
             # train
             self.print_tensor_params()
-            self.search_epoch(epoch, optim)
+            self.run_epoch(epoch, optim)
             # eval
-            arch_desc = self.exporter(model)
+            arch_desc = self.get_arch_desc()
             mt_ret = self.compute_metrics()
             self.logger.info('Evaluate: {} -> {}'.format(arch_desc, mt_ret))
             score = self.get_score(mt_ret)
@@ -59,7 +58,7 @@ class SuperNetEstim(EstimBase):
             'best_arch': self.best_arch_desc,
         }
 
-    def search_epoch(self, epoch, optim):
+    def run_epoch(self, epoch, optim):
         """Run search for one epoch."""
         config = self.config
         n_trn_batch = self.get_num_train_batch(epoch)

@@ -1,5 +1,6 @@
 """Base Estimator."""
 import traceback
+import threading
 import pickle
 from ..utils.torch import param_count, param_size
 from ..utils.criterion import build_criterions_all
@@ -37,6 +38,8 @@ class EstimBase():
         self.trainer = trainer
         self.results = []
         self.inputs = []
+        self.arch_descs = []
+        self.step_cond = threading.Lock()
         self.cur_trn_batch = None
         self.cur_val_batch = None
 
@@ -78,6 +81,26 @@ class EstimBase():
         """Return evaluation results of a parameter set."""
         raise NotImplementedError
 
+    def stepped(self, params):
+        """Return evaluation results of a parameter set."""
+        if not self.step_cond.locked():
+            self.step_cond.acquire()
+        value = self.step(params)
+        if value is not None:
+            self.step_done(params, value)
+
+    def wait_done(self):
+        self.step_cond.acquire()
+        self.step_cond.release()
+
+    def step_done(self, params, value, arch_desc=None):
+        """Store evaluation results of a parameter set."""
+        self.inputs.append(params)
+        self.results.append(value)
+        self.arch_descs.append(self.get_arch_desc() if arch_desc is None else arch_desc)
+        if len(self.results) == self.config.arch_update_batch:
+            self.step_cond.release()
+
     def print_model_info(self):
         """Output model information."""
         model = self.model
@@ -85,9 +108,17 @@ class EstimBase():
             self.logger.info("Model params count: {:.3f} M, size: {:.3f} MB".format(param_count(model, factor=2),
                                                                                     param_size(model, factor=2)))
 
+    def clear_buffer(self):
+        """Clear evaluation results."""
+        self.inputs, self.results, self.arch_descs = [], [], []
+
     def get_last_results(self):
         """Return last evaluation results."""
         return self.inputs, self.results
+
+    def buffer(self):
+        for inp, res, desc in zip(self.inputs, self.results, self.arch_descs):
+            yield inp, res, desc
 
     def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
         """Return Metrics results."""
