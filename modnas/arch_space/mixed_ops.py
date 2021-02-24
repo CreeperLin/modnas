@@ -3,8 +3,9 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..core.params import Categorical, TorchTensor
-from . import register
+from ..core.params import Categorical
+from modnas.registry.params import build
+from modnas.registry.arch_space import register
 
 
 class MixedOp(nn.Module):
@@ -20,7 +21,7 @@ class MixedOp(nn.Module):
             raise ValueError('unsupported primitives type')
         if arch_param_map is None:
             arch_param_map = {
-                'default': TorchTensor(len(self._ops)),
+                'default': build('TorchTensor', len(self._ops)),
             }
         self.arch_param_map = arch_param_map
         logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))

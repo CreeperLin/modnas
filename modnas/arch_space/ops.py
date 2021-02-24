@@ -1,7 +1,7 @@
-import logging
 import torch
 import torch.nn as nn
 from ..utils import get_same_padding
+from ..utils.config import Config
 from .slot import register_slot_ccs
 
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
@@ -24,22 +24,12 @@ for k in kernel_sizes:
     register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p3: DilConv(C_in, C_out, ks, stride, pd, 3), 'DD' + kabbr)
     register_slot_ccs(lambda C_in, C_out, stride, ks=k, pd=p: FacConv(C_in, C_out, ks, stride, pd), 'FC' + kabbr)
 
-OPS_ORDER = ['bn', 'act', 'weight']
-AFFINE = True
-BIAS = False
-INPLACE = False
-
-
-def configure_ops(ops_order='act_weight_bn', affine=False, bias=False, inplace=False):
-    global OPS_ORDER
-    OPS_ORDER = ops_order.split('_')
-    global AFFINE
-    AFFINE = affine
-    global BIAS
-    BIAS = False if OPS_ORDER[-1] == 'bn' else bias
-    global INPLACE
-    INPLACE = False if OPS_ORDER[0] == 'act' else inplace
-    logging.info('ops config: ops_order: {} affine: {} bias: {} inplace: {}'.format(OPS_ORDER, AFFINE, BIAS, INPLACE))
+config = Config(dct={
+    'ops_order': ['bn', 'act', 'weight'],
+    'bn': {'affine': True},
+    'conv': {'bias': False},
+    'act': {'inplace': False},
+})
 
 
 class DropPath_(nn.Module):
@@ -74,9 +64,9 @@ class PoolBN(nn.Module):
             raise ValueError('invalid pooling layer type')
 
         nets = []
-        for i in OPS_ORDER:
+        for i in config.ops_order:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C_in, affine=AFFINE))
+                nets.append(nn.BatchNorm2d(C_in, **config.bn))
             elif i == 'weight':
                 nets.append(pool)
             elif i == 'act':
@@ -95,14 +85,14 @@ class StdConv(nn.Module):
         super().__init__()
         C = C_in
         nets = []
-        for i in OPS_ORDER:
+        for i in config.ops_order:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, affine=AFFINE))
+                nets.append(nn.BatchNorm2d(C, **config.bn))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, bias=BIAS, groups=groups))
+                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, **config.conv, groups=groups))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(inplace=INPLACE))
+                nets.append(nn.ReLU(**config.act))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -116,15 +106,15 @@ class FacConv(nn.Module):
         super().__init__()
         C = C_in
         nets = []
-        for i in OPS_ORDER:
+        for i in config.ops_order:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, affine=AFFINE))
+                nets.append(nn.BatchNorm2d(C, **config.bn))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), bias=BIAS))
-                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), **config.conv))
+                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), **config.conv))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(inplace=INPLACE))
+                nets.append(nn.ReLU(**config.act))
 
         self.net = nn.Sequential(*nets)
 
@@ -145,15 +135,15 @@ class DilConv(nn.Module):
         super().__init__()
         C = C_in
         nets = []
-        for i in OPS_ORDER:
+        for i in config.ops_order:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, affine=AFFINE))
+                nets.append(nn.BatchNorm2d(C, **config.bn))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation=dilation, groups=C_in, bias=BIAS))
-                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation=dilation, groups=C_in, **config.conv))
+                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config.conv))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(inplace=INPLACE))
+                nets.append(nn.ReLU(**config.act))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -179,15 +169,15 @@ class SepSingle(nn.Module):
         super().__init__()
         C = C_in
         nets = []
-        for i in OPS_ORDER:
+        for i in config.ops_order:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, affine=AFFINE))
+                nets.append(nn.BatchNorm2d(C, **config.bn))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, groups=C_in, bias=BIAS))
-                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, bias=BIAS))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, groups=C_in, **config.conv))
+                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config.conv))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(inplace=INPLACE))
+                nets.append(nn.ReLU(**config.act))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -225,7 +215,7 @@ class FactorizedReduce(nn.Module):
         self.relu = nn.ReLU()
         self.conv1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.conv2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.BatchNorm2d(C_out, affine=AFFINE)
+        self.bn = nn.BatchNorm2d(C_out, **config.bn)
 
     def forward(self, x):
         x = self.relu(x)

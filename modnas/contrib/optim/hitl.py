@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from modnas.optim import register
+from modnas.registry.optim import register
 from modnas.optim.base import OptimBase
 from modnas.core.params import Numeric
 

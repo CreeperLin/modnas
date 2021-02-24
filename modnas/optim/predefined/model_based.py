@@ -1,15 +1,16 @@
 from ..base import CategoricalSpaceOptim
-from .. import cost_model, model_optimizer
-from .. import register
+from modnas.registry.cost_model import build as build_cost_model
+from modnas.registry.model_optimizer import build as build_model_optimizer
+from modnas.registry.optim import register
 
 
 @register
 class ModelBasedOptim(CategoricalSpaceOptim):
-    def __init__(self, space, cost_model_config, model_optimizer_config, greedy_e=0.05, n_next_pts=32, logger=None):
+    def __init__(self, cost_model_config, model_optimizer_config, greedy_e=0.05, n_next_pts=32, space=None, logger=None):
         super().__init__(space, logger)
-        self.cost_model = cost_model.build(cost_model_config, space=space)
-        self.model_optimizer = model_optimizer.build(model_optimizer_config,
-                                                     space=space)
+        self.cost_model = build_cost_model(cost_model_config, space=self.space)
+        self.model_optimizer = build_model_optimizer(model_optimizer_config,
+                                                     space=self.space)
         self.n_next_pts = n_next_pts
         self.greedy_e = greedy_e
         self.train_x = []

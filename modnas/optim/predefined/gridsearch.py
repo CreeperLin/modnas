@@ -2,14 +2,14 @@
 import time
 import random
 from ..base import CategoricalSpaceOptim
-from .. import register
+from modnas.registry.optim import register
 
 
 @register
 class GridSearchOptim(CategoricalSpaceOptim):
     """Optimizer using grid search."""
 
-    def __init__(self, space, logger=None):
+    def __init__(self, space=None, logger=None):
         super().__init__(space, logger)
         self.counter = 0
 
@@ -27,7 +27,7 @@ class GridSearchOptim(CategoricalSpaceOptim):
 class RandomSearchOptim(CategoricalSpaceOptim):
     """Optimizer using random search."""
 
-    def __init__(self, space, seed=None, logger=None):
+    def __init__(self, seed=None, space=None, logger=None):
         super().__init__(space, logger)
         seed = int(time.time()) if seed is None else seed
         random.seed(seed)

@@ -4,7 +4,7 @@ from multiprocessing import Process, Pipe
 from ..base import EstimBase
 from ...registry.runner import build as build_runner
 from ...registry import parse_spec
-from .. import register
+from modnas.registry.estim import register
 
 
 def mp_step_runner(conn, step_conf):

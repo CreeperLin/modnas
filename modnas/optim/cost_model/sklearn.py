@@ -5,7 +5,7 @@ try:
 except ImportError:
     sklearn = None
 from .base import CostModel
-from . import register
+from modnas.registry.cost_model import register
 
 
 @register

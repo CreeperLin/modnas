@@ -1,6 +1,6 @@
 from functools import reduce
 from ..base import MetricsBase
-from .. import register, build
+from modnas.registry.metrics import register, build
 
 
 @register

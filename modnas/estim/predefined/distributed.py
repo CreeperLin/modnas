@@ -1,5 +1,5 @@
 from ..base import EstimBase
-from .. import register, build
+from modnas.registry.estim import register, build
 from ...registry.dist_remote import build as build_remote
 from ...registry.dist_worker import build as build_worker
 
@@ -42,7 +42,6 @@ class DistributedEstim(EstimBase):
         return ret
 
     def run(self, optim):
-        print(self.is_main)
         if self.is_main:
             return self.estim.run(optim)
         return self.worker.run(self.estim)

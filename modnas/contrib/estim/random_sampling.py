@@ -1,7 +1,7 @@
 """Uniformly samples and trains subnets."""
 import random
 from modnas.estim.predefined.default import DefaultEstim
-from modnas.estim import register
+from modnas.registry.estim import register
 from modnas.core.param_space import ParamSpace
 
 

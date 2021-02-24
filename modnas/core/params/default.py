@@ -36,8 +36,8 @@ class Categorical(Param):
     def get_value(self, index):
         return self.choices[index]
 
-    def set_value(self, value):
-        index = self.get_index(value)
+    def set_value(self, value, index=None):
+        index = self.get_index(value) if index is None else index
         self.val = index
 
     def value(self):
@@ -52,7 +52,7 @@ class Categorical(Param):
         return self.choices.index(value)
 
     def set_index(self, index):
-        self.val = index
+        self.set_value(index=index)
 
     def __len__(self):
         if self._length is None:

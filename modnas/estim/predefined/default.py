@@ -1,9 +1,8 @@
 """Estimator with default training & evaluating methods."""
 import itertools
 from ..base import EstimBase
-from ...arch_space.droppath import update_drop_path_prob
 from ...utils import ETAMeter
-from .. import register
+from modnas.registry.estim import register
 
 
 @register
@@ -22,15 +21,11 @@ class DefaultEstim(EstimBase):
         self.print_model_info()
         config = self.config
         tot_epochs = config.epochs
-        drop_prob = self.config.get('drop_path_prob', 0)
         eta_m = ETAMeter(tot_epochs, self.cur_epoch)
         eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
             if epoch == tot_epochs:
                 break
-            # droppath
-            if drop_prob > 0:
-                update_drop_path_prob(self.model, drop_prob, epoch, tot_epochs)
             # train
             self.train_epoch(epoch, tot_epochs)
             # valid

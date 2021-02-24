@@ -3,10 +3,10 @@ import itertools
 import time
 import random
 from modnas.estim.base import EstimBase
-from modnas.estim import register
+from modnas.registry.estim import register
 from modnas.contrib.arch_space.elastic.spatial import ElasticSpatial
 from modnas.contrib.arch_space.elastic.sequential import ElasticSequential
-from modnas.utils.torch import recompute_bn_running_statistics
+from modnas import backend
 
 
 @register
@@ -232,7 +232,7 @@ class ProgressiveShrinkingEstim(EstimBase):
         results = dict()
         for name, conf in configs.items():
             self.apply_subnet_config(conf)
-            recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
+            backend.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
             score = self.get_score(self.compute_metrics())
             results[name] = score
         return results

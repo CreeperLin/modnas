@@ -1,5 +1,5 @@
 from ..base import MetricsBase
-from .. import register
+from modnas.registry.metrics import register
 
 
 @register

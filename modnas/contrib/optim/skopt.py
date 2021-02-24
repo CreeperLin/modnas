@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from collections import OrderedDict
-from modnas.optim import register
+from modnas.registry.optim import register
 from modnas.optim.base import OptimBase
 from modnas.core.params import Categorical as ParamCategorical, Numeric
 try:
@@ -14,7 +14,7 @@ except ImportError:
 
 @register
 class SkoptOptim(OptimBase):
-    def __init__(self, space, skopt_args={}, logger=None):
+    def __init__(self, skopt_args=None, space=None, logger=None):
         super().__init__(space, logger)
         if skopt is None:
             raise ValueError('scikit-optimize is not installed')
@@ -32,6 +32,7 @@ class SkoptOptim(OptimBase):
                 continue
             skopt_dims.append(sd)
             param_names.append(n)
+        skopt_args = skopt_args or {}
         skopt_args['dimensions'] = skopt_dims
         if 'random_state' not in skopt_args:
             skopt_args['random_state'] = int(time.time())

@@ -1,7 +1,7 @@
 import os
 import tempfile
 import torch
-from modnas.metrics import build, register
+from modnas.registry.metrics import build, register
 from modnas.metrics.base import MetricsBase
 
 

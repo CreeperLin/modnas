@@ -2,18 +2,17 @@
 import argparse
 from collections import OrderedDict
 from functools import partial
-from ..registry.runner import register, get_builder, build, register_as
+from ..registry.runner import build, register_as
 from .exp_manager import ExpManager
 from .config import Config
-from ..data_provider import get_data_provider
-from ..arch_space.construct import build as build_con
-from ..arch_space.export import build as build_exp
-from ..arch_space.ops import configure_ops
-from ..core.param_space import ParamSpace
-from ..optim import build as build_optim
-from ..estim import build as build_estim
-from ..trainer import build as build_trainer
+from ..registry.construct import build as build_con
+from ..registry.export import build as build_exp
+from ..registry.optim import build as build_optim
+from ..registry.estim import build as build_estim
+from ..registry.trainer import build as build_trainer
 from .. import utils
+from ..backend import use as use_backend
+from . import predefined
 
 _default_arg_specs = [
     {
@@ -34,6 +33,12 @@ _default_arg_specs = [
         'type': str,
         'default': None,
         'help': 'routine type'
+    },
+    {
+        'flags': ['-b', '--backend'],
+        'type': str,
+        'default': 'torch',
+        'help': 'backend type'
     },
     {
         'flags': ['-p', '--chkpt'],
@@ -83,6 +88,11 @@ def load_config(conf):
     return config
 
 
+def get_data_provider_config(config):
+    keys = ['data', 'train_data', 'valid_data', 'data_loader', 'data_provider']
+    return {k: config[k] for k in keys if k in config}
+
+
 def get_init_constructor(config, device):
     """Return default init constructor."""
     default_conf = {'type': 'DefaultInitConstructor', 'args': {'device': device}}
@@ -110,11 +120,8 @@ def get_mixed_op_constructor(config):
     default_type = 'DefaultMixedOpConstructor'
     default_args = {}
     if 'primitives' in config:
-        default_args['primitives'] = config['primitives']
-    if 'type' in config:
-        default_args['mixed_type'] = config['type']
-    if 'args' in config:
-        default_args['mixed_args'] = config['args']
+        default_args['primitives'] = config.pop('primitives')
+    default_args['mixed_op'] = config
     return {'type': default_type, 'args': default_args}
 
 
@@ -199,6 +206,7 @@ def default_constructor(model, logger=None, construct_fn=None, construct_config=
 def init_all(config,
              name=None,
              routine=None,
+             backend='torch',
              chkpt=None,
              device=None,
              arch_desc=None,
@@ -206,6 +214,8 @@ def init_all(config,
              config_override=None,
              model=None):
     """Initialize all components from config."""
+    if backend is not None:
+        use_backend(backend)
     config = load_config(config)
     Config.apply(config, config_override or {})
     if routine:
@@ -227,9 +237,7 @@ def init_all(config,
     else:
         device = device_conf.get('device', device)
     # data
-    data_provider = get_data_provider(config, logger)
-    # ops
-    configure_ops(**config.get('ops', {}))
+    data_provider_conf = get_data_provider_config(config)
     # construct
     con_config = OrderedDict()
     con_config['init'] = get_init_constructor(config.get('init', {}), device)
@@ -255,10 +263,10 @@ def init_all(config,
     # optim
     optim = None
     if 'optim' in config:
-        optim = build_optim(config.optim, space=ParamSpace(), logger=logger)
+        optim = build_optim(config.optim, logger=logger)
     # trainer
     trner_comp = {
-        'data_provider': data_provider,
+        'data_provider': data_provider_conf,
         'writer': writer,
         'logger': logger,
     }

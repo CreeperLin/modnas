@@ -3,13 +3,14 @@ from functools import partial
 import copy
 import logging
 import torch.nn as nn
-from . import register
+from modnas.registry.arch_space import register
 
 
 def _simplify_list(data):
     return data[0] if isinstance(data, (list, tuple)) and len(data) == 1 else data
 
 
+@register
 class Slot(nn.Module):
     """Stub module that is converted to actual modules by Constructors."""
 

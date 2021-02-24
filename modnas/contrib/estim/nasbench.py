@@ -1,7 +1,7 @@
 from modnas.core.params import Categorical
-from modnas.estim.predefined.regression import RegressionEstim
-from modnas.arch_space.construct import register as register_constructor
-from modnas.estim import register as register_estim
+from modnas.registry.estim import RegressionEstim
+from modnas.registry.construct import register as register_constructor
+from modnas.registry.estim import register as register_estim
 try:
     from nasbench import api
 except ImportError:

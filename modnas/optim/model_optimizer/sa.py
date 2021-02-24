@@ -3,7 +3,7 @@ import heapq
 import random
 import numpy as np
 from .base import ModelOptimizer
-from . import register
+from modnas.registry.model_optimizer import register
 
 
 @register

@@ -1,14 +1,16 @@
 """Registry for framework components."""
 import sys
 import logging
+import traceback
 from functools import partial
 
 
 class Registry():
     """Registry class."""
 
-    def __init__(self, name='root'):
+    def __init__(self, name='root', allow_replace=True):
         self.name = name
+        self.allow_replace = allow_replace
         self._reg_class = {}
 
     def get_reg_name(self, name):
@@ -18,7 +20,7 @@ class Registry():
     def register(self, regclass, _reg_id):
         """Register a component class."""
         _reg_id = self.get_reg_name(_reg_id)
-        if _reg_id in self._reg_class:
+        if _reg_id in self._reg_class and not self.allow_replace:
             raise ValueError('Cannot re-register _reg_id: {}'.format(_reg_id))
         self._reg_class[_reg_id] = regclass
 
@@ -48,7 +50,6 @@ def register(_reg_path, builder, _reg_id=None):
         _reg_id = builder.__qualname__
     _reg_id = get_full_path(_reg_path, _reg_id)
     registry.register(builder, _reg_id)
-    logging.info('registered: {}'.format(_reg_id))
     return builder
 
 
@@ -60,11 +61,18 @@ def get_builder(_reg_path, _reg_id):
 def parse_spec(spec):
     if isinstance(spec, dict):
         return spec.get('type'), spec.get('args', {})
-    if isinstance(spec, (tuple, list)):
+    if isinstance(spec, (tuple, list)) and isinstance(spec[0], str):
         return spec[0], {} if len(spec) < 2 else spec[1]
     if isinstance(spec, str):
         return spec, {}
-    raise ValueError('Invalid build spec')
+    raise ValueError('Invalid build spec: {}'.format(spec))
+
+
+def to_spec(reg_id, kwargs):
+    return {
+        'type': reg_id,
+        'args': kwargs
+    }
 
 
 def build(_reg_path, _spec, *args, **kwargs):
@@ -112,10 +120,7 @@ class RegistryModule():
     def __getattr__(self, attr):
         if attr in self.__dict__:
             return self.__dict__.get(attr)
-        try:
-            return self.get_builder(attr)
-        except ValueError:
-            raise AttributeError()
+        return self.get_builder(attr)
 
 
 class RegistryImporter():

@@ -1,6 +1,5 @@
-from ..registry.metrics import register, get_builder, build, register_as
+from modnas.registry.metrics import build
 from .base import MetricsBase
-from . import predefined
 
 
 def build_metrics_all(mt_configs, estim=None, logger=None):

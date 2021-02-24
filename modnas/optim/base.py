@@ -1,6 +1,6 @@
 """Basic Optimizer classes."""
 import random
-from ..utils.optimizer import get_optimizer
+from .. import backend
 from ..core.param_space import ParamSpace
 from ..core.event import event_hooked_subclass
 
@@ -61,7 +61,7 @@ class GradientBasedOptim(OptimBase):
 
     def __init__(self, space=None, a_optim=None, logger=None):
         super().__init__(space, logger)
-        self.a_optim = get_optimizer(self.space.tensor_values(), a_optim or GradientBasedOptim._default_optimizer_conf)
+        self.a_optim = backend.get_optimizer(self.space.tensor_values(), a_optim or GradientBasedOptim._default_optimizer_conf)
 
     def state_dict(self):
         """Return current states."""

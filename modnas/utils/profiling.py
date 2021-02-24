@@ -1,15 +1,11 @@
 import sys
 import time
-import torch
 from functools import wraps
 import numpy as np
+from .. import backend
 
 ttable = {}
 mtable = {}
-
-
-def get_gpumem():
-    return torch.cuda.memory_allocated() / 1024. / 1024.
 
 
 def get_cputime():
@@ -44,7 +40,7 @@ m0 = 0
 
 def report_mem(msg=''):
     global m0
-    m1 = get_gpumem()
+    m1 = backend.get_dev_mem_used()
     fr = sys._getframe(1)
     fp = m1 - m0
     if msg in mtable:
@@ -59,9 +55,9 @@ def report_mem(msg=''):
 def profile_mem(function):
     @wraps(function)
     def gpu_mem_profiler(*args, **kwargs):
-        m1 = get_gpumem()
+        m1 = backend.get_dev_mem_used()
         result = function(*args, **kwargs)
-        m2 = get_gpumem()
+        m2 = backend.get_dev_mem_used()
         fp = m2 - m1
         fname = function.__name__
         if fname in mtable:

@@ -2,8 +2,8 @@ import numpy as np
 import pickle
 import matplotlib
 import torch.nn.functional as F
-from modnas.estim import register
-from modnas.estim.predefined.supernet import SuperNetEstim
+from modnas.registry.estim import register
+from modnas.registry.estim import SuperNetEstim
 from modnas.arch_space.mixed_ops import MixedOp
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt

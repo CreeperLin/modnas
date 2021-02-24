@@ -6,7 +6,7 @@ from ..base import EstimBase
 from ... import utils
 from ...utils.config import Config
 from ...utils.wrapper import build as build_runner
-from .. import register
+from modnas.registry.estim import register
 
 
 def default_trial_runner(conn, trial_proc, trial_args):

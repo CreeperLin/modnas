@@ -2,7 +2,7 @@ import yaml
 import pickle
 import numpy as np
 from ..base import MetricsBase
-from .. import register, build
+from modnas.registry.metrics import register, build
 
 
 @register

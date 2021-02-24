@@ -2,13 +2,13 @@
 import numpy as np
 import random
 from ..base import CategoricalSpaceOptim
-from .. import register
+from modnas.registry.optim import register
 
 
 class GeneticOptim(CategoricalSpaceOptim):
     """Optimizer with genetic operators on a population."""
 
-    def __init__(self, space, pop_size, max_it=1000, logger=None):
+    def __init__(self, pop_size, max_it=1000, space=None, logger=None):
         super().__init__(space, logger)
         self.max_it = max_it
         self.pop_size = pop_size
@@ -57,7 +57,6 @@ class EvolutionOptim(GeneticOptim):
     """Optimizer with Evolution algorithm."""
 
     def __init__(self,
-                 space,
                  pop_size=100,
                  n_parents=2,
                  n_offsprings=1,
@@ -65,6 +64,7 @@ class EvolutionOptim(GeneticOptim):
                  n_eliminate=1,
                  n_crossover=None,
                  mutation_prob=0.01,
+                 space=None,
                  logger=None):
         super().__init__(space=space, pop_size=pop_size, logger=logger)
         self.add_operator(self._survival)

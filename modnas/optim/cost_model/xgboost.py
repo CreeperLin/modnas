@@ -4,7 +4,8 @@ try:
 except ImportError:
     xgb = None
 from .base import CostModel
-from . import register
+from modnas.registry.cost_model import register
+
 
 xgb_params_reg = {
     'max_depth': 3,

@@ -1,8 +1,7 @@
-from ..registry.data_provider import register, get_builder, build, register_as
 from ..utils import merge_config
-from . import dataloader
-from . import dataset
-from . import default
+from modnas.registry.data_provider import build
+from modnas.registry.dataloader import build as build_dataloader
+from modnas.registry.dataset import build as build_dataset
 
 
 def get_data(configs):
@@ -13,7 +12,7 @@ def get_data(configs):
         config = conf if config is None else merge_config(config, conf)
     if config is None:
         return None
-    return dataset.build(config)
+    return build_dataset(config)
 
 
 def get_data_provider(config, logger):
@@ -24,7 +23,7 @@ def get_data_provider(config, logger):
     data_prov_conf = config.get('data_provider', {})
     data_provd_args = data_prov_conf.get('args', {})
     if dloader_conf is not None:
-        trn_loader, val_loader = dataloader.build(dloader_conf,
+        trn_loader, val_loader = build_dataloader(dloader_conf,
                                                   trn_data=trn_data,
                                                   val_data=val_data)
         data_provd_args['train_loader'] = trn_loader

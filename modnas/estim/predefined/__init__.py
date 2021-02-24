@@ -1,1 +1,1 @@
-from . import default, distributed, supernet, subnet, hptune, pipeline, unified
+from . import default, distributed, regression, supernet, subnet, hptune, pipeline, unified

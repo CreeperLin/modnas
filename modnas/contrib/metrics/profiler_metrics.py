@@ -1,6 +1,6 @@
 import time
 import torch
-from modnas.metrics import register
+from modnas.registry.metrics import register
 from modnas.metrics.base import MetricsBase
 
 
