@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import logging
+import inspect
 import importlib
 import numpy as np
 import hashlib
@@ -147,6 +148,17 @@ def get_writer(log_dir, enabled=False):
     else:
         writer = DummyWriter()
     return writer
+
+
+def copy_members(dest, src, excepts=None, skip_private=True, method=True):
+    for attr, mem in inspect.getmembers(src):
+        if excepts is not None and attr in excepts:
+            continue
+        if skip_private and attr.startswith('_'):
+            continue
+        if method and not inspect.ismethod(mem):
+            continue
+        setattr(dest, attr, mem)
 
 
 def get_same_padding(kernel_size):

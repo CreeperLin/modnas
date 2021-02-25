@@ -35,10 +35,10 @@ config = Config(dct={
 class DropPath_(nn.Module):
     def __init__(self, prob=0.):
         super().__init__()
-        self.prob = prob
+        self.drop_prob = prob
 
     def extra_repr(self):
-        return 'prob={}, inplace'.format(self.prob)
+        return 'prob={}, inplace'.format(self.drop_prob)
 
     def forward(self, x):
         if self.training and self.drop_prob > 0.:

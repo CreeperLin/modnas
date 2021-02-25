@@ -1,33 +1,51 @@
 import torch
 from modnas.arch_space.ops import DropPath_, Identity
+from modnas.core.event import event_on
 from .default import DefaultSlotTraversalConstructor
 from modnas.registry.construct import register
+from modnas.utils import copy_members
 
 
 @register
 class DropPathConstructor(DefaultSlotTraversalConstructor):
+
+    def __init__(self, *args, drop_prob=0.1, skip_exist=False, **kwargs):
+        super().__init__(*args, skip_exist=skip_exist, **kwargs)
+        self.drop_prob = drop_prob
+        self.transf = DropPathTransformer()
+
+    def __call__(self, model):
+        super().__call__(model)
+
+        def drop_prob_update(*args, epoch=None, tot_epochs=None, **kwargs):
+            self.transf.set_prob(self.drop_prob * epoch / tot_epochs)
+            self.transf(model)
+
+        event_on('before:TrainerBase.train_epoch', drop_prob_update)
+        return model
+
     def convert(self, slot):
         ent = slot.get_entity()
         if ent is None or isinstance(ent, Identity):
             return
-        slot.set_entity(torch.nn.Sequential(ent, DropPath_()))
+        new_ent = torch.nn.Sequential(ent, DropPath_())
+        copy_members(new_ent, ent, excepts=['forward', 'modules', 'named_modules'])
+        return new_ent
 
 
 @register
 class DropPathTransformer(DefaultSlotTraversalConstructor):
-    def __init__(self, prob, total_steps):
-        super().__init__()
-        self.prob = prob
-        self.total_steps = total_steps
-        self.step = -1
+    def __init__(self, *args, skip_exist=False, **kwargs):
+        super().__init__(*args, skip_exist=skip_exist, **kwargs)
+        self.prob = None
 
-    def __trigger__(self, model):
-        self.step += 1
-        self.cur_prob = self.prob * self.step / self.total_steps
-        self.__call__(model)
+    def set_prob(self, prob):
+        self.prob = prob
 
     def convert(self, slot):
         ent = slot.get_entity()
+        if ent is None or isinstance(ent, Identity):
+            return
         for m in ent.modules():
             if isinstance(m, DropPath_):
-                m.p = self.cur_prob
+                m.drop_prob = self.prob

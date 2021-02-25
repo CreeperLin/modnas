@@ -29,7 +29,7 @@ class EventManager():
         self.handlers[ev] = ev_handlers
 
     def emit(self, ev, *args, callback=None, delayed=False, **kwargs):
-        self.logger.debug('emit: {} delayed: {}'.format(ev, delayed))
+        self.logger.debug('emit: {} a: {} kw: {} d: {}'.format(ev, len(args), len(kwargs), delayed))
         if ev not in self.handlers:
             return
         self.event_queue.append((ev, args, kwargs, callback))
@@ -67,70 +67,78 @@ class EventManager():
 
 
 @make_decorator
-def event_hooked(func, name=None, before=True, after=True, qual=True, module=False):
+def event_hooked(func, name=None, before=True, after=True, pass_ret=True, qual=True, module=False):
     qual = func.__qualname__.split('.')[0] if qual is True else (None if qual is False else qual)
     module = func.__module__ if module is True else (None if module is False else module)
-    name = name or func.__name__
+    name = func.__name__ if name is None else (None if name is False else name)
     ev = (module + '.' if module else '') + (qual + '.' if qual else '') + name
+    ev_before = None if before is False else (('before' if before is True else before) + ':' + ev)
+    ev_after = None if after is False else (('after' if after is True else after) + ':' + ev)
 
     @wraps(func)
     def wrapped(*args, **kwargs):
-        if wrapped.before:
-            hret = EventManager().emit('before:' + ev, *args, **kwargs)
+        ev_before = wrapped.ev_before
+        ev_after = wrapped.ev_after
+        if ev_before:
+            hret = EventManager().emit(ev_before, *args, **kwargs)
             if hret is not None:
-                args, kwargs = hret[0] or args, hret[1] or kwargs
+                args, kwargs = args if hret[0] is None else hret[0], kwargs if hret[1] is None else hret[1]
         fret = func(*args, **kwargs)
-        if wrapped.after:
-            hret = EventManager().emit('after:' + ev, fret, *args, **kwargs)
+        if ev_after:
+            if wrapped.pass_ret:
+                args = (fret,) + args
+            hret = EventManager().emit(ev_after, *args, **kwargs)
             if hret is not None:
-                fret = hret
+                return hret
         return fret
     wrapped._event_unhooked = func
-    wrapped.before = before
-    wrapped.after = after
+    wrapped.ev_before = ev_before
+    wrapped.ev_after = ev_after
+    wrapped.pass_ret = pass_ret
     return wrapped
 
 
 @make_decorator
 def event_unhooked(func, remove_all=False, before=False, after=False):
-    func.before = before
-    func.after = after
+    func.ev_before = None if before is False else func.ev_before
+    func.ev_after = None if after is False else func.ev_after
     if remove_all:
         return func._event_unhooked
     return func
 
 
 @make_decorator
-def event_hooked_method(obj, name=None, attr=None, *args, base_qual=True, **kwargs):
-    if name is None and inspect.ismethod(obj):
-        name = obj.__name__
-        attr, obj = obj, obj.__self__
-    if name is None:
-        name = obj.__name__
+def event_hooked_method(obj, attr=None, method=None, *args, base_qual=True, **kwargs):
+    if attr is None and inspect.ismethod(obj):
+        attr = obj.__name__
+        method = obj if method is None else method
+        obj = obj.__self__
     if attr is None:
-        attr = getattr(obj, name)
-    if base_qual:
+        attr = obj.__name__
+    if method is None:
+        method = getattr(obj, attr)
+    if base_qual and 'qual' not in kwargs:
         cls = obj if inspect.isclass(obj) else obj.__class__
         bases = (cls,) + inspect.getmro(cls)
         for base in bases:
-            if name not in base.__dict__:
+            if attr not in base.__dict__:
                 continue
             cls = base
         kwargs['qual'] = cls.__name__
-    setattr(obj, name, event_hooked(attr, *args, **kwargs))
+    setattr(obj, attr, event_hooked(method, *args, **kwargs))
     return obj
 
 
 @make_decorator
 def event_hooked_members(obj, *args, methods=None, is_method=False, is_function=False, **kwargs):
-    for name, attr in inspect.getmembers(obj):
-        if methods is not None and name not in methods:
+    for attr, mem in inspect.getmembers(obj):
+        if methods is not None and attr not in methods:
             continue
-        if is_method and not inspect.ismethod(attr):
+        if is_method and not inspect.ismethod(mem):
             continue
-        if is_function and not inspect.isfunction(attr):
+        if is_function and not inspect.isfunction(mem):
             continue
-        event_hooked_method(obj, name=name, attr=attr, *args, **kwargs)
+        event_hooked_method(obj, attr=attr, method=mem, *args, **kwargs)
     return obj
 
 

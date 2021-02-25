@@ -114,15 +114,13 @@ class ParamSpace():
             base *= p_dim
         return idx
 
-    def update_params(self, pmap, trigger=True):
+    def update_params(self, pmap):
         """Update parameter values from a dict."""
         for k, v in pmap.items():
             p = self.get_param(k)
             if p is None:
                 logging.error('parameter \'{}\' not found'.format(k))
             p.set_value(v)
-            if trigger:
-                p.on_update()
 
     def on_update_tensor_params(self):
         """Invoke handlers on tensor parameter updates."""

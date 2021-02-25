@@ -241,6 +241,8 @@ def init_all(config,
     # construct
     con_config = OrderedDict()
     con_config['init'] = get_init_constructor(config.get('init', {}), device)
+    if 'ops' in config:
+        con_config['init']['args']['ops_conf'] = config.ops
     if 'model' in config:
         con_config['model'] = get_model_constructor(config.model)
     if 'mixed_op' in config:

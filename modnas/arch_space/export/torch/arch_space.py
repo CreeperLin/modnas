@@ -46,17 +46,19 @@ class DefaultRecursiveExporter():
 
     def export(self, slot, *args, **kwargs):
         """Return exported archdesc from Slot."""
-        if slot in self.visited:
-            return None
-        self.visited.add(slot)
         export_fn = getattr(slot.get_entity(), self.export_fn, None)
         return None if export_fn is None else export_fn(*args, **kwargs)
 
     def visit(self, module):
         """Return exported archdesc from current module."""
+        if module in self.visited:
+            return None
+        self.visited.add(module)
         export_fn = getattr(module, self.export_fn, None)
         if export_fn is not None:
-            return export_fn(**copy.deepcopy(self.fn_args))
+            ret = export_fn(**copy.deepcopy(self.fn_args))
+            if ret is not None:
+                return ret
         return {n: self.visit(m) for n, m in module.named_children()}
 
     def __call__(self, model):
