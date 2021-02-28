@@ -5,9 +5,9 @@ from modnas.registry.metrics import register, build
 
 @register
 class SumAggMetrics(MetricsBase):
-    def __init__(self, logger, metrics_conf):
-        super().__init__(logger)
-        self.metrics = {k: build(conf, logger=logger) for k, conf in metrics_conf.items()}
+    def __init__(self, metrics_conf):
+        super().__init__()
+        self.metrics = {k: build(conf) for k, conf in metrics_conf.items()}
         self.base = {k: conf.get('base', 1) for k, conf in metrics_conf.items()}
         self.weight = {k: conf.get('weight', 1) for k, conf in metrics_conf.items()}
 
@@ -19,9 +19,9 @@ class SumAggMetrics(MetricsBase):
 
 @register
 class ProdAggMetrics(MetricsBase):
-    def __init__(self, logger, metrics_conf):
-        super().__init__(logger)
-        self.metrics = {k: build(conf, logger=logger) for k, conf in metrics_conf.items()}
+    def __init__(self, metrics_conf):
+        super().__init__()
+        self.metrics = {k: build(conf) for k, conf in metrics_conf.items()}
         self.base = {k: conf.get('base', 1) for k, conf in metrics_conf.items()}
         self.alpha = {k: conf.get('alpha', 1) for k, conf in metrics_conf.items()}
         self.beta = {k: conf.get('beta', 1) for k, conf in metrics_conf.items()}
@@ -36,9 +36,9 @@ class ProdAggMetrics(MetricsBase):
 
 @register
 class MergeAggMetrics(MetricsBase):
-    def __init__(self, logger, metrics_conf):
-        super().__init__(logger)
-        self.metrics = {k: build(conf, logger=logger) for k, conf in metrics_conf.items()}
+    def __init__(self, metrics_conf):
+        super().__init__()
+        self.metrics = {k: build(conf) for k, conf in metrics_conf.items()}
 
     def __call__(self, item):
         return {k: mt(item) for k, mt in self.metrics.items()}

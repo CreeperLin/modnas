@@ -2,12 +2,15 @@
 import os
 import yaml
 import json
-import logging
 import copy
 from .default import DefaultSlotTraversalConstructor
 from modnas.registry.arch_space import build as build_module
 from modnas.registry.construct import register
 from modnas.arch_space.slot import Slot
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('construct')
 
 
 _arch_desc_parser = {
@@ -40,7 +43,7 @@ class DefaultArchDescConstructor():
 
     def __init__(self, arch_desc, parse_args=None):
         arch_desc = parse_arch_desc(arch_desc, **(parse_args or {}))
-        logging.info('construct from arch_desc: {}'.format(arch_desc))
+        logger.info('construct from arch_desc: {}'.format(arch_desc))
         self.arch_desc = arch_desc
 
     def __call__(self, *args, **kwargs):

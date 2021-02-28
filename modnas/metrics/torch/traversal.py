@@ -5,9 +5,9 @@ from ...arch_space.mixed_ops import MixedOp
 
 @register
 class MixedOpTraversalMetrics(MetricsBase):
-    def __init__(self, logger, metrics):
-        super().__init__(logger)
-        self.metrics = build(metrics, logger=logger)
+    def __init__(self, metrics):
+        super().__init__()
+        self.metrics = build(metrics)
 
     def __call__(self, estim):
         mt = 0
@@ -19,9 +19,9 @@ class MixedOpTraversalMetrics(MetricsBase):
 
 @register
 class ModuleTraversalMetrics(MetricsBase):
-    def __init__(self, logger, metrics):
-        super().__init__(logger)
-        self.metrics = build(metrics, logger=logger)
+    def __init__(self, metrics):
+        super().__init__()
+        self.metrics = build(metrics)
 
     def __call__(self, estim):
         mt = 0

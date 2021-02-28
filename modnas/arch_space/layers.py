@@ -1,9 +1,12 @@
-import logging
 import torch
 import torch.nn as nn
 from .layer_defs import get_merger, get_allocator, get_enumerator
 from .slot import Slot
 from .slot import register_slot_ccs
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('arch_space')
 
 
 @register_slot_ccs
@@ -69,9 +72,9 @@ class DAGLayer(nn.Module):
                 self.num_edges += 1
             chn_states.append(self.merger_state.chn_out([ei.chn_out for ei in self.dag[i]]))
             self.chn_out = self.merger_out.chn_out(chn_states)
-        logging.debug('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in,
-                                                                               edge_kwargs['_chn_in'][0], self.n_nodes,
-                                                                               self.num_edges))
+        logger.debug('DAGLayer: etype:{} chn_in:{} chn:{} #n:{} #e:{}'.format(str(edge_cls), self.chn_in,
+                                                                              edge_kwargs['_chn_in'][0], self.n_nodes,
+                                                                              self.num_edges))
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.chn_states = chn_states
 
@@ -153,7 +156,7 @@ class DAGLayer(nn.Module):
         self.chn_states = chn_states
         self.chn_out = self.merger_out.chn_out(chn_states)
         self.fixed = True
-        logging.debug('DAGLayer: chn_in:{} #n:{} #e:{}'.format(self.chn_in, self.n_nodes, self.num_edges))
+        logger.debug('DAGLayer: chn_in:{} #n:{} #e:{}'.format(self.chn_in, self.n_nodes, self.num_edges))
 
 
 @register_slot_ccs

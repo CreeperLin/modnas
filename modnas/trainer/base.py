@@ -1,5 +1,5 @@
 """Base Trainer."""
-import logging
+from ..utils.logging import get_logger
 from ..utils import DummyWriter
 from ..core.event import event_hooked_subclass
 
@@ -8,10 +8,9 @@ from ..core.event import event_hooked_subclass
 class TrainerBase():
     """Base Trainer class."""
 
-    def __init__(self, logger=None, writer=None):
-        if logger is None:
-            logger = logging.getLogger('Trainer')
-        self.logger = logger
+    logger = get_logger(__module__)
+
+    def __init__(self, writer=None):
         if writer is None:
             writer = DummyWriter()
         self.writer = writer

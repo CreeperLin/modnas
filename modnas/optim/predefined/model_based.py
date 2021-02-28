@@ -6,8 +6,8 @@ from modnas.registry.optim import register
 
 @register
 class ModelBasedOptim(CategoricalSpaceOptim):
-    def __init__(self, cost_model_config, model_optimizer_config, greedy_e=0.05, n_next_pts=32, space=None, logger=None):
-        super().__init__(space, logger)
+    def __init__(self, cost_model_config, model_optimizer_config, greedy_e=0.05, n_next_pts=32, space=None):
+        super().__init__(space)
         self.cost_model = build_cost_model(cost_model_config, space=self.space)
         self.model_optimizer = build_model_optimizer(model_optimizer_config,
                                                      space=self.space)

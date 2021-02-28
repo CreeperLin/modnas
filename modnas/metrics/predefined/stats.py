@@ -7,8 +7,8 @@ from modnas.registry.metrics import register, build
 
 @register
 class StatsLUTMetrics(MetricsBase):
-    def __init__(self, logger, lut_path, head=None):
-        super().__init__(logger)
+    def __init__(self, lut_path, head=None):
+        super().__init__()
         with open(lut_path, 'r') as f:
             self.lut = yaml.load(f, Loader=yaml.Loader)
         if self.lut is None:
@@ -32,10 +32,10 @@ class StatsLUTMetrics(MetricsBase):
 
 @register
 class StatsRecordMetrics(MetricsBase):
-    def __init__(self, logger, metrics, head=None, save_path=None):
-        super().__init__(logger)
+    def __init__(self, metrics, head=None, save_path=None):
+        super().__init__()
         self.head = head
-        self.metrics = build(metrics, logger=logger)
+        self.metrics = build(metrics)
         self.record = dict()
         self.save_path = save_path
         self.save_file = None
@@ -56,8 +56,8 @@ class StatsRecordMetrics(MetricsBase):
 
 @register
 class StatsModelMetrics(MetricsBase):
-    def __init__(self, logger, model_path, head):
-        super().__init__(logger)
+    def __init__(self, model_path, head):
+        super().__init__()
         with open(model_path, 'rb') as f:
             self.model = pickle.load(f)
         self.head = head

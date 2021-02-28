@@ -1,9 +1,12 @@
-import logging
 import heapq
 import random
 import numpy as np
 from .base import ModelOptimizer
 from modnas.registry.model_optimizer import register
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('model_optimizer')
 
 
 @register
@@ -84,7 +87,7 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
                 temp *= cool
             elif cool_type == 'linear':
                 temp -= cool
-            logging.debug('SA: temp: {:.4f} max: {:.4f}'.format(temp, np.max(next_results)))
+            logger.debug('SA: temp: {:.4f} max: {:.4f}'.format(temp, np.max(next_results)))
 
         if self.keep_history:
             self.history = params

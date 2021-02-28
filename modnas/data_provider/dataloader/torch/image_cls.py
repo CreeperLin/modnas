@@ -1,9 +1,12 @@
-import logging
 import random
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from modnas.registry.data_loader import register
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('data_loader')
 
 
 def get_label_class(label):
@@ -102,7 +105,7 @@ def ImageClsDataLoader(trn_data,
     elif isinstance(classes, int):
         random.seed(train_seed)
         all_classes = sorted(random.sample(all_classes, classes))
-        logging.info('data_loader: random classes: {}'.format(all_classes))
+        logger.info('data_loader: random classes: {}'.format(all_classes))
     n_classes = len(all_classes)
     # index
     trn_idx = list(range(len(trn_data)))
@@ -135,7 +138,7 @@ def ImageClsDataLoader(trn_data,
             trn_idx, val_idx = train_valid_split(trn_idx, trn_labels, val_class_size)
         else:
             val_idx = list()
-    logging.info('data_loader: trn: {} val: {} cls: {}'.format(len(trn_idx), len(val_idx), n_classes))
+    logger.info('data_loader: trn: {} val: {} cls: {}'.format(len(trn_idx), len(val_idx), n_classes))
     # map labels
     if classes is not None:
         mapping = {c: i for i, c in enumerate(all_classes)}

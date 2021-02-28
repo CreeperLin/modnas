@@ -1,16 +1,19 @@
 import os
 import sys
 import time
-import logging
 import inspect
 import importlib
 import numpy as np
 import hashlib
 from ..version import __version__
+from .logging import get_logger
 try:
     from tensorboardX import SummaryWriter
 except ImportError:
     SummaryWriter = None
+
+
+logger = get_logger('utils')
 
 
 def import_file(name, path):
@@ -47,14 +50,14 @@ def merge_config(src, dest, overwrite=True):
         for k, v in dest.items():
             if k not in src:
                 src[k] = v
-                logging.warning('merge_config: add key {}'.format(k))
+                logger.warning('merge_config: add key {}'.format(k))
             else:
                 src[k] = merge_config(src[k], v, overwrite)
     elif isinstance(src, list) and isinstance(dest, list):
-        logging.warning('merge_config: extend list: {} + {}'.format(src, dest))
+        logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
         src.extend(dest)
     elif overwrite:
-        logging.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
+        logger.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
         src = dest
     return src
 
@@ -96,9 +99,9 @@ def check_config(config):
                 cur_dict = cur_dict[cur_key]
         except KeyError:
             if idx != len(keys) - 1:
-                logging.warning('check_config: key \'{}\' in field \'{}\' missing'.format(cur_key, field))
+                logger.warning('check_config: key \'{}\' in field \'{}\' missing'.format(cur_key, field))
             else:
-                logging.warning('check_config: setting field \'{}\' to default: {}'.format(field, default))
+                logger.warning('check_config: setting field \'{}\' to default: {}'.format(field, default))
                 cur_dict[cur_key] = default
         return False
 
@@ -114,18 +117,6 @@ def check_config(config):
 
     for key, val in defaults.items():
         check_field(config, key, val)
-
-
-def get_logger(log_dir, name, debug=False):
-    """Return a new logger."""
-    level = logging.DEBUG if debug else logging.INFO
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-    log_path = os.path.join(log_dir, '%s-%d.log' % (name, time.time()))
-    logging.basicConfig(level=level,
-                        format='%(asctime)s - %(name)s - %(message)s',
-                        handlers=[logging.FileHandler(log_path), logging.StreamHandler()])
-    return logging.getLogger(name)
 
 
 class DummyWriter():

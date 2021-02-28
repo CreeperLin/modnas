@@ -1,11 +1,14 @@
 """Mixed operators."""
-import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ..core.params import Categorical
 from modnas.registry.params import build
 from modnas.registry.arch_space import register
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('arch_space')
 
 
 class MixedOp(nn.Module):
@@ -24,7 +27,7 @@ class MixedOp(nn.Module):
                 'default': build('TorchTensor', len(self._ops)),
             }
         self.arch_param_map = arch_param_map
-        logging.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
+        logger.debug('mixed op: {} p: {}'.format(type(self), arch_param_map))
 
     def primitives(self):
         """Return list of primitive operators."""

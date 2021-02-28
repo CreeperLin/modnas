@@ -6,8 +6,8 @@ from modnas.metrics.base import MetricsBase
 
 @register
 class LocalProfilerMetrics(MetricsBase):
-    def __init__(self, logger, device=None, rep=50, warmup=10):
-        super().__init__(logger)
+    def __init__(self, device=None, rep=50, warmup=10):
+        super().__init__()
         self.rep = rep
         self.warmup = warmup
         self.device = device

@@ -1,9 +1,12 @@
 """Slot module."""
 from functools import partial
 import copy
-import logging
 import torch.nn as nn
 from modnas.registry.arch_space import register
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('arch_space')
 
 
 def _simplify_list(data):
@@ -55,8 +58,8 @@ class Slot(nn.Module):
         self.ent = None
         self.kwargs = kwargs
         self.args = args
-        logging.debug('slot {} {}: declared {} {} {}'.format(self.sid, self.name, self.in_shape, self.out_shape,
-                                                             self.strides))
+        logger.debug('slot {} {}: declared {} {} {}'.format(self.sid, self.name, self.in_shape, self.out_shape,
+                                                            self.strides))
 
     @staticmethod
     def register(slot):
@@ -150,7 +153,7 @@ class Slot(nn.Module):
     def set_entity(self, ent):
         """Set actual module in Slot."""
         self.ent = ent
-        logging.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
+        logger.debug('slot {} {}: set to {}'.format(self.sid, self.name, ent.__class__.__name__))
 
     def del_entity(self):
         """Delete actual module in Slot."""
@@ -168,7 +171,7 @@ class Slot(nn.Module):
         """Return archdesc from Slot."""
         export_fn = Slot._export_fn
         if export_fn is None:
-            logging.warning('slot {} has no exporter'.format(self.sid))
+            logger.warning('slot {} has no exporter'.format(self.sid))
             return None
         return export_fn(self, *args, **kwargs)
 
@@ -179,7 +182,7 @@ class Slot(nn.Module):
             if ent is not None:
                 self.set_entity(ent)
         else:
-            logging.warning('slot {} already built'.format(self.sid))
+            logger.warning('slot {} already built'.format(self.sid))
 
     def extra_repr(self):
         """Return extra string representation."""
