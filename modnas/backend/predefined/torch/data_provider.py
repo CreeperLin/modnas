@@ -15,7 +15,7 @@ def get_data(configs):
     return build_dataset(config)
 
 
-def get_data_provider(config, logger):
+def get_data_provider(config):
     """Return a new DataProvider."""
     trn_data = get_data([config.get('data'), config.get('train_data')])
     val_data = get_data([config.get('data'), config.get('valid_data')])
@@ -30,5 +30,5 @@ def get_data_provider(config, logger):
         data_provd_args['valid_loader'] = val_loader
     elif not data_prov_conf:
         return None
-    data_prov = build(data_prov_conf.get('type', 'DefaultDataProvider'), logger=logger, **data_provd_args)
+    data_prov = build(data_prov_conf.get('type', 'DefaultDataProvider'), **data_provd_args)
     return data_prov

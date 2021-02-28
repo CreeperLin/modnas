@@ -4,8 +4,8 @@ from modnas.registry.metrics import register
 
 @register
 class ValidateMetrics(MetricsBase):
-    def __init__(self, logger, field=None):
-        super().__init__(logger)
+    def __init__(self, field=None):
+        super().__init__()
         self.field = field
 
     def __call__(self, model):

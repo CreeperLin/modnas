@@ -1,8 +1,11 @@
 """Default Torch Exporters."""
 import traceback
-import logging
 import torch
 from modnas.registry.export import register
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('export')
 
 
 @register
@@ -14,9 +17,9 @@ class DefaultTorchCheckpointExporter():
 
     def __call__(self, model):
         """Run Exporter."""
-        logging.info('Saving torch checkpoint to {}'.format(self.path))
+        logger.info('Saving torch checkpoint to {}'.format(self.path))
         try:
             torch.save(model.state_dict(), self.path)
         except RuntimeError:
-            logging.error('Failed saving checkpoint: {}'.format(traceback.format_exc()))
+            logger.error('Failed saving checkpoint: {}'.format(traceback.format_exc()))
         return model

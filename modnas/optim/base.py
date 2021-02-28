@@ -3,15 +3,17 @@ import random
 from .. import backend
 from ..core.param_space import ParamSpace
 from ..core.event import event_hooked_subclass
+from modnas.utils.logging import get_logger
 
 
 @event_hooked_subclass
 class OptimBase():
     """Base Optimizer class."""
 
-    def __init__(self, space=None, logger=None):
+    logger = get_logger('optim')
+
+    def __init__(self, space=None):
         self.space = space or ParamSpace()
-        self.logger = logger
 
     def state_dict(self):
         """Return current states."""
@@ -59,8 +61,8 @@ class GradientBasedOptim(OptimBase):
         }
     }
 
-    def __init__(self, space=None, a_optim=None, logger=None):
-        super().__init__(space, logger)
+    def __init__(self, space=None, a_optim=None):
+        super().__init__(space)
         self.a_optim = backend.get_optimizer(self.space.tensor_values(), a_optim or GradientBasedOptim._default_optimizer_conf)
 
     def state_dict(self):
@@ -91,8 +93,8 @@ class GradientBasedOptim(OptimBase):
 class CategoricalSpaceOptim(OptimBase):
     """Categorical space Optimizer class."""
 
-    def __init__(self, space=None, logger=None):
-        super().__init__(space, logger)
+    def __init__(self, space=None):
+        super().__init__(space)
         self.space_size = self.space.categorical_size
         self.visited = set()
 

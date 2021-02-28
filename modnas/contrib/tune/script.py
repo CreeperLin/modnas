@@ -1,9 +1,13 @@
 import os
-import logging
 import sys
 import yaml
 import optparse
 from modnas.utils.wrapper import run_hptune
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger()
+
 
 _default_hptune_config = {
     'optim': {
@@ -75,7 +79,7 @@ def tune_script():
 
     tune_res = run_hptune(**opts, measure_fn=lambda hp: func(**hp))
     best_hparams = list(tune_res.values())[0]['best_hparams']
-    logging.info('tune_script: best hparams: {}'.format(dict(best_hparams)))
+    logger.info('tune_script: best hparams: {}'.format(dict(best_hparams)))
 
 
 if __name__ == '__main__':

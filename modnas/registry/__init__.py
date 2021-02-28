@@ -1,8 +1,10 @@
 """Registry for framework components."""
 import sys
-import logging
-import traceback
 from functools import partial
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('registry')
 
 
 class Registry():
@@ -23,6 +25,7 @@ class Registry():
         if _reg_id in self._reg_class and not self.allow_replace:
             raise ValueError('Cannot re-register _reg_id: {}'.format(_reg_id))
         self._reg_class[_reg_id] = regclass
+        logger.info('registered: {}'.format(_reg_id))
 
     def update(self, regdict):
         """Update registry."""

@@ -12,7 +12,6 @@ class DefaultTrainer(TrainerBase):
     """Default Trainer class."""
 
     def __init__(self,
-                 logger=None,
                  writer=None,
                  expman=None,
                  device='cuda',
@@ -22,7 +21,7 @@ class DefaultTrainer(TrainerBase):
                  criterion=None,
                  w_grad_clip=0,
                  print_freq=200):
-        super().__init__(logger, writer)
+        super().__init__(writer)
         self.config = None
         self.print_freq = print_freq
         self.w_grad_clip = w_grad_clip
@@ -49,7 +48,7 @@ class DefaultTrainer(TrainerBase):
         if self.config['lr_scheduler']:
             self.lr_scheduler = backend.get_lr_scheduler(self.optimizer, self.config['lr_scheduler'], config)
         if self.config['data_provider']:
-            self.data_provider = backend.get_data_provider(self.config['data_provider'], logger=self.logger)
+            self.data_provider = backend.get_data_provider(self.config['data_provider'])
         if self.config['criterion']:
             self.criterion = backend.get_criterion(self.config['criterion'], getattr(model, 'device_ids', None))
         self.device = self.config.get('device', self.device)

@@ -1,7 +1,10 @@
 import copy
-import logging
 from functools import partial
 from modnas.utils.wrapper import run_hptune
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger()
 
 
 _default_hptune_config = {
@@ -40,7 +43,7 @@ def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tune
     opts['config_override'] = tune_options
     tune_res = run_hptune(measure_fn=measure_fn, **opts)
     best_hparams = list(tune_res.values())[0]['best_hparams']
-    logging.info('tune: best hparams: {}'.format(dict(best_hparams)))
+    logger.info('tune: best hparams: {}'.format(dict(best_hparams)))
     ret = parse_hp(best_hparams)
     if tuned:
         fn_args, fn_kwargs = ret

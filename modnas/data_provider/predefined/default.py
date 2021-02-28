@@ -7,8 +7,8 @@ from modnas.registry.data_provider import register
 class DefaultDataProvider(DataProviderBase):
     """Default DataProvider with dataloader."""
 
-    def __init__(self, train_loader, valid_loader, logger=None):
-        super().__init__(logger)
+    def __init__(self, train_loader, valid_loader):
+        super().__init__()
         self.train_loader = train_loader
         self.valid_loader = valid_loader
         self.train_iter = None

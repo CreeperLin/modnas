@@ -1,7 +1,10 @@
-import logging
 import inspect
 from functools import wraps
 from . import singleton, make_decorator
+from ..utils.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 @singleton
@@ -10,7 +13,6 @@ class EventManager():
     def __init__(self):
         self.handlers = {}
         self.event_queue = []
-        self.logger = logging.getLogger(__name__)
 
     def reset(self):
         self.handlers.clear()
@@ -22,14 +24,14 @@ class EventManager():
             yield h
 
     def on(self, ev, handler, priority=0):
-        self.logger.debug('on: {} {} {}'.format(ev, handler, priority))
+        logger.debug('on: {} {} {}'.format(ev, handler, priority))
         ev_handlers = self.handlers.get(ev, [])
         ev_handlers.append((priority, handler))
         ev_handlers.sort(key=lambda s: -s[0])
         self.handlers[ev] = ev_handlers
 
     def emit(self, ev, *args, callback=None, delayed=False, **kwargs):
-        self.logger.debug('emit: {} a: {} kw: {} d: {}'.format(ev, len(args), len(kwargs), delayed))
+        logger.debug('emit: {} a: {} kw: {} d: {}'.format(ev, len(args), len(kwargs), delayed))
         if ev not in self.handlers:
             return
         self.event_queue.append((ev, args, kwargs, callback))
@@ -38,7 +40,7 @@ class EventManager():
         return self.dispatch_all()[ev]
 
     def off(self, ev, handler=None):
-        self.logger.debug('off: {} {}'.format(ev, handler))
+        logger.debug('off: {} {}'.format(ev, handler))
         ev_handlers = self.handlers.get(ev, None)
         if ev_handlers is None:
             return

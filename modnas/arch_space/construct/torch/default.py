@@ -1,11 +1,14 @@
 """Default Constructors."""
 import importlib
-import logging
 import copy
 from collections import OrderedDict
 from modnas.registry.arch_space import build as build_module
 from modnas.registry.construct import register, build
 from modnas.arch_space.slot import Slot
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('construct')
 
 
 def get_convert_fn(convert_fn, **kwargs):
@@ -46,13 +49,13 @@ class ExternalModelConstructor():
     def __call__(self, model):
         """Run constructor."""
         if self.src_path is not None:
-            logging.info('Importing model from path: {}'.format(self.src_path))
+            logger.info('Importing model from path: {}'.format(self.src_path))
             name = ''
             spec = importlib.util.spec_from_file_location(name, self.src_path)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
         elif self.import_path is not None:
-            logging.info('Importing model from lib: {}'.format(self.import_path))
+            logger.info('Importing model from lib: {}'.format(self.import_path))
             mod = importlib.import_module(self.import_path)
         model = mod.__dict__[self.model_type](**self.args)
         return model

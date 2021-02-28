@@ -1,4 +1,3 @@
-import logging
 import torch
 import numpy as np
 from modnas.registry.construct import register
@@ -6,6 +5,10 @@ from modnas.arch_space.slot import Slot
 from modnas.arch_space import ops
 from modnas.core.param_space import ParamSpace
 from modnas.core.event import EventManager
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('construct')
 
 
 def parse_device(device):
@@ -39,7 +42,7 @@ def configure_ops(new_config):
         config.conv.bias = False
     if config.ops_order[0] == 'act':
         config.act.inplace = False
-    logging.info('ops config: {}'.format(config.to_dict()))
+    logger.info('ops config: {}'.format(config.to_dict()))
 
 
 @register
@@ -90,7 +93,7 @@ class DefaultTorchCheckpointLoader():
     """Constructor that loads model checkpoints."""
 
     def __init__(self, path):
-        logging.info('Loading torch checkpoint from {}'.format(path))
+        logger.info('Loading torch checkpoint from {}'.format(path))
         self.chkpt = torch.load(path)
 
     def __call__(self, model):

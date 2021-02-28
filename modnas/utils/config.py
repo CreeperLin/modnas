@@ -6,7 +6,7 @@ import copy
 
 def load_config_file(filename):
     """Load configuration from YAML file."""
-    docs = yaml.load_all(open(filename, 'r'), Loader=yaml.Loader)
+    docs = yaml.load_all(open(filename, 'r'), Loader=yaml.SafeLoader)
     config_dict = dict()
     for doc in docs:
         for k, v in doc.items():
@@ -21,17 +21,18 @@ class Config(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-    def __init__(self, file=None, dct={}):
+    def __init__(self, dct=None, file=None):
         super().__init__()
+        dct = {} if dct is None else dct
         if file is not None:
             dct = load_config_file(file)
         for key, value in dct.items():
-            if hasattr(value, 'keys'):
-                value = Config(None, value)
+            if hasattr(value, 'items'):
+                value = Config(value)
             elif isinstance(value, list):
                 for i in range(len(value)):
-                    if hasattr(value[i], 'keys'):
-                        value[i] = Config(None, value[i])
+                    if hasattr(value[i], 'items'):
+                        value[i] = Config(value[i])
             self[key] = value
         yaml.add_representer(Config,
                              lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
@@ -46,7 +47,7 @@ class Config(dict):
 
     def __deepcopy__(self, memo):
         """Return deepcopy."""
-        return Config(None, copy.deepcopy(dict(self)))
+        return Config(copy.deepcopy(dict(self)))
 
     def __str__(self):
         """Return config string."""
@@ -82,7 +83,7 @@ class Config(dict):
         if isinstance(dct, dict):
             dct = Config(dct=dct)
         elif isinstance(dct, list):
-            dct = {k: yaml.load(v) for (k, v) in [item.split('=') for item in dct]}
+            dct = {k: yaml.load(v, Loader=yaml.SafeLoader) for (k, v) in [item.split('=') for item in dct]}
         else:
             raise ValueError('unsupported apply type: {}'.format(type(dct)))
         for k, v in dct.items():

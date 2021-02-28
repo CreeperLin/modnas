@@ -12,8 +12,8 @@ from modnas.registry.optim import register
 class DARTSOptim(GradientBasedOptim):
     """Optimizer with DARTS algorithm."""
 
-    def __init__(self, a_optim=None, w_momentum=0.9, w_weight_decay=0.0003, space=None, logger=None):
-        super().__init__(space, a_optim, logger)
+    def __init__(self, a_optim=None, w_momentum=0.9, w_weight_decay=0.0003, space=None):
+        super().__init__(space, a_optim)
         self.v_net = None
         self.w_momentum = w_momentum
         self.w_weight_decay = w_weight_decay
@@ -104,8 +104,8 @@ class BinaryGateOptim(GradientBasedOptim):
         }
     }
 
-    def __init__(self, a_optim=None, n_samples=2, renorm=True, space=None, logger=None):
-        super().__init__(space, a_optim or BinaryGateOptim._default_optimizer_conf, logger)
+    def __init__(self, a_optim=None, n_samples=2, renorm=True, space=None):
+        super().__init__(space, a_optim or BinaryGateOptim._default_optimizer_conf)
         self.n_samples = n_samples
         self.sample = (self.n_samples != 0)
         self.renorm = renorm and self.sample
@@ -162,8 +162,8 @@ class BinaryGateOptim(GradientBasedOptim):
 class DirectGradOptim(GradientBasedOptim):
     """Optimizer by backwarding training loss."""
 
-    def __init__(self, a_optim=None, space=None, logger=None):
-        super().__init__(space, a_optim, logger)
+    def __init__(self, a_optim=None, space=None):
+        super().__init__(space, a_optim)
 
     def step(self, estim):
         """Update Optimizer states using Estimator."""
@@ -175,8 +175,8 @@ class DirectGradOptim(GradientBasedOptim):
 class DirectGradBiLevelOptim(GradientBasedOptim):
     """Optimizer by backwarding validating loss."""
 
-    def __init__(self, a_optim=None, space=None, logger=None):
-        super().__init__(space, a_optim, logger)
+    def __init__(self, a_optim=None, space=None):
+        super().__init__(space, a_optim)
 
     def step(self, estim):
         """Update Optimizer states using Estimator."""
@@ -190,8 +190,8 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
 class REINFORCEOptim(GradientBasedOptim):
     """Optimizer with REINFORCE algorithm."""
 
-    def __init__(self, a_optim=None, batch_size=10, space=None, logger=None):
-        super().__init__(space, a_optim, logger)
+    def __init__(self, a_optim=None, batch_size=10, space=None):
+        super().__init__(space, a_optim)
         self.batch_size = batch_size
         self.baseline = None
         self.baseline_decay_weight = 0.99
@@ -253,9 +253,8 @@ class GumbelAnnealingOptim(GradientBasedOptim):
                  exp_anneal_rate=0.0015,
                  anneal_interval=1,
                  restart_period=None,
-                 space=None,
-                 logger=None):
-        super().__init__(space, a_optim, logger)
+                 space=None):
+        super().__init__(space, a_optim)
         self.init_temp = init_temp
         self.exp_anneal_rate = exp_anneal_rate
         self.temp = self.init_temp

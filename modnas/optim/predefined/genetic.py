@@ -8,8 +8,8 @@ from modnas.registry.optim import register
 class GeneticOptim(CategoricalSpaceOptim):
     """Optimizer with genetic operators on a population."""
 
-    def __init__(self, pop_size, max_it=1000, space=None, logger=None):
-        super().__init__(space, logger)
+    def __init__(self, pop_size, max_it=1000, space=None):
+        super().__init__(space)
         self.max_it = max_it
         self.pop_size = pop_size
         self.operators = []
@@ -64,9 +64,8 @@ class EvolutionOptim(GeneticOptim):
                  n_eliminate=1,
                  n_crossover=None,
                  mutation_prob=0.01,
-                 space=None,
-                 logger=None):
-        super().__init__(space=space, pop_size=pop_size, logger=logger)
+                 space=None):
+        super().__init__(space=space, pop_size=pop_size)
         self.add_operator(self._survival)
         self.add_operator(self._selection)
         self.add_operator(self._crossover)

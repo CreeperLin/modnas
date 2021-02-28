@@ -1,9 +1,12 @@
 """Default DataLoader."""
-import logging
 import random
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from modnas.registry.data_loader import register
+from modnas.utils.logging import get_logger
+
+
+logger = get_logger('data_loader')
 
 
 @register
@@ -46,7 +49,7 @@ def DefaultDataLoader(trn_data,
             val_idx, trn_idx = trn_idx[:valid_size], trn_idx[valid_size:]
         else:
             val_idx = list()
-    logging.info('data_loader: trn: {} val: {}'.format(len(trn_idx), len(val_idx)))
+    logger.info('data_loader: trn: {} val: {}'.format(len(trn_idx), len(val_idx)))
     # dataloader
     trn_loader = val_loader = None
     trn_batch_size *= parallel_multiplier

@@ -10,8 +10,8 @@ except ImportError:
 
 @register
 class RASPStatsMetrics(MetricsBase):
-    def __init__(self, logger, item):
-        super().__init__(logger)
+    def __init__(self, item):
+        super().__init__()
         self.item = item
 
     def __call__(self, node):
@@ -21,7 +21,6 @@ class RASPStatsMetrics(MetricsBase):
 @register
 class RASPTraversalMetrics(MetricsBase):
     def __init__(self,
-                 logger,
                  input_shape,
                  metrics,
                  compute=True,
@@ -30,10 +29,10 @@ class RASPTraversalMetrics(MetricsBase):
                  mixed_only=False,
                  keep_stats=True,
                  traversal_type='tape_nodes'):
-        super().__init__(logger)
+        super().__init__()
         if rasp is None:
             raise ValueError('package RASP is not found')
-        self.metrics = build(metrics, logger=logger)
+        self.metrics = build(metrics)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape
@@ -130,11 +129,11 @@ class RASPTraversalMetrics(MetricsBase):
 
 @register
 class RASPRootMetrics(MetricsBase):
-    def __init__(self, logger, input_shape, metrics, compute=True, timing=False, device=None):
-        super().__init__(logger)
+    def __init__(self, input_shape, metrics, compute=True, timing=False, device=None):
+        super().__init__()
         if rasp is None:
             raise ValueError('package RASP is not found')
-        self.metrics = build(metrics, logger=logger)
+        self.metrics = build(metrics)
         self.eval_compute = compute
         self.eval_timing = timing
         self.input_shape = input_shape

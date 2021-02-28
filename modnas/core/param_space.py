@@ -1,7 +1,10 @@
 """Architecture Parameter Space."""
-import logging
 from collections import OrderedDict
 from . import singleton
+from ..utils.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 @singleton
@@ -119,7 +122,7 @@ class ParamSpace():
         for k, v in pmap.items():
             p = self.get_param(k)
             if p is None:
-                logging.error('parameter \'{}\' not found'.format(k))
+                logger.error('parameter \'{}\' not found'.format(k))
             p.set_value(v)
 
     def on_update_tensor_params(self):

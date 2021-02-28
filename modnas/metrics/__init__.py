@@ -2,7 +2,7 @@ from modnas.registry.metrics import build
 from .base import MetricsBase
 
 
-def build_metrics_all(mt_configs, estim=None, logger=None):
+def build_metrics_all(mt_configs, estim=None):
     """Build Metrics from configs."""
     metrics = {}
     if mt_configs is None:
@@ -11,7 +11,7 @@ def build_metrics_all(mt_configs, estim=None, logger=None):
     if not isinstance(mt_configs, dict):
         mt_configs = {'default': mt_configs}
     for mt_name, mt_conf in mt_configs.items():
-        mt = build(mt_conf, logger=logger)
+        mt = build(mt_conf)
         metrics[mt_name] = mt
     MetricsBase.set_estim(None)
     return metrics

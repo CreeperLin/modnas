@@ -6,6 +6,7 @@ from .. import backend
 from ..metrics import build_metrics_all
 from ..arch_space.export import build as build_exporter
 from ..core.event import event_hooked_subclass
+from ..utils.logging import get_logger
 
 
 def build_criterions_all(crit_configs, device_ids=None):
@@ -38,6 +39,8 @@ def build_criterions_all(crit_configs, device_ids=None):
 class EstimBase():
     """Base Estimator class."""
 
+    logger = get_logger('estim')
+
     def __init__(self,
                  config=None,
                  expman=None,
@@ -46,7 +49,6 @@ class EstimBase():
                  exporter=None,
                  model=None,
                  writer=None,
-                 logger=None,
                  name=None):
         self.name = '' if name is None else name
         self.config = config
@@ -55,9 +57,8 @@ class EstimBase():
         self.exporter = exporter
         self.model = model
         self.writer = writer
-        self.logger = logger
         self.cur_epoch = -1
-        self.metrics = build_metrics_all(config.get('metrics', None), self, logger)
+        self.metrics = build_metrics_all(config.get('metrics', None), self)
         self.criterions_all, self.criterions_train, self.criterions_eval, self.criterions_valid = build_criterions_all(
             config.get('criterion', None), getattr(model, 'device_ids', None))
         self.trainer = trainer

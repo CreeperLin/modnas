@@ -1,12 +1,11 @@
 """Base DataProvider."""
-import logging
+from modnas.utils.logging import get_logger
 
 
 class DataProviderBase():
     """Base DataProvider class."""
 
-    def __init__(self, logger):
-        self.logger = logger or logging.getLogger('data_provider')
+    logger = get_logger('data_provider')
 
     def get_next_train_batch(self):
         """Return the next train batch."""

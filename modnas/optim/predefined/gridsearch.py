@@ -9,8 +9,8 @@ from modnas.registry.optim import register
 class GridSearchOptim(CategoricalSpaceOptim):
     """Optimizer using grid search."""
 
-    def __init__(self, space=None, logger=None):
-        super().__init__(space, logger)
+    def __init__(self, space=None):
+        super().__init__(space)
         self.counter = 0
 
     def _next(self):
@@ -27,8 +27,8 @@ class GridSearchOptim(CategoricalSpaceOptim):
 class RandomSearchOptim(CategoricalSpaceOptim):
     """Optimizer using random search."""
 
-    def __init__(self, seed=None, space=None, logger=None):
-        super().__init__(space, logger)
+    def __init__(self, seed=None, space=None):
+        super().__init__(space)
         seed = int(time.time()) if seed is None else seed
         random.seed(seed)
 

@@ -1,15 +1,14 @@
 """Implementation of Metrics interface."""
-import logging
+from modnas.utils.logging import get_logger
 
 
-class MetricsBase(object):
+class MetricsBase():
     """Base Metrics class."""
 
+    logger = get_logger('metrics')
     cur_estim = None
 
-    def __init__(self, logger):
-        super().__init__()
-        self.logger = logging.getLogger('metrics') if logger is None else logger
+    def __init__(self):
         self.estim = MetricsBase.get_estim()
 
     def __call__(self, *args, **kwargs):

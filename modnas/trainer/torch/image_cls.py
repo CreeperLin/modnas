@@ -2,7 +2,6 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 from ... import backend
-from ...data_provider import build as build_data_provider
 from ...utils import AverageMeter
 from ..base import TrainerBase
 from modnas.registry.trainer import register
@@ -32,7 +31,6 @@ def accuracy(output, target, topk=(1, )):
 @register
 class ImageClsTrainer(TrainerBase):
     def __init__(self,
-                 logger=None,
                  writer=None,
                  expman=None,
                  device='cuda',
@@ -42,7 +40,7 @@ class ImageClsTrainer(TrainerBase):
                  criterion='CrossEntropyLoss',
                  w_grad_clip=0,
                  print_freq=200):
-        super().__init__(logger, writer)
+        super().__init__(writer)
         self.device = device
         self.top1 = None
         self.top5 = None
@@ -70,7 +68,7 @@ class ImageClsTrainer(TrainerBase):
         if self.config['lr_scheduler']:
             self.lr_scheduler = backend.get_lr_scheduler(self.optimizer, self.config['lr_scheduler'], config)
         if self.config['data_provider']:
-            self.data_provider = backend.get_data_provider(self.config['data_provider'], logger=self.logger)
+            self.data_provider = backend.get_data_provider(self.config['data_provider'])
         if self.config['criterion']:
             self.criterion = backend.get_criterion(self.config['criterion'], getattr(model, 'device_ids', None))
         self.device = self.config.get('device', self.device)

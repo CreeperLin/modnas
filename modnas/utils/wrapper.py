@@ -11,8 +11,13 @@ from ..registry.optim import build as build_optim
 from ..registry.estim import build as build_estim
 from ..registry.trainer import build as build_trainer
 from .. import utils
+from .logging import configure_logging, get_logger
 from ..backend import use as use_backend
 from . import predefined
+
+
+logger = get_logger(__name__)
+
 
 _default_arg_specs = [
     {
@@ -176,7 +181,7 @@ def bind_trainer(estims, trners):
         estim.set_trainer(trners.get(estim.config.get('trainer', estim.name), trners.get('default')))
 
 
-def estims_routine(logger, optim, estims):
+def estims_routine(optim, estims):
     """Run a chain of estimator routines."""
     results, ret = {}, None
     for estim_name, estim in estims.items():
@@ -188,7 +193,7 @@ def estims_routine(logger, optim, estims):
     return results
 
 
-def default_constructor(model, logger=None, construct_fn=None, construct_config=None, arch_desc=None):
+def default_constructor(model, construct_fn=None, construct_config=None, arch_desc=None):
     """Apply all constructors on model."""
     construct_fn = construct_fn or {}
     if isinstance(construct_fn, list):
@@ -224,7 +229,7 @@ def init_all(config,
     # dir
     name = name or utils.get_exp_name(config)
     expman = ExpManager(name, **config.get('expman', {}))
-    logger = utils.get_logger(expman.subdir('logs'), name, **config.get('logger', {}))
+    configure_logging(config=config.get('logging', None), log_dir=expman.subdir('logs'))
     writer = utils.get_writer(expman.subdir('writer'), **config.get('writer', {}))
     logger.info('routine: {} config:\n{}'.format(routine, config))
     logger.info(utils.env_info())
@@ -255,7 +260,6 @@ def init_all(config,
         con_config['chkpt'] = get_chkpt_constructor(chkpt)
     # model
     constructor = partial(default_constructor,
-                          logger=logger,
                           construct_fn=construct_fn,
                           construct_config=con_config,
                           arch_desc=arch_desc)
@@ -265,12 +269,11 @@ def init_all(config,
     # optim
     optim = None
     if 'optim' in config:
-        optim = build_optim(config.optim, logger=logger)
+        optim = build_optim(config.optim)
     # trainer
     trner_comp = {
         'data_provider': data_provider_conf,
         'writer': writer,
-        'logger': logger,
     }
     trners = build_trainer_all(config.get('trainer', {}), trner_comp)
     # estim
@@ -280,11 +283,10 @@ def init_all(config,
         'exporter': exporter,
         'model': model,
         'writer': writer,
-        'logger': logger,
     }
     estims = build_estim_all(config.get('estimator', {}), estim_comp)
     bind_trainer(estims, trners)
-    return {'logger': logger, 'optim': optim, 'estims': estims}
+    return {'optim': optim, 'estims': estims}
 
 
 def init_all_hptune(config, *args, config_override=None, measure_fn=None, **kwargs):
