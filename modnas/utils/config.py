@@ -2,6 +2,7 @@
 # modified from https://github.com/HarryVolek/PyTorch_Speaker_Verification
 import yaml
 import copy
+from . import merge_config
 
 
 def load_config_file(filename):
@@ -68,10 +69,10 @@ class Config(dict):
     def set_value(config, key, value):
         """Set config value by path."""
         keywords = key.split('.')
-        if len(keywords) == 1:
-            config[keywords[0]] = value
-            return
         val = config.get(keywords[0], None)
+        if len(keywords) == 1:
+            config[keywords[0]] = merge_config(val, value)
+            return
         if val is None:
             val = Config()
             config[keywords[0]] = val

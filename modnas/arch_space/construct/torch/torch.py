@@ -58,7 +58,6 @@ class DefaultInitConstructor():
         """Run constructor."""
         Slot.reset()
         ParamSpace().reset()
-        EventManager().reset()
         seed = self.seed
         if seed:
             init_device(self.device, seed)

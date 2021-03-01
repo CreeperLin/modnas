@@ -15,7 +15,6 @@ class DefaultInitConstructor():
     def __call__(self, model):
         """Run constructor."""
         ParamSpace().reset()
-        EventManager().reset()
         seed = self.seed
         if seed:
             np.random.seed(seed)

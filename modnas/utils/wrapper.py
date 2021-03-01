@@ -5,6 +5,8 @@ from functools import partial
 from ..registry.runner import build, register_as
 from .exp_manager import ExpManager
 from .config import Config
+from ..core.event import EventManager
+from ..core.param_space import ParamSpace
 from ..registry.construct import build as build_con
 from ..registry.export import build as build_exp
 from ..registry.optim import build as build_optim
@@ -181,6 +183,11 @@ def bind_trainer(estims, trners):
         estim.set_trainer(trners.get(estim.config.get('trainer', estim.name), trners.get('default')))
 
 
+def reset_all():
+    ParamSpace().reset()
+    EventManager().reset()
+
+
 def estims_routine(optim, estims):
     """Run a chain of estimator routines."""
     results, ret = {}, None
@@ -190,6 +197,7 @@ def estims_routine(optim, estims):
         results[estim_name] = ret
     logger.info('All results: {{\n{}\n}}'.format('\n'.join(['{}: {}'.format(k, v) for k, v in results.items()])))
     results['final'] = ret
+    reset_all()
     return results
 
 

@@ -16,11 +16,13 @@ except ImportError:
 logger = get_logger('utils')
 
 
-def import_file(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
+def import_file(path, name=None):
+    spec = importlib.util.spec_from_file_location(name or '', path)
     module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
+    if name:
+        sys.modules[name] = module
     spec.loader.exec_module(module)
+    return module
 
 
 def import_modules(modules):
@@ -30,19 +32,25 @@ def import_modules(modules):
     if isinstance(modules, str):
         modules = [modules]
     for m in modules:
+        name = None
         if isinstance(m, str):
-            importlib.import_module(m)
+            path = m
         elif isinstance(m, (list, tuple)):
-            n, p = m
-            import_file(n, p)
+            name, path = m
         else:
             raise ValueError('Invalid import spec')
+        if path.endswith('.py'):
+            mod = import_file(path)
+        else:
+            mod = importlib.import_module(path)
+        if name:
+            sys.modules[name] = mod
 
 
 def get_exp_name(config):
     if 'name' in config:
         return config['name']
-    return '{}.{}'.format(hashlib.sha1(str(config).encode()).hexdigest()[:4], time.strftime('%Y%m%d%H%M', time.localtime()))
+    return '{}.{}'.format(time.strftime('%Y%m%d%H%M', time.localtime()), hashlib.sha1(str(config).encode()).hexdigest()[:4])
 
 
 def merge_config(src, dest, overwrite=True):
