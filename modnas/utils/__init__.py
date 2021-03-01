@@ -218,27 +218,28 @@ def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
 class ETAMeter():
     """ETA Meter."""
 
-    def __init__(self, total_steps, cur_steps=-1):
+    def __init__(self, total_steps, cur_steps=-1, time_fn=None):
+        self.time_fn = time_fn or time.perf_counter
         self.total_steps = total_steps
         self.last_step = cur_steps
-        self.last_time = time.time()
+        self.last_time = self.time_fn()
         self.speed = None
 
     def start(self):
         """Start timing."""
-        self.last_time = time.time()
+        self.last_time = self.time_fn()
 
     def set_step(self, step):
         """Set current step."""
-        self.speed = (step - self.last_step) / (time.time() - self.last_time + 1e-7)
+        self.speed = (step - self.last_step) / (self.time_fn() - self.last_time + 1e-7)
         self.last_step = step
-        self.last_time = time.time()
+        self.last_time = self.time_fn()
 
     def step(self, n=1):
         """Increment current step."""
-        self.speed = n / (time.time() - self.last_time + 1e-7)
+        self.speed = n / (self.time_fn() - self.last_time + 1e-7)
         self.last_step += n
-        self.last_time = time.time()
+        self.last_time = self.time_fn()
 
     def eta(self):
         """Return ETA in seconds."""

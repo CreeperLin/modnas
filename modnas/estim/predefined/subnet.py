@@ -51,49 +51,54 @@ class SubNetEstim(EstimBase):
         else:
             backend.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
-    def run(self, optim):
-        """Run Estimator routine."""
-        self.reset_trainer()
-        logger = self.logger
+    def run_epoch(self, optim, epoch, tot_epochs):
         config = self.config
-        tot_epochs = config.epochs
+        logger = self.logger
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
         arch_batch_size = config.arch_update_batch
-        eta_m = ETAMeter(tot_epochs, self.cur_epoch)
-        eta_m.start()
+        # arch step
+        if epoch >= tot_epochs:
+            return 1
+        if not optim.has_next():
+            logger.info('Search: finished')
+            return 1
+        if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
+            optim.step(self)
+        inputs = optim.next(batch_size=arch_batch_size)
+        self.clear_buffer()
+        self.batch_best = None
+        for params in inputs:
+            # estim step
+            self.stepped(params)
+        self.wait_done()
+        for _, res, arch_desc in self.buffer():
+            score = self.get_score(res)
+            if self.best_score is None or (score is not None and score > self.best_score):
+                self.best_score = score
+                self.best_arch_desc = arch_desc
+            if self.batch_best is None or (score is not None and score > self.batch_best):
+                self.batch_best = score
+        # save
+        if config.save_arch_desc:
+            self.save_arch_desc(epoch)
+        if config.save_freq != 0 and epoch % config.save_freq == 0:
+            self.save_checkpoint(epoch)
+        self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
+        self.eta_m.step()
+        logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+            epoch + 1, tot_epochs, self.batch_best or 0, self.best_score or 0, self.eta_m.eta_fmt()))
+
+    def run(self, optim):
+        """Run Estimator routine."""
+        self.reset_trainer()
+        config = self.config
+        tot_epochs = config.epochs
+        self.eta_m = ETAMeter(tot_epochs, self.cur_epoch)
+        self.eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
-            if epoch >= tot_epochs:
+            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs):
                 break
-            # arch step
-            if not optim.has_next():
-                logger.info('Search: finished')
-                break
-            if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
-                optim.step(self)
-            inputs = optim.next(batch_size=arch_batch_size)
-            self.clear_buffer()
-            self.batch_best = None
-            for params in inputs:
-                # estim step
-                self.stepped(params)
-            self.wait_done()
-            for _, res, arch_desc in self.buffer():
-                score = self.get_score(res)
-                if self.best_score is None or (score is not None and score > self.best_score):
-                    self.best_score = score
-                    self.best_arch_desc = arch_desc
-                if self.batch_best is None or (score is not None and score > self.batch_best):
-                    self.batch_best = score
-            # save
-            if config.save_arch_desc:
-                self.save_arch_desc(epoch)
-            if config.save_freq != 0 and epoch % config.save_freq == 0:
-                self.save_checkpoint(epoch)
-            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-            eta_m.step()
-            logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-                epoch + 1, tot_epochs, self.batch_best or 0, self.best_score or 0, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
             'best_arch': self.best_arch_desc,

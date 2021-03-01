@@ -43,7 +43,7 @@ def configure_logging(config=None, log_dir=None):
     from . import merge_config
     config_fn = logging.config.dictConfig
     conf = copy.deepcopy(DEFAULT_LOGGING_CONF)
-    conf['handlers']['file']['filename'] = os.path.join(log_dir, '%d.log' % (time.time()))
+    conf['handlers']['file']['filename'] = os.path.join(log_dir, '%d.log' % (int(time.time())))
     merge_config(conf, config or {})
     config_fn(conf)
 

@@ -169,6 +169,10 @@ class EstimBase():
             merge_results(ret, mt_name, flatten_dict(mt_name, res))
         return ret
 
+    def run_epoch(self, optim, epoch, tot_epochs):
+        """Run Estimator routine for one epoch."""
+        raise NotImplementedError
+
     def run(self, optim):
         """Run Estimator routine."""
         raise NotImplementedError

@@ -28,42 +28,25 @@ class SuperNetEstim(EstimBase):
         self.reset_trainer()
         config = self.config
         tot_epochs = config.epochs
-        eta_m = ETAMeter(tot_epochs, self.cur_epoch)
-        eta_m.start()
+        self.eta_m = ETAMeter(tot_epochs, self.cur_epoch)
+        self.eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
-            if epoch == tot_epochs:
+            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs):
                 break
-            # train
-            self.print_tensor_params()
-            self.run_epoch(epoch, optim)
-            # eval
-            arch_desc = self.get_arch_desc()
-            mt_ret = self.compute_metrics()
-            self.logger.info('Evaluate: {} -> {}'.format(arch_desc, mt_ret))
-            score = self.get_score(mt_ret)
-            if self.best_score is None or score > self.best_score:
-                self.best_score = score
-                self.best_arch_desc = arch_desc
-            # save
-            if config.save_arch_desc:
-                self.save_arch_desc(epoch, arch_desc=arch_desc)
-            if config.save_freq != 0 and epoch % config.save_freq == 0:
-                self.save_checkpoint(epoch)
-            self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-            eta_m.step()
-            self.logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-                epoch + 1, tot_epochs, score or 0, self.best_score or 0, eta_m.eta_fmt()))
         return {
             'best_score': self.best_score,
             'best_arch': self.best_arch_desc,
         }
 
-    def run_epoch(self, epoch, optim):
+    def run_epoch(self, optim, epoch, tot_epochs):
         """Run search for one epoch."""
+        if epoch == tot_epochs:
+            return 1
         config = self.config
+        # train
+        self.print_tensor_params()
         n_trn_batch = self.get_num_train_batch(epoch)
         n_val_batch = self.get_num_valid_batch(epoch)
-        tot_epochs = config.epochs
         update_arch = False
         arch_epoch_start = config.arch_update_epoch_start
         arch_epoch_intv = config.arch_update_epoch_intv
@@ -90,3 +73,20 @@ class SuperNetEstim(EstimBase):
                                     tot_epochs=tot_epochs,
                                     step=step,
                                     tot_steps=n_trn_batch)
+        # eval
+        arch_desc = self.get_arch_desc()
+        mt_ret = self.compute_metrics()
+        self.logger.info('Evaluate: {} -> {}'.format(arch_desc, mt_ret))
+        score = self.get_score(mt_ret)
+        if self.best_score is None or score > self.best_score:
+            self.best_score = score
+            self.best_arch_desc = arch_desc
+        # save
+        if config.save_arch_desc:
+            self.save_arch_desc(epoch, arch_desc=arch_desc)
+        if config.save_freq != 0 and epoch % config.save_freq == 0:
+            self.save_checkpoint(epoch)
+        self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
+        self.eta_m.step()
+        self.logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
+            epoch + 1, tot_epochs, score or 0, self.best_score or 0, self.eta_m.eta_fmt()))

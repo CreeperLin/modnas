@@ -162,12 +162,23 @@ def event_hooked_class(cls, *args, **kwargs):
 
 @make_decorator
 def event_hooked_subclass(cls, *args, **kwargs):
+    ori_new = cls.__new__
+
+    def mod_new(cls, *fn_args, **fn_kwargs):
+        event_hooked_class(cls, *args, **kwargs)
+        return ori_new(cls) if ori_new == object.__new__ else ori_new(cls, *fn_args, **fn_kwargs)
+    setattr(cls, '__new__', mod_new)
+    return cls
+
+
+@make_decorator
+def event_hooked_subclass_inst(cls, *args, **kwargs):
     ori_init = cls.__init__
 
-    def new_init(self, *fn_args, **fn_kwargs):
+    def mod_init(self, *fn_args, **fn_kwargs):
         ori_init(self, *fn_args, **fn_kwargs)
         event_hooked_members(self, *args, is_method=True, **kwargs)
-    setattr(cls, '__init__', new_init)
+    setattr(cls, '__init__', mod_init)
     return cls
 
 
