@@ -212,7 +212,7 @@ def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
     else:
         tot_div = div ** factor
     value = round(value / tot_div, prec)
-    return '{} {}'.format(value, units[factor]) if unit else value
+    return '{{:.{}f}}'.format(prec).format(value) + (units[factor] if unit else '')
 
 
 class ETAMeter():

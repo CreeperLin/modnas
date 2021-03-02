@@ -65,6 +65,7 @@ class EstimBase():
         self.results = []
         self.inputs = []
         self.arch_descs = []
+        self.stats = {}
         self.step_cond = threading.Lock()
         self.cur_trn_batch = None
         self.cur_val_batch = None

@@ -56,7 +56,8 @@ class EventManager():
 
     def dispatch_all(self):
         rets = {}
-        for ev_spec in self.event_queue:
+        self.event_queue, ev_queue = [], self.event_queue
+        for ev_spec in ev_queue:
             ev, args, kwargs, callback = ev_spec
             ret = None
             for handler in self.get_handlers(ev):
@@ -64,7 +65,6 @@ class EventManager():
             if callback is not None:
                 callback(ret)
             rets[ev] = ret
-        self.event_queue.clear()
         return rets
 
 
@@ -165,8 +165,11 @@ def event_hooked_subclass(cls, *args, **kwargs):
     ori_new = cls.__new__
 
     def mod_new(cls, *fn_args, **fn_kwargs):
-        event_hooked_class(cls, *args, **kwargs)
+        if not mod_new.hooked.get(cls, False):
+            event_hooked_class(cls, *args, **kwargs)
+            mod_new.hooked[cls] = True
         return ori_new(cls) if ori_new == object.__new__ else ori_new(cls, *fn_args, **fn_kwargs)
+    mod_new.hooked = {}
     setattr(cls, '__new__', mod_new)
     return cls
 

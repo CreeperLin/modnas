@@ -54,15 +54,15 @@ class RegressionEstim(EstimBase):
         if config.save_arch_desc:
             self.save_arch_desc(epoch, arch_desc=self.best_desc_batch)
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-        logger.info('Search: [{:3d}/{}] Prec@1: {:.4f} Best: {:.4f}'.format(epoch + 1, tot_epochs,
-                                                                            self.best_score_batch or 0,
-                                                                            self.best_score or 0))
+        return {
+            'epoch_best': self.best_score_batch,
+        }
 
     def run(self, optim):
         config = self.config
         tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):
-            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs):
+            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) == 1:
                 break
         return {
             'best_score': self.best_score,

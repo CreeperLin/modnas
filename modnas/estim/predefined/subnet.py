@@ -85,19 +85,17 @@ class SubNetEstim(EstimBase):
         if config.save_freq != 0 and epoch % config.save_freq == 0:
             self.save_checkpoint(epoch)
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-        self.eta_m.step()
-        logger.info('Search: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-            epoch + 1, tot_epochs, self.batch_best or 0, self.best_score or 0, self.eta_m.eta_fmt()))
+        return {
+            'epoch_best': self.batch_best,
+        }
 
     def run(self, optim):
         """Run Estimator routine."""
         self.reset_trainer()
         config = self.config
         tot_epochs = config.epochs
-        self.eta_m = ETAMeter(tot_epochs, self.cur_epoch)
-        self.eta_m.start()
         for epoch in itertools.count(self.cur_epoch + 1):
-            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs):
+            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) == 1:
                 break
         return {
             'best_score': self.best_score,

@@ -75,44 +75,35 @@ class HPTuneEstim(EstimBase):
         }
         return result
 
-    def run(self, optim):
-        logger = self.logger
-        config = self.config
-        tot_epochs = config.epochs
+    def run_epoch(self, optim, epoch, tot_epochs):
         batch_size = self.batch_size
         early_stopping = self.early_stopping
-        if tot_epochs > 0:
-            eta_m = utils.ETAMeter(tot_epochs, self.cur_epoch)
-            eta_m.start()
-        else:
-            eta_m = None
+        if epoch >= tot_epochs:
+            return 1
+        if not optim.has_next():
+            self.logger.info('HPTune: all finished')
+            return 1
+        self.inputs = optim.next(batch_size)
+        self.results = []
+        for hp in self.inputs:
+            res = self.step(hp)
+            score = 0 if res['error_no'] else res['score']
+            if self.best_score is None or score > self.best_score:
+                self.best_score = score
+                self.best_hparams = hp
+                self.best_iter = epoch
+            self.results.append(score)
+            self.results_all.append((hp, score))
+        optim.step(self)
+        if early_stopping is not None and epoch >= self.best_iter + early_stopping:
+            self.logger.info('HPTune: early stopped: {}'.format(epoch))
+            return 1
+
+    def run(self, optim):
+        config = self.config
+        tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):
-            if epoch == tot_epochs:
-                break
-            if not optim.has_next():
-                logger.info('HPTune: all finished')
-                break
-            self.inputs = optim.next(batch_size)
-            self.results = []
-            for hp in self.inputs:
-                res = self.step(hp)
-                score = 0 if res['error_no'] else res['score']
-                if self.best_score is None or score > self.best_score:
-                    self.best_score = score
-                    self.best_hparams = hp
-                    self.best_iter = epoch
-                self.results.append(score)
-                self.results_all.append((hp, score))
-            if eta_m is not None:
-                eta_m.step()
-                eta = eta_m.eta_fmt()
-            else:
-                eta = 'N/A'
-            logger.info('HPTune: [{:3d}/{}] Current: {:.4f} Best: {:.4f} | ETA: {}'.format(
-                epoch + 1, tot_epochs, score, self.best_score or 0, eta))
-            optim.step(self)
-            if early_stopping is not None and epoch >= self.best_iter + early_stopping:
-                logger.info('HPTune: early stopped: {}'.format(epoch))
+            if self.run_epoch(optim, epoch, tot_epochs) == 1:
                 break
         return {
             'best_iter': self.best_iter,

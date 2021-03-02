@@ -8,7 +8,7 @@ from ..core.event import event_hooked_subclass
 class TrainerBase():
     """Base Trainer class."""
 
-    logger = get_logger(__module__)
+    logger = get_logger('trainer')
 
     def __init__(self, writer=None):
         if writer is None:

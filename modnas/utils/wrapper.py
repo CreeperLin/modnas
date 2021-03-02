@@ -8,6 +8,7 @@ from .config import Config
 from ..core.event import EventManager
 from ..core.param_space import ParamSpace
 from ..registry.construct import build as build_con
+from ..registry.callback import build as build_callback
 from ..registry.export import build as build_exp
 from ..registry.optim import build as build_optim
 from ..registry.estim import build as build_estim
@@ -18,7 +19,7 @@ from ..backend import use as use_backend
 from . import predefined
 
 
-logger = get_logger(__name__)
+logger = get_logger()
 
 
 _default_arg_specs = [
@@ -73,6 +74,9 @@ _default_arg_specs = [
         'action': 'append'
     },
 ]
+
+
+DEFAULT_CALLBACK_CONF = ['ETAReporter', 'EstimReporter']
 
 
 def parse_routine_args(name='default', arg_specs=None):
@@ -239,7 +243,7 @@ def init_all(config,
     expman = ExpManager(name, **config.get('expman', {}))
     configure_logging(config=config.get('logging', None), log_dir=expman.subdir('logs'))
     writer = utils.get_writer(expman.subdir('writer'), **config.get('writer', {}))
-    logger.info('routine: {} config:\n{}'.format(routine, config))
+    logger.info('Name: {} Routine: {} Config:\n{}'.format(name, routine, config))
     logger.info(utils.env_info())
     # imports
     utils.import_modules(config.get('imports', None))
@@ -274,6 +278,11 @@ def init_all(config,
     model = constructor(model)
     # export
     exporter = build_exporter_all(config.get('export', {}))
+    # callback
+    cb_config = config.get('callback', DEFAULT_CALLBACK_CONF)
+    if cb_config:
+        for cb in cb_config:
+            build_callback(cb)
     # optim
     optim = None
     if 'optim' in config:
