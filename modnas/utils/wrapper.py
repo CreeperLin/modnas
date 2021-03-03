@@ -76,7 +76,7 @@ _default_arg_specs = [
 ]
 
 
-DEFAULT_CALLBACK_CONF = ['ETAReporter', 'EstimReporter']
+DEFAULT_CALLBACK_CONF = ['ETAReporter', 'EstimReporter', 'TrainerReporter']
 
 
 def parse_routine_args(name='default', arg_specs=None):
@@ -279,10 +279,13 @@ def init_all(config,
     # export
     exporter = build_exporter_all(config.get('export', {}))
     # callback
-    cb_config = config.get('callback', DEFAULT_CALLBACK_CONF)
-    if cb_config:
-        for cb in cb_config:
-            build_callback(cb)
+    cb_config = config.get('callback', [])
+    if isinstance(cb_config, dict):
+        cb_config = [v for v in cb_config.values()]
+    if 'NO_DEFAULT' not in cb_config:
+        cb_config = DEFAULT_CALLBACK_CONF + cb_config
+    for cb in cb_config:
+        build_callback(cb)
     # optim
     optim = None
     if 'optim' in config:
@@ -301,7 +304,7 @@ def init_all(config,
         'model': model,
         'writer': writer,
     }
-    estims = build_estim_all(config.get('estimator', {}), estim_comp)
+    estims = build_estim_all(config.get('estim', {}), estim_comp)
     bind_trainer(estims, trners)
     return {'optim': optim, 'estims': estims}
 
@@ -321,7 +324,7 @@ def init_all_hptune(config, *args, config_override=None, measure_fn=None, **kwar
                 }
             }
         }
-    hptune_config = list(config.estimator.values())[0]
+    hptune_config = list(config.estim.values())[0]
     hptune_args = hptune_config.get('args', {})
     hptune_args['measure_fn'] = measure_fn
     hptune_config['args'] = hptune_args
@@ -332,7 +335,7 @@ def init_all_pipeline(config, *args, config_override=None, **kwargs):
     """Initialize all components from pipeline config."""
     config = load_config(config)
     Config.apply(config, config_override or {})
-    config_override = {'estimator': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.get('pipeline', {})}}}
+    config_override = {'estim': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.get('pipeline', {})}}}
     return init_all(config, *args, config_override=config_override, **kwargs)
 
 

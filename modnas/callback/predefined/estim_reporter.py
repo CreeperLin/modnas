@@ -1,19 +1,7 @@
+from functools import partial
 from modnas.registry.callback import register
-from modnas.utils import format_value
+from modnas.utils import format_value, format_dict
 from ..base import CallbackBase
-
-
-def format_key(key):
-    key = ' '.join(key.split('_'))
-    return key.title() if key.islower() else key
-
-
-def format_val(val):
-    if val is None:
-        return None
-    if isinstance(val, str):
-        return val
-    return format_value(val, unit=False, factor=0, prec=4)
 
 
 @register
@@ -21,11 +9,13 @@ class EstimReporter(CallbackBase):
 
     priority = -1
 
-    def __init__(self, interval=None):
+    def __init__(self, interval=None, format_fn=None):
         super().__init__({
             'after:EstimBase.run_epoch': self.report_epoch,
         })
         self.interval = interval
+        self.fmt_fn = format_fn or {}
+        self.default_fmt_fn = partial(format_value, unit=False, factor=0, prec=4)
 
     def report_epoch(self, ret, estim, optim, epoch, tot_epochs):
         if epoch >= tot_epochs:
@@ -36,8 +26,7 @@ class EstimReporter(CallbackBase):
         stats = ret.copy() if isinstance(ret, dict) else {}
         stats['best'] = estim.best_score
         stats.update(estim.stats)
-        if interval is None or (interval != 0 and epoch % interval == 0):
-            fmt_info = ' | '.join(['{}: {{{}}}'.format(format_key(k), k) for k in stats])
-            fmt_info = fmt_info.format(**{k: format_val(v) for k, v in stats.items()})
+        if interval is None or (interval != 0 and (epoch + 1) % interval == 0) or epoch + 1 == tot_epochs:
+            fmt_info = format_dict({k: self.fmt_fn.get(k, self.default_fmt_fn)(v) for k, v in stats.items()})
             estim.logger.info('[{:3d}/{}] {}'.format(epoch + 1, tot_epochs, fmt_info))
         estim.stats = {}

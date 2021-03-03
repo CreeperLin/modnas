@@ -1,0 +1,45 @@
+import pickle
+import itertools
+import matplotlib
+from modnas.registry.callback import register
+from modnas.callback.base import CallbackBase
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
+
+@register
+class MetricsStatsReporter(CallbackBase):
+    def __init__(self, axis_list=None):
+        super().__init__({
+            'after:EstimBase.step': self.on_step,
+            'after:EstimBase.run': self.save_stats,
+        })
+        self.results = []
+        self.axis_list = axis_list
+
+    def on_step(self, ret, estim, params):
+        self.results.append((params, ret))
+
+    def save_stats(self, ret, estim, optim):
+        results = self.results
+        if not results:
+            return
+        axis_list = self.axis_list
+        if axis_list is None:
+            metrics = list(results[0][1].keys())
+            axis_list = list(itertools.combinations(metrics, r=2))
+        self.logger.info('metrics stats: {} axis: {}'.format(len(results), axis_list))
+        for i, axis in enumerate(axis_list):
+            plt.figure(i)
+            axis_str = '-'.join(axis)
+            plt.title('metrics: {}'.format(axis_str))
+            values = [[res[1][ax] for res in results] for ax in axis]
+            plt.scatter(values[0], values[1])
+            plt.xlabel(axis[0])
+            plt.ylabel(axis[1])
+            plt.savefig(estim.expman.join('plot', 'metrics_{}.png'.format(axis_str)))
+        result_path = estim.expman.join('output', 'metrics_results.pkl')
+        with open(result_path, 'wb') as f:
+            pickle.dump(results, f)
+            self.logger.info('metrics results saved to {}'.format(result_path))
+        self.results = []

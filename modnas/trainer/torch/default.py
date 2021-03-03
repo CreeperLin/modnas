@@ -19,15 +19,12 @@ class DefaultTrainer(TrainerBase):
                  optimizer=None,
                  lr_scheduler=None,
                  criterion=None,
-                 w_grad_clip=0,
-                 print_freq=200):
+                 w_grad_clip=0):
         super().__init__(writer)
         self.config = None
-        self.print_freq = print_freq
         self.w_grad_clip = w_grad_clip
         self.expman = expman
         self.device = device
-        self.losses = None
         self.optimizer = None
         self.lr_scheduler = None
         self.data_provider = None
@@ -39,7 +36,6 @@ class DefaultTrainer(TrainerBase):
             'criterion': criterion,
         }
         self.config = config
-        self.reset_stats()
 
     def init(self, model, config=None):
         self.config.update(config or {})
@@ -72,10 +68,6 @@ class DefaultTrainer(TrainerBase):
     def proc_batch(self, batch):
         """Process batch."""
         return tuple(v.to(device=self.device, non_blocking=True) for v in batch)
-
-    def reset_stats(self):
-        """Reset stats."""
-        self.losses = AverageMeter()
 
     def state_dict(self):
         """Return current states."""
@@ -111,42 +103,27 @@ class DefaultTrainer(TrainerBase):
         self.data_provider.reset_train_iter()
         for step in range(tot_steps):
             self.train_step(estim, model, epoch, tot_epochs, step, tot_steps)
-        return {
-            'loss': self.losses.avg,
-        }
 
     def train_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
         """Train for one step."""
-        cur_step = epoch * tot_steps + step
-        writer = self.writer
-        logger = self.logger
         optimizer = self.optimizer
         lr_scheduler = self.lr_scheduler
         lr = self.get_lr()
-        if step == 0:
-            self.reset_stats()
-            writer.add_scalar('train/lr', lr, cur_step)
-        losses = self.losses
-        print_freq = self.print_freq
         model.train()
         batch = self.get_next_train_batch()
-        N = batch[-1].size(0)
         optimizer.zero_grad()
         loss = estim.loss(batch, model=model, mode='train')
         loss.backward()
         # gradient clipping
         if self.w_grad_clip > 0:
-            nn.utils.clip_grad_norm_(model.weights(), self.w_grad_clip)
+            nn.utils.clip_grad_norm_(model.parameters(), self.w_grad_clip)
         optimizer.step()
-        losses.update(loss.item(), N)
-        if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
-            logger.info("Train: [{:3d}/{}] Step {:03d}/{:03d} LR {:.3f} Loss {:.3f}".format(
-                epoch + 1, tot_epochs, step + 1, tot_steps, lr, losses.avg))
-        writer.add_scalar('train/loss', loss.item(), cur_step)
         if step == tot_steps - 1:
             lr_scheduler.step()
-            logger.info("Train: [{:3d}/{}] Loss {:.3f}".format(epoch + 1, tot_epochs, losses.avg))
-        return loss
+        return {
+            'LR': lr,
+            'loss': loss.item(),
+        }
 
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
         """Validate for one epoch."""
@@ -155,29 +132,13 @@ class DefaultTrainer(TrainerBase):
             return None
         for step in range(tot_steps):
             self.valid_step(estim, model, epoch, tot_epochs, step, tot_steps)
-        return {
-            'loss': self.losses.avg,
-        }
 
     def valid_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
         """Validate for one step."""
-        if step == 0:
-            self.reset_stats()
-        cur_step = epoch * tot_steps + step
-        writer = self.writer
-        logger = self.logger
-        losses = self.losses
-        print_freq = self.print_freq
         model.eval()
         with torch.no_grad():
             batch = self.get_next_valid_batch()
             loss = estim.loss(batch, model=model, mode='eval')
-        N = batch[-1].size(0)
-        losses.update(loss.item(), N)
-        if print_freq != 0 and ((step + 1) % print_freq == 0 or step + 1 == tot_steps):
-            logger.info("Valid: [{:3d}/{}] Step {:03d}/{:03d} Loss {:.3f}".format(epoch + 1, tot_epochs, step + 1,
-                                                                                  tot_steps, losses.avg))
-        if step + 1 == tot_steps:
-            writer.add_scalar('val/loss', losses.avg, cur_step)
-            logger.info("Valid: [{:3d}/{}] Loss {:.3f}".format(epoch + 1, tot_epochs, losses.avg))
-        return loss
+        return {
+            'loss': loss.item(),
+        }

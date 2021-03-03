@@ -63,7 +63,7 @@ def get_builder(_reg_path, _reg_id):
 
 def parse_spec(spec):
     if isinstance(spec, dict):
-        return spec.get('type'), spec.get('args', {})
+        return spec['type'], spec.get('args', {})
     if isinstance(spec, (tuple, list)) and isinstance(spec[0], str):
         return spec[0], {} if len(spec) < 2 else spec[1]
     if isinstance(spec, str):

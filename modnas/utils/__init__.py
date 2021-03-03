@@ -114,13 +114,13 @@ def check_config(config):
         return False
 
     defaults = {
-        'estimator.*.save_arch_desc': True,
-        'estimator.*.save_freq': 0,
-        'estimator.*.arch_update_epoch_start': 0,
-        'estimator.*.arch_update_epoch_intv': 1,
-        'estimator.*.arch_update_intv': -1,
-        'estimator.*.arch_update_batch': 1,
-        'estimator.*.metrics': 'ValidateMetrics',
+        'estim.*.save_arch_desc': True,
+        'estim.*.save_freq': 0,
+        'estim.*.arch_update_epoch_start': 0,
+        'estim.*.arch_update_epoch_intv': 1,
+        'estim.*.arch_update_intv': -1,
+        'estim.*.arch_update_batch': 1,
+        'estim.*.metrics': 'ValidateMetrics',
     }
 
     for key, val in defaults.items():
@@ -200,7 +200,16 @@ def format_time(sec):
     return "%d h %d m %d s" % (h, m, s)
 
 
+def format_key(key, title=True):
+    key = ' '.join(key.split('_'))
+    return key.title() if title and key.islower() else key
+
+
 def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
     units = [None, 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
     div = (1024. if binary else 1000.) if div is None else div
     if factor is None:
@@ -213,6 +222,12 @@ def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
         tot_div = div ** factor
     value = round(value / tot_div, prec)
     return '{{:.{}f}}'.format(prec).format(value) + (units[factor] if unit else '')
+
+
+def format_dict(dct, sep=None, kv_sep=None, fmt_key=True):
+    sep = sep or ' | '
+    kv_sep = kv_sep or ':'
+    return sep.join(['{}{} {{{}}}'.format(format_key(k) if fmt_key else k, kv_sep, k) for k in dct]).format(**dct)
 
 
 class ETAMeter():
