@@ -18,6 +18,15 @@ def get_optimizer(params, config, trainer_config=None):
     return optimizer
 
 
-register(torch.optim.Adam)
-register(torch.optim.SGD)
-register(torch.optim.RMSprop)
+module = torch.optim
+
+for name, attr in module.__dict__.items():
+    if name.startswith('__'):
+        continue
+    if not callable(attr):
+        continue
+    if name.islower():
+        continue
+    if name == 'Optimizer':
+        continue
+    register(attr)

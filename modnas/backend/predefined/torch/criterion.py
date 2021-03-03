@@ -215,5 +215,15 @@ class MultLogMetricsLoss(AggMetricsLoss):
         return self.alpha * loss * (torch.log(mt.to(device=loss.device)) / math.log(self.target_val))**self.beta
 
 
-register(torch_criterion_wrapper(nn.CrossEntropyLoss))
 register(torch_criterion_wrapper(CrossEntropyLabelSmoothingLoss))
+
+module = torch.nn
+
+for name, attr in module.__dict__.items():
+    if name.startswith('__'):
+        continue
+    if not callable(attr):
+        continue
+    if 'Loss' not in name:
+        continue
+    register(torch_criterion_wrapper(attr))

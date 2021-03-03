@@ -131,10 +131,10 @@ class ImageClsTrainer(TrainerBase):
         if step == tot_steps - 1:
             lr_scheduler.step()
         return {
-            'LR': lr,
-            'loss': loss.item(),
             'acc_top1': prec1.item(),
             'acc_top5': prec5.item(),
+            'loss': loss.item(),
+            'LR': lr,
         }
 
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
@@ -153,7 +153,7 @@ class ImageClsTrainer(TrainerBase):
             loss, logits = estim.loss_output(batch, model=model, mode='eval')
         prec1, prec5 = accuracy(logits, val_y, topk=(1, 5))
         return {
-            'loss': loss.item(),
             'acc_top1': prec1.item(),
             'acc_top5': prec5.item(),
+            'loss': loss.item(),
         }

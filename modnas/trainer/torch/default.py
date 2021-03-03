@@ -121,8 +121,8 @@ class DefaultTrainer(TrainerBase):
         if step == tot_steps - 1:
             lr_scheduler.step()
         return {
-            'LR': lr,
             'loss': loss.item(),
+            'LR': lr,
         }
 
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):

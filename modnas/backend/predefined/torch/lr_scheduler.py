@@ -14,7 +14,15 @@ def get_lr_scheduler(optimizer, config, trainer_config=None):
     return build(lr_type, optimizer, **lr_args)
 
 
-register(torch.optim.lr_scheduler.CosineAnnealingLR)
-register(torch.optim.lr_scheduler.StepLR)
-register(torch.optim.lr_scheduler.MultiStepLR)
-register(torch.optim.lr_scheduler.ExponentialLR)
+module = torch.optim.lr_scheduler
+
+for name, attr in module.__dict__.items():
+    if name.startswith('__'):
+        continue
+    if not callable(attr):
+        continue
+    if name.islower():
+        continue
+    if name == 'Optimizer':
+        continue
+    register(attr)
