@@ -1,7 +1,6 @@
 """Unified Estimator."""
 import itertools
 from ..base import EstimBase
-from ...utils import ETAMeter
 from ...core.param_space import ParamSpace
 from modnas.registry.estim import register
 
@@ -21,7 +20,6 @@ class UnifiedEstim(EstimBase):
         self.cur_step = -1
         self.best_score = None
         self.best_arch_desc = None
-        self.batch_best = None
 
     def step(self, params):
         """Return evaluation results of a parameter set."""
@@ -84,18 +82,13 @@ class UnifiedEstim(EstimBase):
             if self.best_score is None or (score is not None and score > self.best_score):
                 self.best_score = score
                 self.best_arch_desc = arch_desc
-            if self.batch_best is None or (score is not None and score > self.batch_best):
-                self.batch_best = score
         # save
         if config.save_arch_desc:
-            self.save_arch_desc()
+            self.save_arch_desc(epoch)
         if config.save_freq != 0 and self.cur_epoch % config.save_freq == 0:
             self.save_checkpoint()
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
         self.cur_epoch += 1
-        return {
-            'epoch_best': self.batch_best,
-        }
 
     def run(self, optim):
         """Run Estimator routine."""

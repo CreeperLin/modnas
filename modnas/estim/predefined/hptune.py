@@ -3,7 +3,6 @@ import itertools
 import traceback
 from multiprocessing import Process, Pipe
 from ..base import EstimBase
-from ... import utils
 from ...utils.config import Config
 from ...utils.wrapper import build as build_runner
 from modnas.registry.estim import register
@@ -34,7 +33,6 @@ class HPTuneEstim(EstimBase):
         self.trial_proc = trial_proc
         self.trial_config = trial_config
         self.trial_args = trial_args
-        self.results_all = list()
         self.best_hparams = None
         self.best_score = None
         self.best_iter = 0
@@ -45,7 +43,6 @@ class HPTuneEstim(EstimBase):
         Config.apply(trial_config, hp)
         trial_args = dict(copy.deepcopy(self.trial_args))
         trial_args['name'] = '{}_{}'.format(trial_args.get('name', 'trial'), self.trial_index)
-        trial_args['exp'] = self.expman.subdir(trial_args.get('exp', ''))
         trial_args['config'] = trial_config.to_dict()
         p_con, c_con = Pipe()
         proc = Process(target=default_trial_runner, args=(c_con, self.trial_proc, trial_args))
@@ -67,7 +64,7 @@ class HPTuneEstim(EstimBase):
             error_no = 0
         except RuntimeError:
             score = 0
-            error_no = 1
+            error_no = -1
             logger.info('trial {} failed with error: {}'.format(self.trial_index, traceback.format_exc()))
         result = {
             'score': score or 0,
@@ -83,17 +80,17 @@ class HPTuneEstim(EstimBase):
         if not optim.has_next():
             self.logger.info('HPTune: all finished')
             return 1
-        self.inputs = optim.next(batch_size)
-        self.results = []
-        for hp in self.inputs:
-            res = self.step(hp)
+        inputs = optim.next(batch_size)
+        self.clear_buffer()
+        for hp in inputs:
+            res = self.stepped(hp)
+        self.wait_done()
+        for hp, res, _ in self.buffer():
             score = 0 if res['error_no'] else res['score']
             if self.best_score is None or score > self.best_score:
                 self.best_score = score
                 self.best_hparams = hp
                 self.best_iter = epoch
-            self.results.append(score)
-            self.results_all.append((hp, score))
         optim.step(self)
         if early_stopping is not None and epoch >= self.best_iter + early_stopping:
             self.logger.info('HPTune: early stopped: {}'.format(epoch))
@@ -109,5 +106,4 @@ class HPTuneEstim(EstimBase):
             'best_iter': self.best_iter,
             'best_score': self.best_score,
             'best_hparams': self.best_hparams,
-            'results_all': self.results_all,
         }

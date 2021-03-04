@@ -1,7 +1,6 @@
 """Estimator with default training & evaluating methods."""
 import itertools
 from ..base import EstimBase
-from ...utils import ETAMeter
 from modnas.registry.estim import register
 
 

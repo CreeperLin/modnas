@@ -11,14 +11,11 @@ class RegressionEstim(EstimBase):
         self.predictor = predictor
         self.best_score = None
         self.best_arch_desc = None
-        self.best_score_batch = None
-        self.best_desc_batch = None
 
     def step(self, params):
         ParamSpace().update_params(params)
         arch_desc = self.get_arch_desc()
-        score = self.predictor.predict(arch_desc)
-        return score
+        return self.predictor.predict(arch_desc)
 
     def run_epoch(self, optim, epoch, tot_epochs):
         config = self.config
@@ -36,8 +33,6 @@ class RegressionEstim(EstimBase):
             optim.step(self)
         inputs = optim.next(batch_size=arch_batch_size)
         self.clear_buffer()
-        self.best_score_batch = None
-        self.best_desc_batch = None
         for params in inputs:
             # estim step
             self.stepped(params)
@@ -47,16 +42,10 @@ class RegressionEstim(EstimBase):
             if self.best_score is None or score > self.best_score:
                 self.best_score = score
                 self.best_arch_desc = arch_desc
-            if self.best_score_batch is None or score > self.best_score_batch:
-                self.best_score_batch = score
-                self.best_desc_batch = arch_desc
         # save
         if config.save_arch_desc:
-            self.save_arch_desc(epoch, arch_desc=self.best_desc_batch)
+            self.save_arch_desc(epoch, arch_desc=self.best_arch_desc)
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-        return {
-            'epoch_best': self.best_score_batch,
-        }
 
     def run(self, optim):
         config = self.config

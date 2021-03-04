@@ -76,7 +76,12 @@ _default_arg_specs = [
 ]
 
 
-DEFAULT_CALLBACK_CONF = ['ETAReporter', 'EstimReporter', 'TrainerReporter']
+DEFAULT_CALLBACK_CONF = {
+    'eta': 'ETAReporter',
+    'estim': 'EstimReporter',
+    'trainer': 'TrainerReporter',
+    'opt': 'OptimumReporter',
+}
 
 
 def parse_routine_args(name='default', arg_specs=None):
@@ -150,6 +155,8 @@ def build_constructor_all(config):
 
 def build_exporter_all(config):
     """Build and return all exporters."""
+    if config is None:
+        return None
     if len(config) == 0:
         config = {'default': {'type': 'DefaultSlotTraversalExporter'}}
     if len(config) > 1:
@@ -157,7 +164,6 @@ def build_exporter_all(config):
     if len(config) == 1:
         conf = list(config.values())[0]
         return build_exp(conf)
-    return None
 
 
 def build_trainer_all(trainer_config, trainer_comp=None):
@@ -279,12 +285,12 @@ def init_all(config,
     # export
     exporter = build_exporter_all(config.get('export', {}))
     # callback
-    cb_config = config.get('callback', [])
-    if isinstance(cb_config, dict):
-        cb_config = [v for v in cb_config.values()]
-    if 'NO_DEFAULT' not in cb_config:
-        cb_config = DEFAULT_CALLBACK_CONF + cb_config
-    for cb in cb_config:
+    cb_config = DEFAULT_CALLBACK_CONF.copy()
+    cb_user_conf = config.get('callback', {})
+    if isinstance(cb_user_conf, list):
+        cb_user_conf = {i: v for i, v in enumerate(cb_user_conf)}
+    cb_config.update(cb_user_conf)
+    for cb in cb_config.values():
         build_callback(cb)
     # optim
     optim = None
@@ -315,6 +321,7 @@ def init_all_hptune(config, *args, config_override=None, measure_fn=None, **kwar
     Config.apply(config, config_override or {})
     Config.apply(config, config.pop('hptune', {}))
     # hpspace
+    config['export'] = None
     if not config.get('construct', {}):
         config['construct'] = {
             'hparams': {

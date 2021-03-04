@@ -2,7 +2,6 @@
 import itertools
 import traceback
 from ..base import EstimBase
-from ...utils import ETAMeter
 from ...import backend
 from ...core.param_space import ParamSpace
 from modnas.registry.estim import register
@@ -19,7 +18,6 @@ class SubNetEstim(EstimBase):
         self.clear_subnet_bn = clear_subnet_bn
         self.best_score = None
         self.best_arch_desc = None
-        self.batch_best = None
 
     def step(self, params):
         """Return evaluation results of a parameter set."""
@@ -67,7 +65,6 @@ class SubNetEstim(EstimBase):
             optim.step(self)
         inputs = optim.next(batch_size=arch_batch_size)
         self.clear_buffer()
-        self.batch_best = None
         for params in inputs:
             # estim step
             self.stepped(params)
@@ -77,17 +74,12 @@ class SubNetEstim(EstimBase):
             if self.best_score is None or (score is not None and score > self.best_score):
                 self.best_score = score
                 self.best_arch_desc = arch_desc
-            if self.batch_best is None or (score is not None and score > self.batch_best):
-                self.batch_best = score
         # save
         if config.save_arch_desc:
             self.save_arch_desc(epoch)
         if config.save_freq != 0 and epoch % config.save_freq == 0:
             self.save_checkpoint(epoch)
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-        return {
-            'epoch_best': self.batch_best,
-        }
 
     def run(self, optim):
         """Run Estimator routine."""

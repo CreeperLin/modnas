@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 from ... import backend
-from ...utils import AverageMeter
 from ..base import TrainerBase
 from modnas.registry.trainer import register
 

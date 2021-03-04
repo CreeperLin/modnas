@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 import inspect
@@ -205,12 +204,12 @@ def format_key(key, title=True):
     return key.title() if title and key.islower() else key
 
 
-def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
+def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True, to_str=False):
     if value is None:
         return None
-    if isinstance(value, str):
+    if not hasattr(value, '__truediv__'):
         return value
-    units = [None, 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+    units = ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
     div = (1024. if binary else 1000.) if div is None else div
     if factor is None:
         factor = 0
@@ -221,6 +220,8 @@ def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True):
     else:
         tot_div = div ** factor
     value = round(value / tot_div, prec)
+    if not to_str and not unit:
+        return value
     return '{{:.{}f}}'.format(prec).format(value) + (units[factor] if unit else '')
 
 

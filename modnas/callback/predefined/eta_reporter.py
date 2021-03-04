@@ -6,7 +6,7 @@ from ..base import CallbackBase
 @register
 class ETAReporter(CallbackBase):
 
-    priority = 0
+    priority = -1
 
     def __init__(self):
         super().__init__({

@@ -2,7 +2,6 @@
 import itertools
 from ..base import EstimBase
 from ...core.param_space import ParamSpace
-from ...utils import ETAMeter
 from modnas.registry.estim import register
 
 

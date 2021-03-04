@@ -278,7 +278,7 @@ class EstimBase():
 
     def get_arch_desc(self):
         """Return current archdesc."""
-        return self.exporter(self.model)
+        return None if self.exporter is None else self.exporter(self.model)
 
     def save_model(self, save_name=None, exporter='DefaultTorchCheckpointExporter'):
         """Save model checkpoint to file."""
