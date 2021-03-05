@@ -49,7 +49,7 @@ def import_modules(modules):
 def get_exp_name(config):
     if 'name' in config:
         return config['name']
-    return '{}.{}'.format(time.strftime('%Y%m%d%H%M', time.localtime()), hashlib.sha1(str(config).encode()).hexdigest()[:4])
+    return '{}.{}'.format(time.strftime('%Y%m%d', time.localtime()), hashlib.sha1(str(config).encode()).hexdigest()[:4])
 
 
 def merge_config(src, dest, overwrite=True):
