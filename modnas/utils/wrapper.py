@@ -105,6 +105,7 @@ def load_config(conf):
 
 
 def get_data_provider_config(config):
+    """Return data provider config."""
     keys = ['data', 'train_data', 'valid_data', 'data_loader', 'data_provider']
     return {k: config[k] for k in keys if k in config}
 
@@ -135,8 +136,8 @@ def get_mixed_op_constructor(config):
     """Return default mixed operation constructor."""
     default_type = 'DefaultMixedOpConstructor'
     default_args = {}
-    if 'primitives' in config:
-        default_args['primitives'] = config.pop('primitives')
+    if 'candidates' in config:
+        default_args['candidates'] = config.pop('candidates')
     default_args['mixed_op'] = config
     return {'type': default_type, 'args': default_args}
 
@@ -194,6 +195,7 @@ def bind_trainer(estims, trners):
 
 
 def reset_all():
+    """Reset all framework states."""
     ParamSpace().reset()
     EventManager().reset()
 

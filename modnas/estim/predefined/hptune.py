@@ -1,3 +1,4 @@
+"""Hyperparameter-tuning Estimator."""
 import copy
 import itertools
 import traceback
@@ -8,7 +9,7 @@ from ...utils.wrapper import build as build_runner
 from modnas.registry.estim import register
 
 
-def default_trial_runner(conn, trial_proc, trial_args):
+def _default_trial_runner(conn, trial_proc, trial_args):
     ret = build_runner(trial_proc, **trial_args)
     conn.send(ret)
 
@@ -27,7 +28,7 @@ class HPTuneEstim(EstimBase):
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
-        self.measure_fn = measure_fn or self.default_measure_fn
+        self.measure_fn = measure_fn or self._default_measure_fn
         self.batch_size = batch_size
         self.early_stopping = early_stopping
         self.trial_proc = trial_proc
@@ -38,14 +39,14 @@ class HPTuneEstim(EstimBase):
         self.best_iter = 0
         self.trial_index = 0
 
-    def default_measure_fn(self, hp, **kwargs):
+    def _default_measure_fn(self, hp, **kwargs):
         trial_config = copy.deepcopy(Config.load(self.trial_config))
         Config.apply(trial_config, hp)
         trial_args = dict(copy.deepcopy(self.trial_args))
         trial_args['name'] = '{}_{}'.format(trial_args.get('name', 'trial'), self.trial_index)
         trial_args['config'] = trial_config.to_dict()
         p_con, c_con = Pipe()
-        proc = Process(target=default_trial_runner, args=(c_con, self.trial_proc, trial_args))
+        proc = Process(target=_default_trial_runner, args=(c_con, self.trial_proc, trial_args))
         proc.start()
         proc.join()
         if not p_con.poll(0):
@@ -54,6 +55,7 @@ class HPTuneEstim(EstimBase):
         return ret['final'].get('best_score', list(ret.values())[0])
 
     def step(self, hp):
+        """Return evaluation results of a parameter set."""
         self.trial_index += 1
         logger = self.logger
         logger.info('measuring hparam: {}'.format(hp))
@@ -73,6 +75,7 @@ class HPTuneEstim(EstimBase):
         return result
 
     def run_epoch(self, optim, epoch, tot_epochs):
+        """Run Estimator routine for one epoch."""
         batch_size = self.batch_size
         early_stopping = self.early_stopping
         if epoch >= tot_epochs:
@@ -97,6 +100,7 @@ class HPTuneEstim(EstimBase):
             return 1
 
     def run(self, optim):
+        """Run Estimator routine."""
         config = self.config
         tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):

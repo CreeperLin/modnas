@@ -1,3 +1,4 @@
+"""Metrics statistics reporter."""
 import pickle
 import itertools
 import matplotlib
@@ -9,6 +10,8 @@ from matplotlib import pyplot as plt
 
 @register
 class MetricsStatsReporter(CallbackBase):
+    """Metrics statistics reporter class."""
+
     def __init__(self, axis_list=None):
         super().__init__({
             'after:EstimBase.step': self.on_step,
@@ -18,9 +21,11 @@ class MetricsStatsReporter(CallbackBase):
         self.axis_list = axis_list
 
     def on_step(self, ret, estim, params):
+        """Record Estimator evaluation result on each step."""
         self.results.append((params, ret))
 
     def save_stats(self, ret, estim, optim):
+        """Save statistics on search end."""
         results = self.results
         if not results:
             return

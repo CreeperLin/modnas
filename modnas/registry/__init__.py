@@ -62,6 +62,7 @@ def get_builder(_reg_path, _reg_id):
 
 
 def parse_spec(spec):
+    """Return parsed id and arguments from build spec."""
     if isinstance(spec, dict):
         return spec['type'], spec.get('args', {})
     if isinstance(spec, (tuple, list)) and isinstance(spec[0], str):
@@ -72,6 +73,7 @@ def parse_spec(spec):
 
 
 def to_spec(reg_id, kwargs):
+    """Return build spec from id and arguments."""
     return {
         'type': reg_id,
         'args': kwargs
@@ -103,7 +105,7 @@ def get_registry_utils(_reg_path):
     return _reg_path, _register, _get_builder, _build, _register_as
 
 
-def get_registry_name(path):
+def _get_registry_name(path):
     return '.'.join(path[path.index('modnas') + 2:])
 
 
@@ -112,7 +114,7 @@ class RegistryModule():
 
     def __init__(self, fullname):
         path = fullname.split('.')
-        registry_name = get_registry_name(path)
+        registry_name = _get_registry_name(path)
         self.__package__ = fullname
         self.__path__ = path
         self.__name__ = registry_name
@@ -121,6 +123,7 @@ class RegistryModule():
         self.reg_path, self.register, self.get_builder, self.build, self.register_as = get_registry_utils(registry_name)
 
     def __getattr__(self, attr):
+        """Return builder by attribute name."""
         if attr in self.__dict__:
             return self.__dict__.get(attr)
         return self.get_builder(attr)
@@ -139,7 +142,7 @@ class RegistryImporter():
         path = fullname.split('.')
         reg_path, reg_id = path[:-1], path[-1]
         reg_fullname = '.'.join(reg_path)
-        registry_name = get_registry_name(reg_path)
+        registry_name = _get_registry_name(reg_path)
         if reg_fullname in sys.modules and len(registry_name):
             mod = get_builder(registry_name, reg_id)
             sys.modules[fullname] = mod

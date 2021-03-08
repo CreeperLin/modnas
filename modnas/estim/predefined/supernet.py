@@ -36,7 +36,7 @@ class SuperNetEstim(EstimBase):
         }
 
     def run_epoch(self, optim, epoch, tot_epochs):
-        """Run search for one epoch."""
+        """Run Estimator routine for one epoch."""
         if epoch == tot_epochs:
             return 1
         config = self.config

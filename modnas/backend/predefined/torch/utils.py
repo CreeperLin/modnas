@@ -1,3 +1,4 @@
+"""Torch utils."""
 import numpy as np
 import torch
 from modnas.utils import format_value
@@ -13,6 +14,7 @@ def init_device(device=None, seed=11235):
 
 
 def get_dev_mem_used():
+    """Return memory used in device."""
     return torch.cuda.memory_allocated() / 1024. / 1024.
 
 
@@ -29,6 +31,7 @@ def param_size(model, *args, **kwargs):
 
 
 def model_summary(model):
+    """Return model summary."""
     info = {
         'params': param_count(model, factor=2, prec=4),
         'size': param_size(model, factor=2, prec=4),

@@ -1,3 +1,4 @@
+"""Pipeline Estimator."""
 import traceback
 import queue
 from multiprocessing import Process, Pipe
@@ -7,14 +8,14 @@ from ...registry import parse_spec
 from modnas.registry.estim import register
 
 
-def mp_step_runner(conn, step_conf):
+def _mp_step_runner(conn, step_conf):
     ret = build_runner(step_conf)
     conn.send(ret)
 
 
-def mp_runner(step_conf):
+def _mp_runner(step_conf):
     p_con, c_con = Pipe()
-    proc = Process(target=mp_step_runner, args=(c_con, step_conf))
+    proc = Process(target=_mp_step_runner, args=(c_con, step_conf))
     proc.start()
     proc.join()
     if not p_con.poll(0):
@@ -22,7 +23,7 @@ def mp_runner(step_conf):
     return p_con.recv()
 
 
-def default_runner(step_conf):
+def _default_runner(step_conf):
     return build_runner(step_conf)
 
 
@@ -32,9 +33,10 @@ class PipelineEstim(EstimBase):
 
     def __init__(self, *args, use_multiprocessing=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.runner = mp_runner if use_multiprocessing else default_runner
+        self.runner = _mp_runner if use_multiprocessing else _default_runner
 
     def step(self, step_conf):
+        """Return results from single pipeline process."""
         try:
             return self.runner(step_conf)
         except RuntimeError:
@@ -42,6 +44,7 @@ class PipelineEstim(EstimBase):
         return None
 
     def run(self, optim):
+        """Run Estimator routine."""
         del optim
         logger = self.logger
         config = self.config

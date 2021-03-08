@@ -1,5 +1,6 @@
+"""Torch activation functions."""
 import torch.nn as nn
-from modnas.arch_space.ops import register
+from modnas.registry.arch_space import register
 
 # torch activations
 register(nn.ELU)

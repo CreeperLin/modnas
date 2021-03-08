@@ -1,3 +1,4 @@
+"""Datasets for image classification."""
 import os
 import numpy as np
 import torch
@@ -6,6 +7,7 @@ from modnas.registry.dataset import register
 
 
 def get_metadata(dataset):
+    """Return dataset metadata."""
     if dataset == 'cifar10':
         mean = [0.49139968, 0.48215827, 0.44653124]
         stddev = [0.24703233, 0.24348505, 0.26158768]
@@ -66,10 +68,13 @@ _valid_transforms = {
 
 
 class Cutout(object):
+    """Apply Cutout on dataset."""
+
     def __init__(self, length):
         self.length = length
 
     def __call__(self, img):
+        """Return image with Cutout applied."""
         h, w = img.size(1), img.size(2)
         mask = np.ones((h, w), np.float32)
         y = np.random.randint(h)
@@ -98,6 +103,7 @@ def ImageClsData(dataset,
                  jitter=False,
                  transform_args=None,
                  to_tensor=True):
+    """Return dataset for image classification."""
     dataset = dataset.lower()
     meta = get_metadata(dataset)
     mean = meta['mean'] if mean is None else mean

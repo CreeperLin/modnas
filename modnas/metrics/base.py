@@ -12,7 +12,7 @@ class MetricsBase():
         self.estim = MetricsBase.get_estim()
 
     def __call__(self, *args, **kwargs):
-        """Compute metrics."""
+        """Return metrics output."""
         raise NotImplementedError
 
     @staticmethod

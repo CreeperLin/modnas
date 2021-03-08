@@ -1,3 +1,7 @@
+"""ResNet architectures.
+
+modified from https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
+"""
 from functools import partial
 import torch.nn as nn
 from ..slot import Slot
@@ -19,6 +23,8 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 
 class BasicBlock(nn.Module):
+    """Basic Block class."""
+
     expansion = 1
     chn_init = 16
 
@@ -34,6 +40,7 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
     def forward(self, x):
+        """Compute network output."""
         identity = x
 
         out = self.conv1(x)
@@ -53,6 +60,8 @@ class BasicBlock(nn.Module):
 
 
 class Bottleneck(nn.Module):
+    """Bottleneck block class."""
+
     expansion = 4
     chn_init = 16
 
@@ -68,6 +77,7 @@ class Bottleneck(nn.Module):
         self.stride = stride
 
     def forward(self, x):
+        """Compute network output."""
         identity = x
 
         out = self.conv1(x)
@@ -89,6 +99,8 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
+    """ResNet architecture class."""
+
     def __init__(self,
                  chn_in,
                  chn,
@@ -141,6 +153,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        """Compute network output."""
         x = self.conv1(x)
 
         x = self.layers(x)
@@ -153,11 +166,14 @@ class ResNet(nn.Module):
 
 @register_constructor
 class ResNetPredefinedConstructor(DefaultSlotTraversalConstructor):
+    """ResNet original network constructor."""
+
     def __init__(self, use_bn=False):
         super().__init__()
         self.use_bn = use_bn
 
     def convert(self, slot):
+        """Convert slot to module."""
         return nn.Sequential(
             nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1, stride=slot.stride, bias=False, **slot.kwargs),
             nn.BatchNorm2d(slot.chn_out) if self.use_bn else Identity(),
@@ -165,7 +181,10 @@ class ResNetPredefinedConstructor(DefaultSlotTraversalConstructor):
 
 
 class ImageNetResNet(ResNet):
+    """ResNet for ImageNet dataset."""
+
     def get_stem(self, chn_in, chn, norm_layer):
+        """Return stem layers."""
         return nn.Sequential(
             nn.Conv2d(chn_in, chn, kernel_size=7, stride=2, padding=3, bias=False),
             norm_layer(chn),
@@ -175,7 +194,10 @@ class ImageNetResNet(ResNet):
 
 
 class CIFARResNet(ResNet):
+    """ResNet for CIFAR dataset."""
+
     def get_stem(self, chn_in, chn, norm_layer):
+        """Return stem layers."""
         return nn.Sequential(
             nn.Conv2d(chn_in, chn, kernel_size=3, stride=1, padding=1, bias=False),
             norm_layer(chn),
@@ -229,14 +251,17 @@ def resnet152(resnet_cls, **kwargs):
 
 
 def resnext50_32x4d(resnet_cls, **kwargs):
+    """Construct a ResNeXt-50 32x4d model."""
     return resnet_cls(block=Bottleneck, layers=[3, 4, 6, 3], groups=32, width_per_group=4, **kwargs)
 
 
 def resnext101_32x8d(resnet_cls, **kwargs):
+    """Construct a ResNeXt-50 32x8d model."""
     return resnet_cls(block=Bottleneck, layers=[3, 4, 23, 3], groups=32, width_per_group=8, **kwargs)
 
 
 def resnet(resnet_cls, bottleneck=False, **kwargs):
+    """Construct a ResNet model."""
     block = Bottleneck if bottleneck else BasicBlock
     return resnet_cls(block=block, **kwargs)
 

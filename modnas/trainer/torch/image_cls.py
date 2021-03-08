@@ -1,3 +1,4 @@
+"""Image classification Trainer."""
 import torch
 import torch.nn as nn
 from ... import backend
@@ -28,6 +29,8 @@ def accuracy(output, target, topk=(1, )):
 
 @register
 class ImageClsTrainer(TrainerBase):
+    """Image classification Trainer class."""
+
     def __init__(self,
                  writer=None,
                  expman=None,
@@ -54,6 +57,7 @@ class ImageClsTrainer(TrainerBase):
         self.config = config
 
     def init(self, model, config=None):
+        """Initialize trainer states."""
         self.config.update(config or {})
         if self.config['optimizer']:
             self.optimizer = backend.get_optimizer(model.parameters(), self.config['optimizer'], config)
@@ -66,33 +70,41 @@ class ImageClsTrainer(TrainerBase):
         self.device = self.config.get('device', self.device)
 
     def get_num_train_batch(self, epoch):
+        """Return number of train batches."""
         return 0 if self.data_provider is None else self.data_provider.get_num_train_batch(epoch=epoch)
 
     def get_num_valid_batch(self, epoch):
+        """Return number of valid batches."""
         return 0 if self.data_provider is None else self.data_provider.get_num_valid_batch(epoch=epoch)
 
     def get_next_train_batch(self):
+        """Return next train batch."""
         return self.proc_batch(self.data_provider.get_next_train_batch())
 
     def get_next_valid_batch(self):
+        """Return next valid batch."""
         return self.proc_batch(self.data_provider.get_next_valid_batch())
 
     def proc_batch(self, batch):
+        """Return processed data batch."""
         return tuple(v.to(device=self.device, non_blocking=True) for v in batch)
 
     def state_dict(self):
+        """Return current states."""
         return {
             'optimizer': self.optimizer.state_dict(),
             'lr_scheduler': self.lr_scheduler.state_dict(),
         }
 
     def load_state_dict(self, sd):
+        """Resume states."""
         if self.optimizer is not None:
             self.optimizer.load_state_dict(sd['optimizer'])
         if self.lr_scheduler is not None:
             self.lr_scheduler.load_state_dict(sd['lr_scheduler'])
 
     def get_lr(self):
+        """Return current learning rate."""
         if self.lr_scheduler:
             if hasattr(self.lr_scheduler, 'get_last_lr'):
                 return self.lr_scheduler.get_last_lr()[0]
@@ -100,16 +112,20 @@ class ImageClsTrainer(TrainerBase):
         return self.optimizer.param_groups[0]['lr']
 
     def get_optimizer(self):
+        """Return optimizer."""
         return self.optimizer
 
     def loss(self, output=None, data=None, model=None):
+        """Return loss."""
         return None if self.criterion is None else self.criterion(None, None, output, *data)
 
     def train_epoch(self, estim, model, tot_steps, epoch, tot_epochs):
+        """Train for one epoch."""
         for step in range(tot_steps):
             self.train_step(estim, model, epoch, tot_epochs, step, tot_steps)
 
     def train_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
+        """Train for one step."""
         optimizer = self.optimizer
         lr_scheduler = self.lr_scheduler
         lr = self.get_lr()
@@ -136,12 +152,14 @@ class ImageClsTrainer(TrainerBase):
         }
 
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
+        """Validate for one epoch."""
         if not tot_steps:
             return None
         for step in range(tot_steps):
             self.valid_step(estim, model, epoch, tot_epochs, step, tot_steps)
 
     def valid_step(self, estim, model, epoch, tot_epochs, step, tot_steps):
+        """Validate for one step."""
         if step == 0:
             self.data_provider.reset_valid_iter()
         model.eval()

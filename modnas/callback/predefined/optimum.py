@@ -1,18 +1,22 @@
+"""Search optimum statistics reporter."""
 from modnas.utils import format_value
 from modnas.registry.callback import register
 from modnas.callback.base import CallbackBase
 
 
 def MIN_CMP(x, y):
+    """Return min comparison result."""
     return 0 if x is None or y is None else y - x
 
 
 def MAX_CMP(x, y):
+    """Return max comparison result."""
     return 0 if x is None or y is None else x - y
 
 
 @register
 class OptimumReporter(CallbackBase):
+    """Search optimum statistics reporter class."""
 
     priority = 0
 
@@ -36,6 +40,7 @@ class OptimumReporter(CallbackBase):
         self.ep_opt_results = []
 
     def update_optimal(self, res, opts):
+        """Update current optimal results."""
         met = res[1]
         if self.cmp_keys is None:
             self.cmp_keys = list(met.keys())
@@ -51,6 +56,7 @@ class OptimumReporter(CallbackBase):
         return opts
 
     def dom_cmp(self, m1, m2):
+        """Return dominating comparison between metrics."""
         dom = 0
         for k in self.cmp_keys:
             v1, v2 = m1.get(k, None), m2.get(k, None)
@@ -67,6 +73,7 @@ class OptimumReporter(CallbackBase):
         return dom
 
     def on_step(self, ret, estim, params):
+        """Record Estimator evaluation result on each step."""
         if self.score_fn:
             ret = {'score': self.score_fn(ret)}
         if not isinstance(ret, dict):
@@ -78,6 +85,7 @@ class OptimumReporter(CallbackBase):
             self.ep_opt_results = self.update_optimal(res, self.ep_opt_results)
 
     def format_metrics(self, opts):
+        """Format metrics."""
         if not opts:
             return None
         met = [r[1] for r in opts]
@@ -89,11 +97,13 @@ class OptimumReporter(CallbackBase):
         return met
 
     def report_epoch(self, ret, estim, optim, epoch, tot_epochs):
+        """Report optimum in each epoch."""
         estim.stats['epoch_opt'] = self.format_metrics(self.ep_opt_results)
         estim.stats['opt'] = self.format_metrics(self.opt_results)
         self.ep_opt_results = []
 
     def report_results(self, ret, estim, optim):
+        """Report optimum on search end."""
         opt_res = {
             'opt_results': self.opt_results,
         }

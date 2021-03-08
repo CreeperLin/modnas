@@ -16,6 +16,7 @@ logger = get_logger('utils')
 
 
 def import_file(path, name=None):
+    """Import modules from file."""
     spec = importlib.util.spec_from_file_location(name or '', path)
     module = importlib.util.module_from_spec(spec)
     if name:
@@ -47,12 +48,14 @@ def import_modules(modules):
 
 
 def get_exp_name(config):
+    """Return experiment name."""
     if 'name' in config:
         return config['name']
     return '{}.{}'.format(time.strftime('%Y%m%d', time.localtime()), hashlib.sha1(str(config).encode()).hexdigest()[:4])
 
 
 def merge_config(src, dest, overwrite=True):
+    """Return merged config."""
     if isinstance(src, dict) and isinstance(dest, dict):
         for k, v in dest.items():
             if k not in src:
@@ -149,6 +152,7 @@ def get_writer(log_dir, enabled=False):
 
 
 def copy_members(dest, src, excepts=None, skip_private=True, method=True):
+    """Copy member methods from src to dest."""
     for attr, mem in inspect.getmembers(src):
         if excepts is not None and attr in excepts:
             continue
@@ -200,11 +204,13 @@ def format_time(sec):
 
 
 def format_key(key, title=True):
+    """Return formatted key."""
     key = ' '.join(key.split('_'))
     return key.title() if title and key.islower() else key
 
 
 def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True, to_str=False):
+    """Return formatted value."""
     if value is None:
         return None
     if not hasattr(value, '__truediv__'):
@@ -226,6 +232,7 @@ def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True, 
 
 
 def format_dict(dct, sep=None, kv_sep=None, fmt_key=True):
+    """Return formatted dict."""
     sep = sep or ' | '
     kv_sep = kv_sep or ':'
     return sep.join(['{}{} {{{}}}'.format(format_key(k) if fmt_key else k, kv_sep, k) for k in dct]).format(**dct)

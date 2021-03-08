@@ -1,3 +1,4 @@
+"""Manage logging states and loggers."""
 import os
 import time
 import copy
@@ -35,11 +36,13 @@ DEFAULT_LOGGING_CONF = {
 
 
 def get_logger(name=None):
+    """Return logger of given name."""
     root = 'modnas'
     return logging.getLogger(root if name is None else (name if name.startswith(root) else root + '.' + name))
 
 
 def configure_logging(config=None, log_dir=None):
+    """Config loggers."""
     from . import merge_config
     config_fn = logging.config.dictConfig
     conf = copy.deepcopy(DEFAULT_LOGGING_CONF)
@@ -49,5 +52,6 @@ def configure_logging(config=None, log_dir=None):
 
 
 def logged(obj, name=None):
+    """Return object with logger attached."""
     obj.logger = get_logger(name or obj.__module__)
     return obj

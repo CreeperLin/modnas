@@ -50,6 +50,7 @@ class SubNetEstim(EstimBase):
             backend.recompute_bn_running_statistics(self.model, self.trainer, self.num_bn_batch, self.clear_subnet_bn)
 
     def run_epoch(self, optim, epoch, tot_epochs):
+        """Run Estimator routine for one epoch."""
         config = self.config
         logger = self.logger
         arch_epoch_start = config.arch_update_epoch_start

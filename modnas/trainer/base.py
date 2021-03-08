@@ -16,6 +16,7 @@ class TrainerBase():
         self.writer = writer
 
     def init(self, model, config=None):
+        """Initialize trainer states."""
         raise NotImplementedError
 
     def model_input(self, data):

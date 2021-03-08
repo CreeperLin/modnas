@@ -15,6 +15,7 @@ class DefaultEstim(EstimBase):
         self.valid_intv = valid_intv
 
     def run_epoch(self, optim, epoch, tot_epochs):
+        """Run Estimator routine for one epoch."""
         config = self.config
         if epoch == tot_epochs:
             return 1

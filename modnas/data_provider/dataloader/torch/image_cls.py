@@ -1,3 +1,4 @@
+"""Dataloader for Image classification."""
 import random
 import numpy as np
 from torch.utils.data import DataLoader
@@ -10,6 +11,7 @@ logger = get_logger('data_loader')
 
 
 def get_label_class(label):
+    """Return class index of given label."""
     if isinstance(label, float):
         label_cls = int(label)
     elif isinstance(label, np.ndarray):
@@ -22,6 +24,7 @@ def get_label_class(label):
 
 
 def get_dataset_label(data):
+    """Return label of given data."""
     if hasattr(data, 'targets'):
         return [c for c in data.targets]
     if hasattr(data, 'samples'):
@@ -34,16 +37,19 @@ def get_dataset_label(data):
 
 
 def get_dataset_class(data):
+    """Return classes of given data."""
     if hasattr(data, 'classes'):
         return data.classes
     return []
 
 
 def filter_class(data_idx, labels, classes):
+    """Return data indices from given classes."""
     return [idx for idx in data_idx if get_label_class(labels[idx]) in classes]
 
 
 def train_valid_split(trn_idx, train_labels, class_size):
+    """Return split train and valid data indices."""
     random.shuffle(trn_idx)
     train_idx, valid_idx = [], []
     for idx in trn_idx:
@@ -59,6 +65,7 @@ def train_valid_split(trn_idx, train_labels, class_size):
 
 
 def map_data_label(data, mapping):
+    """Map original data labels to new ones."""
     labels = get_dataset_label(data)
     if hasattr(data, 'targets'):
         data.targets = [mapping.get(get_label_class(c), c) for c in labels]

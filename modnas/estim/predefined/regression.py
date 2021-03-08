@@ -1,3 +1,4 @@
+"""Regression Estimator."""
 import itertools
 from ..base import EstimBase
 from ...core.param_space import ParamSpace
@@ -6,6 +7,8 @@ from modnas.registry.estim import register
 
 @register
 class RegressionEstim(EstimBase):
+    """Regression Estimator class."""
+
     def __init__(self, *args, predictor=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.predictor = predictor
@@ -13,11 +16,13 @@ class RegressionEstim(EstimBase):
         self.best_arch_desc = None
 
     def step(self, params):
+        """Return evaluation results from remote Estimator."""
         ParamSpace().update_params(params)
         arch_desc = self.get_arch_desc()
         return self.predictor.predict(arch_desc)
 
     def run_epoch(self, optim, epoch, tot_epochs):
+        """Run Estimator routine for one epoch."""
         config = self.config
         logger = self.logger
         arch_epoch_start = config.arch_update_epoch_start
@@ -48,6 +53,7 @@ class RegressionEstim(EstimBase):
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
 
     def run(self, optim):
+        """Run Estimator routine."""
         config = self.config
         tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):

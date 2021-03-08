@@ -1,16 +1,19 @@
+"""Simulated annealing model optimum finder."""
 import heapq
 import random
 import numpy as np
-from .base import ModelOptimizer
-from modnas.registry.model_optimizer import register
+from .base import ModelOptim
+from modnas.registry.model_optim import register
 from modnas.utils.logging import get_logger
 
 
-logger = get_logger('model_optimizer')
+logger = get_logger('model_optim')
 
 
 @register
-class SimulatedAnnealingModelOptimizer(ModelOptimizer):
+class SimulatedAnnealingModelOptim(ModelOptim):
+    """Simulated annealing model optimum finder class."""
+
     def __init__(self,
                  space,
                  temp_init=1e4,
@@ -31,6 +34,7 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
         self.history = None
 
     def disturb(self, params):
+        """Return randomly disturbed parameter."""
         pname = list(params)[random.randint(0, len(params) - 1)]
         p = self.space.get_param(pname)
         nidx = idx = p.get_index(params[pname])
@@ -40,13 +44,15 @@ class SimulatedAnnealingModelOptimizer(ModelOptimizer):
         new_params[pname] = p.get_value(nidx)
         return new_params
 
-    def get_maximums(self, model, size, excludes):
+    def get_optimums(self, model, size, excludes):
+        """Return optimums in score model."""
         topq = []
         for _ in range(self.n_iter):
             self.run_sa(model, size, excludes, topq)
         return [item[-1] for item in topq[::1]]
 
     def run_sa(self, model, size, excludes, topq):
+        """Run SA algorithm."""
         if self.history is None:
             params = [self.get_random_params(excludes) for _ in range(self.batch_size)]
         else:

@@ -37,6 +37,7 @@ class DefaultTrainer(TrainerBase):
         self.config = config
 
     def init(self, model, config=None):
+        """Initialize trainer states."""
         self.config.update(config or {})
         if self.config['optimizer']:
             self.optimizer = backend.get_optimizer(model.parameters(), self.config['optimizer'], config)
@@ -95,6 +96,7 @@ class DefaultTrainer(TrainerBase):
         return self.optimizer
 
     def loss(self, output=None, data=None, model=None):
+        """Return loss."""
         return None if self.criterion is None else self.criterion(None, None, output, *data)
 
     def train_epoch(self, estim, model, tot_steps, epoch, tot_epochs):

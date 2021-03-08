@@ -1,3 +1,4 @@
+"""Human-in-the-loop Optimizer, used for debugging."""
 from collections import OrderedDict
 from modnas.registry.optim import register
 from modnas.optim.base import OptimBase
@@ -6,12 +7,14 @@ from modnas.core.params import Numeric
 
 @register
 class HITLOptim(OptimBase):
-    """Human-in-the-loop Optimizer, used for debugging."""
+    """Human-in-the-loop Optimizer class."""
 
     def has_next(self):
+        """Return True if Optimizer has the next set of parameters."""
         return True
 
     def parse_input(self, param, inp):
+        """Return parsed value from input string."""
         if isinstance(param, Numeric):
             return float(inp)
         try:
@@ -20,11 +23,13 @@ class HITLOptim(OptimBase):
             return inp
 
     def check_value(self, param, value):
+        """Return True if the value is valid for the given parameter."""
         if value is None:
             return False
         return param.is_valid(value)
 
     def _next(self):
+        """Return the next set of parameters."""
         ret = OrderedDict()
         for name, param in self.space.named_params():
             prompt = '{}\nvalue: '.format(str(param))
@@ -38,5 +43,6 @@ class HITLOptim(OptimBase):
         return ret
 
     def step(self, estim):
+        """Update Optimizer states using Estimator evaluation results."""
         inputs, results = estim.get_last_results()
         self.logger.info('update:\ninputs: {}\nresults: {}'.format(inputs, results))

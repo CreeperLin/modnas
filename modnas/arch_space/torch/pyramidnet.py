@@ -1,3 +1,7 @@
+"""PyramidNet architectures.
+
+modified from https://github.com/dyhan0920/PyramidNet-PyTorch/
+"""
 import torch
 import torch.nn as nn
 from ..slot import Slot
@@ -7,6 +11,8 @@ from modnas.registry.arch_space import register
 
 
 class GroupConv(nn.Module):
+    """Grouped convolution class."""
+
     def __init__(self, chn_in, chn_out, kernel_size, stride=1, padding=0, groups=1, relu=True, affine=True):
         super().__init__()
         chn_in = chn_in if isinstance(chn_in, int) else chn_in[0]
@@ -22,10 +28,13 @@ class GroupConv(nn.Module):
         self.net = nn.Sequential(*net)
 
     def forward(self, x):
+        """Compute network output."""
         return self.net(x)
 
 
 class BottleneckBlock(nn.Module):
+    """Bottleneck convolution block class."""
+
     def __init__(self, C_in, C, stride=1, groups=1, bottleneck_ratio=4, downsample=None):
         super(BottleneckBlock, self).__init__()
         self.bottle_in = GroupConv(C_in, C, 1, 1, 0, relu=False)
@@ -36,7 +45,7 @@ class BottleneckBlock(nn.Module):
         self.stride = stride
 
     def forward(self, x):
-
+        """Compute network output."""
         out = self.bottle_in(x)
         out = self.cell(out)
         out = self.bottle_out(out)
@@ -64,6 +73,8 @@ class BottleneckBlock(nn.Module):
 
 @register
 class PyramidNet(nn.Module):
+    """PyramidNet class."""
+
     def __init__(self, chn_in, chn, n_classes, groups, blocks, conv_groups, bottleneck_ratio, alpha):
         super(PyramidNet, self).__init__()
         self.chn_in = chn_in
@@ -84,7 +95,7 @@ class PyramidNet(nn.Module):
         groups = []
         for i in range(0, self.n_groups):
             stride = 1 if i == 0 else 2
-            groups.append(self.pyramidal_make_layer(block, self.n_blocks, stride))
+            groups.append(self._pyramidal_make_layer(block, self.n_blocks, stride))
         self.pyramid = nn.Sequential(*groups)
 
         self.chn_fin = int(self.chn_cur) * self.bottleneck_ratio
@@ -93,7 +104,7 @@ class PyramidNet(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Linear(self.chn_fin, self.n_classes)
 
-    def pyramidal_make_layer(self, block, n_blocks, stride):
+    def _pyramidal_make_layer(self, block, n_blocks, stride):
         downsample = None
         if stride != 1:  # or self.chn_cur != int(round(featuremap_dim_1st)) * block.outchannel_ratio:
             downsample = nn.AvgPool2d((2, 2), stride=(2, 2), ceil_mode=True)
@@ -117,6 +128,7 @@ class PyramidNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        """Compute network output."""
         x = self.conv1(x)
         x = self.bn1(x)
 
@@ -133,5 +145,8 @@ class PyramidNet(nn.Module):
 
 @register_constructor
 class PyramidNetPredefinedConstructor(DefaultSlotTraversalConstructor):
+    """PyramidNet original network constructor."""
+
     def convert(self, slot):
+        """Convert slot to module."""
         return GroupConv(slot.chn_in, slot.chn_out, 3, slot.stride, 1, **slot.kwargs)

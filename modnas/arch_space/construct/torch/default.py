@@ -1,11 +1,13 @@
 """Default Constructors."""
 import importlib
 import copy
+from functools import partial
 from collections import OrderedDict
 from modnas.registry.arch_space import build as build_module
 from modnas.registry.construct import register, build
 from modnas.arch_space.slot import Slot
 from modnas.utils.logging import get_logger
+from modnas.utils import import_file
 
 
 logger = get_logger('construct')
@@ -14,12 +16,11 @@ logger = get_logger('construct')
 def get_convert_fn(convert_fn, **kwargs):
     """Return a new convert function."""
     if isinstance(convert_fn, str):
-        convert_fn = build(convert_fn, **kwargs)
+        return build(convert_fn, **kwargs)
     elif callable(convert_fn):
-        convert_fn = convert_fn(**kwargs)
+        return convert_fn
     else:
         raise ValueError('unsupported convert_fn type: {}'.format(type(convert_fn)))
-    return convert_fn
 
 
 @register
@@ -50,10 +51,7 @@ class ExternalModelConstructor():
         """Run constructor."""
         if self.src_path is not None:
             logger.info('Importing model from path: {}'.format(self.src_path))
-            name = ''
-            spec = importlib.util.spec_from_file_location(name, self.src_path)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            mod = import_file(self.src_path)
         elif self.import_path is not None:
             logger.info('Importing model from lib: {}'.format(self.import_path))
             mod = importlib.import_module(self.import_path)
@@ -92,16 +90,16 @@ class DefaultSlotTraversalConstructor():
 class DefaultMixedOpConstructor(DefaultSlotTraversalConstructor):
     """Default Mixed Operator Constructor."""
 
-    def __init__(self, primitives, mixed_op, primitive_args=None):
+    def __init__(self, candidates, mixed_op, candidate_args=None):
         DefaultSlotTraversalConstructor.__init__(self)
-        self.primitives = primitives
+        self.candidates = candidates
         self.mixed_op_conf = mixed_op
-        self.primitive_args = primitive_args or {}
+        self.candidate_args = candidate_args or {}
 
     def convert(self, slot):
         """Return converted MixedOp from slot."""
-        prims = OrderedDict([(prim, build_module(prim, slot, **self.primitive_args)) for prim in self.primitives])
-        return build_module(self.mixed_op_conf, primitives=prims)
+        cands = OrderedDict([(cand, build_module(cand, slot, **self.candidate_args)) for cand in self.candidates])
+        return build_module(self.mixed_op_conf, candidates=cands)
 
 
 @register
@@ -115,3 +113,8 @@ class DefaultOpConstructor(DefaultSlotTraversalConstructor):
     def convert(self, slot):
         """Return converted operator from slot."""
         return build_module(copy.deepcopy(self.op_conf), slot)
+
+
+def make_traversal_constructor(convert_fn):
+    """Return default slot traversal constructor with given function as converter."""
+    return partial(DefaultSlotTraversalConstructor, convert_fn=convert_fn)

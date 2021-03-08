@@ -1,14 +1,18 @@
+"""Estimator-based metrics."""
 from ..base import MetricsBase
 from modnas.registry.metrics import register
 
 
 @register
 class ValidateMetrics(MetricsBase):
+    """Estimator validation metrics class."""
+
     def __init__(self, field=None):
         super().__init__()
         self.field = field
 
     def __call__(self, model):
+        """Return metrics output."""
         estim = self.estim
         val_res = estim.valid_epoch(model=model)
         if isinstance(val_res, dict):

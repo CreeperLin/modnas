@@ -1,3 +1,7 @@
+"""Cell-based architecture in DARTS.
+
+modified from https://github.com/khanrc/pt.darts
+"""
 from functools import partial
 import torch.nn as nn
 from ..ops import FactorizedReduce, StdConv
@@ -10,6 +14,8 @@ from ..layers import DAGLayer
 
 
 class PreprocLayer(StdConv):
+    """Preprocessing layer."""
+
     def __init__(self, C_in, C_out):
         super(PreprocLayer, self).__init__(C_in, C_out, 1, 1, 0)
 
@@ -33,6 +39,7 @@ class AuxiliaryHead(nn.Module):
         self.linear = nn.Linear(768, n_classes)
 
     def forward(self, x):
+        """Return module output."""
         out = self.net(x)
         out = out.view(out.size(0), -1)  # flatten
         logits = self.linear(out)
@@ -40,6 +47,8 @@ class AuxiliaryHead(nn.Module):
 
 
 class DARTSLikeNet(nn.Module):
+    """Cell-based architecture in DARTS."""
+
     def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node, layers, shared_a,
                  channel_multiplier, auxiliary, cell_cls, cell_kwargs):
         super().__init__()
@@ -90,6 +99,7 @@ class DARTSLikeNet(nn.Module):
         self.fc = nn.Linear(chn_p, n_classes)
 
     def get_stem(self, chn_in, chn_cur):
+        """Return stem layers."""
         stem = nn.Sequential(
             nn.Conv2d(chn_in, chn_cur, 3, 1, 1, bias=False),
             nn.BatchNorm2d(chn_cur),
@@ -97,6 +107,7 @@ class DARTSLikeNet(nn.Module):
         return stem, lambda x: x, False
 
     def forward(self, x):
+        """Return model output."""
         s0 = self.stem0(x)
         s1 = self.stem1(s0)
         for i, cell in enumerate(self.cells):
@@ -108,50 +119,60 @@ class DARTSLikeNet(nn.Module):
         return self.fc(y)
 
     def forward_aux(self, x):
+        """Return model auxiliary output."""
         if not self.training or self.aux_pos == -1:
             return None
         return self.aux_out
 
     def build_from_arch_desc(self, desc, *args, **kwargs):
+        """Build network from archdesc."""
         assert len(self.cell_group) == len(desc)
         for cells, g in zip(self.cell_group, desc):
             for c in cells:
                 c.build_from_arch_desc(g, *args, **kwargs)
 
     def to_arch_desc(self, k=2):
+        """Return archdesc from parameters."""
         desc = []
         for cells in self.cell_group:
             desc.append(cells[0].to_arch_desc(k))
         return desc
 
     def dags(self):
+        """Return generator over dag layers."""
         for cell in self.cells:
             yield cell
 
 
 @register_constructor
 class DARTSSearchConstructor(DefaultMixedOpConstructor):
+    """DARTS Search Constructor."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.param_map = {}
 
     def convert(self, slot):
+        """Convert Slot to mixed operator."""
         arch_params = self.param_map.get(slot.name, None)
         old_conf = self.mixed_op_conf
         reg_id, args = parse_spec(old_conf)
         if arch_params is not None:
-            args['arch_param_map'] = arch_params
+            args['arch_param'] = arch_params
         self.mixed_op_conf = to_spec(reg_id, args)
         ent = super().convert(slot)
         self.mixed_op_conf = old_conf
-        args.pop('arch_param_map', None)
+        args.pop('arch_param', None)
         if slot.name not in self.param_map:
-            self.param_map[slot.name] = ent.arch_param_map
+            self.param_map[slot.name] = ent.arch_param
         return ent
 
 
 class ImageNetDARTSLikeNet(DARTSLikeNet):
+    """Return architecture built from config."""
+
     def get_stem(self, chn_in, chn_cur):
+        """Return stem layers."""
         stem0 = nn.Sequential(
             nn.Conv2d(chn_in, chn_cur // 2, 3, 2, 1, bias=False),
             nn.BatchNorm2d(chn_cur // 2),
@@ -168,6 +189,7 @@ class ImageNetDARTSLikeNet(DARTSLikeNet):
 
 
 def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
+    """Return architecture built from config."""
     n_nodes = 4
     if 'nodes' in kwargs:
         n_nodes = kwargs.pop('nodes')

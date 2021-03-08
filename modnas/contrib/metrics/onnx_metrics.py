@@ -1,3 +1,4 @@
+"""ONNX export metrics."""
 import os
 import tempfile
 import torch
@@ -7,6 +8,8 @@ from modnas.metrics.base import MetricsBase
 
 @register
 class OnnxExportMetrics(MetricsBase):
+    """ONNX export metrics class."""
+
     def __init__(self, metrics, head=None, export_dir=None, verbose=False):
         super().__init__()
         self.metrics = build(metrics)
@@ -21,6 +24,7 @@ class OnnxExportMetrics(MetricsBase):
         self.exported = {}
 
     def __call__(self, node):
+        """Return metrics output."""
         key = '#'.join([str(node[k]) for k in self.head if node[k] is not None])
         onnx_info = self.exported.get(key, None)
         if onnx_info is not None:

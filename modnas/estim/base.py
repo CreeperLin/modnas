@@ -75,6 +75,7 @@ class EstimBase():
         self.trainer = trainer
 
     def model_output(self, *args, data=None, model=None, **kwargs):
+        """Return model output for given data."""
         model = self.model if model is None else model
         return self.trainer.model_output(*args, data=data, model=model, **kwargs)
 
@@ -117,6 +118,7 @@ class EstimBase():
             self.step_done(params, value)
 
     def wait_done(self):
+        """Wait evaluation steps to finish."""
         self.step_cond.acquire()
         self.step_cond.release()
 
@@ -143,6 +145,7 @@ class EstimBase():
         return self.inputs, self.results
 
     def buffer(self):
+        """Return generator over evaluated results with parameters and arch_descs."""
         for inp, res, desc in zip(self.inputs, self.results, self.arch_descs):
             yield inp, res, desc
 

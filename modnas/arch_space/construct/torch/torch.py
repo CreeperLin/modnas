@@ -1,3 +1,4 @@
+"""Torch constructors."""
 import torch
 import numpy as np
 from modnas.registry.construct import register
@@ -34,6 +35,7 @@ def init_device(device=None, seed=11235):
 
 
 def configure_ops(new_config):
+    """Set global operator config."""
     config = ops.config
     config.update(new_config)
     if isinstance(config.ops_order, str):

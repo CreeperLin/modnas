@@ -1,3 +1,4 @@
+"""RASP-based metrics."""
 from ..base import MetricsBase
 from modnas.registry.metrics import register, build
 from ...arch_space.mixed_ops import MixedOp
@@ -10,16 +11,21 @@ except ImportError:
 
 @register
 class RASPStatsMetrics(MetricsBase):
+    """RASP node statistics metrics class."""
+
     def __init__(self, item):
         super().__init__()
         self.item = item
 
     def __call__(self, node):
+        """Return metrics output."""
         return node[self.item]
 
 
 @register
 class RASPTraversalMetrics(MetricsBase):
+    """RASP model traversal metrics class."""
+
     def __init__(self,
                  input_shape,
                  metrics,
@@ -40,14 +46,14 @@ class RASPTraversalMetrics(MetricsBase):
         self.mixed_only = mixed_only
         self.keep_stats = keep_stats
         if traversal_type == 'tape_leaves':
-            self.traverse = self.traverse_tape_leaves
+            self.traverse = self._traverse_tape_leaves
         elif traversal_type == 'tape_nodes':
-            self.traverse = self.traverse_tape_nodes
+            self.traverse = self._traverse_tape_nodes
         else:
             raise ValueError('invalid traversal type')
         self.excluded = set()
 
-    def traverse_tape_nodes(self, node):
+    def _traverse_tape_nodes(self, node):
         ret = 0
         if node in self.excluded:
             return ret
@@ -57,16 +63,16 @@ class RASPTraversalMetrics(MetricsBase):
         if node.tape is None:
             return ret
         for cur_node in node.tape.items:
-            if cur_node['prim_type']:
+            if cur_node['cand_type']:
                 n_ret = self.metrics(cur_node)
             else:
-                n_ret = self.traverse_tape_nodes(cur_node)
+                n_ret = self._traverse_tape_nodes(cur_node)
             if n_ret is None:
                 n_ret = 0
             ret += n_ret
         return ret
 
-    def traverse_tape_leaves(self, node):
+    def _traverse_tape_leaves(self, node):
         ret = 0
         for cur_node in node.tape.items_all:
             if cur_node in self.excluded:
@@ -77,7 +83,8 @@ class RASPTraversalMetrics(MetricsBase):
             ret += n_ret
         return ret
 
-    def stat(self, module, input_shape):
+    def _stat(self, module, input_shape):
+        """Run profiling on given module."""
         if self.eval_compute:
             F.hook_compute(module)
         if self.eval_timing:
@@ -87,11 +94,12 @@ class RASPTraversalMetrics(MetricsBase):
         F.unhook_timing(module)
 
     def __call__(self, net):
+        """Return metrics output."""
         self.excluded.clear()
         root = F.get_stats_node(net)
         if root is None:
             root = F.reg_stats_node(net)
-            self.stat(net, self.input_shape)
+            self._stat(net, self.input_shape)
         mt = 0
         for m in net.modules():
             if not isinstance(m, MixedOp):
@@ -101,16 +109,16 @@ class RASPTraversalMetrics(MetricsBase):
             assert mixop_node['in_shape'] is not None
             mixop_mt = 0
             m_in, _ = mixop_node['in_shape'], mixop_node['out_shape']
-            for p, (pn, op) in zip(m.prob(), m.named_primitives()):
+            for p, (pn, op) in zip(m.prob(), m.named_candidates()):
                 if not p:
                     continue
                 subn = F.get_stats_node(op)
-                if subn['prim_type'] is None:
-                    subn['prim_type'] = pn
+                if subn['cand_type'] is None:
+                    subn['cand_type'] = pn
                 if subn['compute_updated'] is None:
                     if subn['in_shape'] is None:
                         subn['in_shape'] = m_in
-                    self.stat(subn.module, subn['in_shape'])
+                    self._stat(subn.module, subn['in_shape'])
                     subn['compute_updated'] = True
                 subn_mt = self.metrics(subn)
                 if subn_mt is None:
@@ -129,6 +137,8 @@ class RASPTraversalMetrics(MetricsBase):
 
 @register
 class RASPRootMetrics(MetricsBase):
+    """RASP root node metrics class."""
+
     def __init__(self, input_shape, metrics, compute=True, timing=False, device=None):
         super().__init__()
         if rasp is None:
@@ -140,6 +150,7 @@ class RASPRootMetrics(MetricsBase):
         self.device = device
 
     def __call__(self, net):
+        """Return metrics output."""
         root = F.get_stats_node(net)
         if root is None:
             root = F.reg_stats_node(net)

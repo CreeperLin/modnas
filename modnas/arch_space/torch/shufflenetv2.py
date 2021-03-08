@@ -1,3 +1,7 @@
+"""ShuffleNetV2 architectures.
+
+modified from https://github.com/megvii-model/SinglePathOneShot
+"""
 import torch
 import torch.nn as nn
 from .. import ops
@@ -18,11 +22,13 @@ for k in kernel_sizes:
 
 
 def channel_split(x, split):
+    """Return data split in channel dimension."""
     assert x.size(1) == split * 2
     return torch.split(x, split, dim=1)
 
 
 def shuffle_channels(x, groups=2):
+    """Return data shuffled in channel dimension."""
     batch_size, channels, height, width = x.size()
     assert channels % groups == 0
     channels_per_group = channels // groups
@@ -33,6 +39,8 @@ def shuffle_channels(x, groups=2):
 
 
 class ShuffleUnit(nn.Module):
+    """ShuffleNetV2 unit class."""
+
     def __init__(self, chn_in, chn_out, stride, ksize, chn_mid=None):
         super(ShuffleUnit, self).__init__()
         chn_in = chn_in // 2 if stride == 1 else chn_in
@@ -74,6 +82,7 @@ class ShuffleUnit(nn.Module):
         self.branch_proj = nn.Sequential(*branch_proj)
 
     def forward(self, x):
+        """Return network output."""
         if self.stride == 1:
             x_proj, x = channel_split(x, self.chn_in)
         elif self.stride == 2:
@@ -84,6 +93,8 @@ class ShuffleUnit(nn.Module):
 
 
 class ShuffleUnitXception(nn.Module):
+    """ShuffleNetV2 Xception unit class."""
+
     def __init__(self, chn_in, chn_out, stride, ksize=3, chn_mid=None):
         super(ShuffleUnitXception, self).__init__()
         chn_in = chn_in // 2 if stride == 1 else chn_in
@@ -135,6 +146,7 @@ class ShuffleUnitXception(nn.Module):
         self.branch_proj = nn.Sequential(*branch_proj)
 
     def forward(self, x):
+        """Return network output."""
         if self.stride == 1:
             x_proj, x = channel_split(x, self.chn_in)
         elif self.stride == 2:
@@ -145,6 +157,8 @@ class ShuffleUnitXception(nn.Module):
 
 
 class ShuffleNetV2(nn.Module):
+    """ShuffleNetV2 class."""
+
     def __init__(self, cfgs, chn_in=3, n_classes=1000, dropout_rate=0.1):
         super(ShuffleNetV2, self).__init__()
         self.out_channels = [cfg[0] for cfg in cfgs]
@@ -154,7 +168,7 @@ class ShuffleNetV2(nn.Module):
         features = []
         for i, (c, n, s, e) in enumerate(cfgs):
             if i == 0:
-                features.append(self.get_stem(chn_in, c, s))
+                features.append(self._get_stem(chn_in, c, s))
             elif i == len(cfgs) - 1:
                 features.append(
                     nn.Sequential(
@@ -175,7 +189,8 @@ class ShuffleNetV2(nn.Module):
         self.classifier = nn.Linear(chn_in, n_classes, bias=False)
         self._initialize_weights()
 
-    def get_stem(self, chn_in, chn, stride=2):
+    def _get_stem(self, chn_in, chn, stride=2):
+        """Return stem layers."""
         if stride == 4:
             return nn.Sequential(
                 nn.Conv2d(chn_in, chn, 3, 2, 1, bias=False),
@@ -190,6 +205,7 @@ class ShuffleNetV2(nn.Module):
         )
 
     def forward(self, x):
+        """Return network output."""
         x = self.features(x)
         x = self.globalpool(x)
         x = self.dropout(x)
@@ -198,6 +214,7 @@ class ShuffleNetV2(nn.Module):
         return x
 
     def _initialize_weights(self):
+        """Initialize weights for all modules."""
         first_conv = True
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -227,27 +244,34 @@ class ShuffleNetV2(nn.Module):
 
 @register_constructor
 class ShuffleNetV2SearchConstructor(DefaultMixedOpConstructor):
+    """ShuffleNetV2 mixed operator search space constructor."""
+
     def __init__(self, *args, add_identity_op=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.add_identity_op = add_identity_op
 
     def convert(self, slot):
-        prims = self.primitives[:]
+        """Convert slot to mixed operator."""
+        cands = self.candidates[:]
         if self.add_identity_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
-            self.primitives.append('IDT')
+            self.candidates.append('IDT')
         ent = super().convert(slot)
-        self.primitives = prims
+        self.candidates = cands
         return ent
 
 
 @register_constructor
 class ShuffleNetV2PredefinedConstructor(DefaultSlotTraversalConstructor):
+    """ShuffleNetV2 original network constructor."""
+
     def convert(self, slot):
+        """Convert slot to module."""
         return build('SHU3', slot)
 
 
 @register
 def shufflenetv2_oneshot(cfgs=None, **kwargs):
+    """Return a ShuffleNetV2 oneshot model."""
     cfgs = [
         [16, 1, 2, 1.0],
         [64, 4, 2, 1.0],
@@ -261,6 +285,7 @@ def shufflenetv2_oneshot(cfgs=None, **kwargs):
 
 @register
 def cifar_shufflenetv2_oneshot(cfgs=None, **kwargs):
+    """Return a ShuffleNetV2 oneshot model for CIFAR dataset."""
     cfgs = [
         [24, 1, 1, 1.0],
         [64, 4, 2, 1.0],
@@ -274,6 +299,7 @@ def cifar_shufflenetv2_oneshot(cfgs=None, **kwargs):
 
 @register
 def shufflenetv2(cfgs=None, **kwargs):
+    """Return a ShuffleNetV2 model."""
     cfgs = [
         [24, 1, 4, 1.0],
         [116, 4, 2, 1.0],
@@ -286,6 +312,7 @@ def shufflenetv2(cfgs=None, **kwargs):
 
 @register
 def cifar_shufflenetv2(cfgs=None, **kwargs):
+    """Return a ShuffleNetV2 model for CIFAR dataset."""
     cfgs = [
         [24, 1, 1, 1.0],
         [116, 4, 2, 1.0],

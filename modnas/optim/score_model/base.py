@@ -1,14 +1,19 @@
+"""Evaluation score prediction model."""
 import numpy as np
 
 
-class CostModel():
+class ScoreModel():
+    """Base score prediction model class."""
+
     def __init__(self, space):
         self.space = space
 
     def fit(self, inputs, results):
+        """Fit model with evaluation results."""
         raise NotImplementedError
 
     def predict(self, inputs):
+        """Return predicted evaluation score from model."""
         raise NotImplementedError
 
     def _process_input(self, inp):
@@ -21,12 +26,14 @@ class CostModel():
         return ret
 
     def to_feature(self, inputs):
+        """Return feature variables from inputs."""
         if not isinstance(inputs, list):
             inputs = [inputs]
         inputs = [self._process_input(inp) for inp in inputs]
         return np.array(inputs)
 
     def to_target(self, results):
+        """Return target variables from results."""
         def to_metrics(res):
             if isinstance(res, dict):
                 return list(res.values())[0]

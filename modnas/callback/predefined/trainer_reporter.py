@@ -1,3 +1,4 @@
+"""Trainer statistics reporter."""
 from functools import partial
 from modnas.registry.callback import register
 from modnas.utils import format_value, format_dict, AverageMeter
@@ -6,6 +7,7 @@ from ..base import CallbackBase
 
 @register
 class TrainerReporter(CallbackBase):
+    """Trainer statistics reporter class."""
 
     priority = -1
 
@@ -23,15 +25,19 @@ class TrainerReporter(CallbackBase):
         self.stats = None
 
     def init_stats(self, keys):
+        """Initialize statistics."""
         self.stats = {k: AverageMeter() for k in keys}
 
     def reset(self):
+        """Reset statistics."""
         self.stats = None
 
     def on_loss(self, ret, trainer, output, data, model):
+        """Record batch size in each loss call."""
         self.last_batch_size = len(data[-1])
 
     def report_epoch(self, ret, *args, **kwargs):
+        """Log statistics report in each epoch."""
         ret = ret or {}
         if self.stats:
             ret.update({k: v.avg for k, v in self.stats.items()})
@@ -39,6 +45,7 @@ class TrainerReporter(CallbackBase):
         return None if not ret else ret
 
     def report_step(self, proc, ret, trainer, estim, model, epoch, tot_epochs, step, tot_steps):
+        """Log statistics report in each step."""
         if step >= tot_steps:
             return
         if step == 0:

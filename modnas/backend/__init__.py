@@ -8,6 +8,7 @@ _backend_keys = []
 
 
 def use(backend, *args, imported=False, **kwargs):
+    """Switch to backend by name."""
     global _backend, _backend_keys
     if backend == _backend:
         return
@@ -27,4 +28,5 @@ def use(backend, *args, imported=False, **kwargs):
 
 
 def backend():
+    """Return name of current backend."""
     return _backend

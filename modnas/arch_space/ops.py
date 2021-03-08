@@ -1,3 +1,4 @@
+"""Network operators / candidates."""
 import torch
 import torch.nn as nn
 from ..utils import get_same_padding
@@ -32,15 +33,19 @@ config = Config(dct={
 })
 
 
-class DropPath_(nn.Module):
+class DropPath(nn.Module):
+    """DropPath module."""
+
     def __init__(self, prob=0.):
         super().__init__()
         self.drop_prob = prob
 
     def extra_repr(self):
+        """Return extra representation string."""
         return 'prob={}, inplace'.format(self.drop_prob)
 
     def forward(self, x):
+        """Return operator output."""
         if self.training and self.drop_prob > 0.:
             keep_prob = 1. - self.drop_prob
             # per data point mask; assuming x in cuda.
@@ -75,6 +80,7 @@ class PoolBN(nn.Module):
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
+        """Return operator output."""
         return self.net(x)
 
 
@@ -96,6 +102,7 @@ class StdConv(nn.Module):
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
+        """Return operator output."""
         return self.net(x)
 
 
@@ -119,6 +126,7 @@ class FacConv(nn.Module):
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
+        """Return operator output."""
         return self.net(x)
 
 
@@ -147,6 +155,7 @@ class DilConv(nn.Module):
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
+        """Return operator output."""
         return self.net(x)
 
 
@@ -159,6 +168,7 @@ class SepConv(nn.Module):
                                  DilConv(C_in, C_out, kernel_size, 1, padding, dilation=1))
 
     def forward(self, x):
+        """Return operator output."""
         return self.net(x)
 
 
@@ -181,18 +191,24 @@ class SepSingle(nn.Module):
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
+        """Return operator output."""
         return self.net(x)
 
 
 class Identity(nn.Module):
+    """Identity operation."""
+
     def __init__(self, *args, **kwargs):
         super().__init__()
 
     def forward(self, x):
+        """Return operator output."""
         return x
 
 
 class Zero(nn.Module):
+    """Null operation that returns input-sized zero tensor."""
+
     def __init__(self, C_in, C_out, stride, *args, **kwargs):
         super().__init__()
         if C_in != C_out:
@@ -201,6 +217,7 @@ class Zero(nn.Module):
         self.C_out = C_out
 
     def forward(self, x):
+        """Return operator output."""
         if self.stride == 1:
             return x * 0.
         # re-sizing by stride
@@ -218,6 +235,7 @@ class FactorizedReduce(nn.Module):
         self.bn = nn.BatchNorm2d(C_out, **config.bn)
 
     def forward(self, x):
+        """Return operator output."""
         x = self.relu(x)
         out = torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
         out = self.bn(out)

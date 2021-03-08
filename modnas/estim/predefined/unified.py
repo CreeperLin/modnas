@@ -53,6 +53,7 @@ class UnifiedEstim(EstimBase):
         return ret
 
     def run_epoch(self, optim, epoch, tot_epochs):
+        """Run Estimator routine for one epoch."""
         logger = self.logger
         config = self.config
         arch_epoch_start = config.arch_update_epoch_start

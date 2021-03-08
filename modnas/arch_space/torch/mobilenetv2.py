@@ -1,3 +1,7 @@
+"""MobileNetV2 architectures.
+
+modified from https://github.com/Randl/MobileNetV2-pytorch
+"""
 import math
 from functools import partial
 from collections import OrderedDict
@@ -188,11 +192,11 @@ class MobileNetV2SearchConstructor(DefaultMixedOpConstructor):
             ent = self.predefined_fn(slot)
             self.first = False
         else:
-            prims = self.primitives[:]
+            cands = self.candidates[:]
             if self.add_zero_op and slot.stride == 1 and slot.chn_in == slot.chn_out:
-                self.primitives.append('NIL')
+                self.candidates.append('NIL')
             ent = super().convert(slot)
-            self.primitives = prims
+            self.candidates = cands
         return ent
 
 

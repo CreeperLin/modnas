@@ -1,198 +1,217 @@
+"""Dataflow defining components in Layers."""
 import itertools
 import torch
-
-
-def get_merger(name):
-    for sc in MergerBase.__subclasses__():
-        if sc.__name__ == name:
-            return sc
-    raise NotImplementedError('unsupported merger: {}'.format(name))
+from modnas.registry.layer_def import register
 
 
 class MergerBase():
-    def __init__(self):
-        pass
+    """Base layer dataflow merger class."""
 
     def chn_out(self, chn_states):
-        pass
+        """Return number of channels in merged output."""
+        raise NotImplementedError
 
     def merge(self, states):
-        pass
+        """Return merged output from inputs."""
+        raise NotImplementedError
 
     def merge_range(self, num_states):
-        pass
+        """Return indices of merged inputs."""
+        raise NotImplementedError
 
 
+@register
 class ConcatMerger(MergerBase):
+    """Merger that outputs concatenation of inputs."""
+
     def __init__(self, start=0):
         super().__init__()
         self.start = start
 
     def chn_out(self, chn_states):
+        """Return number of channels in merged output."""
         return sum(chn_states[self.start:])
 
     def merge(self, states):
+        """Return merged output from inputs."""
         return torch.cat(states[self.start:], dim=1)
 
     def merge_range(self, num_states):
+        """Return indices of merged inputs."""
         return range(self.start, num_states)
 
 
+@register
 class AvgMerger(MergerBase):
+    """Merger that outputs mean of inputs."""
+
     def __init__(self, start=0):
         super().__init__()
         self.start = start
 
     def chn_out(self, chn_states):
+        """Return number of channels in merged output."""
         return chn_states[-1]
 
     def merge(self, states):
+        """Return merged output from inputs."""
         return sum(states[self.start:]) / len(states)
 
     def merge_range(self, num_states):
+        """Return indices of merged inputs."""
         return range(self.start, num_states)
 
 
+@register
 class SumMerger(MergerBase):
+    """Merger that outputs sum of inputs."""
+
     def __init__(self, start=0):
         super().__init__()
         self.start = start
 
     def chn_out(self, chn_states):
+        """Return number of channels in merged output."""
         return chn_states[-1]
 
     def merge(self, states):
+        """Return merged output from inputs."""
         return sum(states[self.start:])
 
     def merge_range(self, num_states):
+        """Return indices of merged inputs."""
         return range(self.start, num_states)
 
 
+@register
 class LastMerger(MergerBase):
+    """Merger that outputs the last one of inputs."""
+
     def __init__(self, start=0):
         del start
         super().__init__()
 
-    @staticmethod
-    def chn_out(chn_states):
+    def chn_out(self, chn_states):
+        """Return number of channels in merged output."""
         return chn_states[-1]
 
-    @staticmethod
-    def merge(states):
+    def merge(self, states):
+        """Return merged output from inputs."""
         return states[-1]
 
-    @staticmethod
-    def merge_range(num_states):
+    def merge_range(self, num_states):
+        """Return indices of merged inputs."""
         return (num_states - 1, )
 
 
-def get_enumerator(name):
-    for sc in EnumeratorBase.__subclasses__():
-        if sc.__name__ == name:
-            return sc
-    raise NotImplementedError('unsupported enumerator: {}'.format(name))
-
-
 class EnumeratorBase():
-    def __init__(self):
-        pass
+    """Base layer dataflow input enumerator class."""
 
     def enum(self, n_states, n_inputs):
-        pass
+        """Return enumerated indices from all inputs."""
+        raise NotImplementedError
 
     def len_enum(self, n_states, n_inputs):
-        pass
+        """Return number of enumerated inputs."""
+        raise NotImplementedError
 
 
+@register
 class CombinationEnumerator(EnumeratorBase):
-    def __init__(self):
-        super().__init__()
+    """Enumerator that enums all combinations of inputs."""
 
-    @staticmethod
-    def enum(n_states, n_inputs):
+    def enum(self, n_states, n_inputs):
+        """Return enumerated indices from all inputs."""
         return itertools.combinations(range(n_states), n_inputs)
 
-    @staticmethod
-    def len_enum(n_states, n_inputs):
+    def len_enum(self, n_states, n_inputs):
+        """Return number of enumerated inputs."""
         return len(list(itertools.combinations(range(n_states), n_inputs)))
 
 
+@register
 class LastNEnumerator(EnumeratorBase):
-    def __init__(self):
-        super().__init__()
+    """Enumerator that enums last N of inputs."""
 
-    @staticmethod
-    def enum(n_states, n_inputs):
-        yield [n_states - i - 1 for i in range(n_inputs)]
+    def enum(self, n_states, n_inputs):
+        """Return enumerated indices from all inputs."""
+        return ([n_states - i - 1 for i in range(n_inputs)], )
 
-    @staticmethod
-    def len_enum(n_states, n_inputs):
+    def len_enum(self, n_states, n_inputs):
+        """Return number of enumerated inputs."""
         return 1
 
 
+@register
 class FirstNEnumerator(EnumeratorBase):
-    def __init__(self):
-        super().__init__()
+    """Enumerator that enums first N of inputs."""
 
-    @staticmethod
-    def enum(n_states, n_inputs):
-        yield [i for i in range(n_inputs)]
+    def enum(self, n_states, n_inputs):
+        """Return enumerated indices from all inputs."""
+        return ([i for i in range(n_inputs)], )
 
-    @staticmethod
-    def len_enum(n_states, n_inputs):
+    def len_enum(self, n_states, n_inputs):
+        """Return number of enumerated inputs."""
         return 1
 
 
+@register
 class TreeEnumerator(EnumeratorBase):
+    """Enumerator that enums inputs as trees."""
+
     def __init__(self, width=2):
         super().__init__()
         self.width = width
 
     def enum(self, n_states, n_inputs):
-        yield [(n_states - 1 + i) // self.width for i in range(n_inputs)]
+        """Return enumerated indices from all inputs."""
+        return ([(n_states - 1 + i) // self.width for i in range(n_inputs)], )
 
     def len_enum(self, n_states, n_inputs):
+        """Return number of enumerated inputs."""
         return 1
 
 
-class N2OneEnumerator(EnumeratorBase):
-    def __init__(self):
-        super().__init__()
+@register
+class ReverseEnumerator(EnumeratorBase):
+    """Enumerator that enums inputs in reverse order."""
 
     def enum(self, n_states, n_inputs):
-        yield [n_states - i - 1 for i in range(n_states)]
+        """Return enumerated indices from all inputs."""
+        return ([n_states - i - 1 for i in range(n_states)], )
 
     def len_enum(self, n_states, n_inputs):
+        """Return number of enumerated inputs."""
         return 1
-
-
-def get_allocator(name):
-    for sc in AllocatorBase.__subclasses__():
-        if sc.__name__ == name:
-            return sc
-    raise NotImplementedError('unsupported allocator: {}'.format(name))
 
 
 class AllocatorBase():
-    def __init__(self):
-        pass
+    """Base layer dataflow input allocator class."""
 
-    def alloc(self, states, sidx, cur_state):
-        pass
-
-    def chn_in(self, chn_states, sidx, cur_state):
-        pass
-
-
-class EvenSplitAllocator(AllocatorBase):
     def __init__(self, n_inputs, n_states):
-        super().__init__()
         self.n_inputs = n_inputs
         self.n_states = n_states
+
+    def alloc(self, states, sidx, cur_state):
+        """Return allocated input from previous states."""
+        raise NotImplementedError
+
+    def chn_in(self, chn_states, sidx, cur_state):
+        """Return number of channels of allocated input."""
+        raise NotImplementedError
+
+
+@register
+class EvenSplitAllocator(AllocatorBase):
+    """Allocator that splits channels for each input."""
+
+    def __init__(self, n_inputs, n_states):
+        super().__init__(n_inputs, n_states)
         self.tot_states = n_inputs + n_states
         self.slice_map = {}
 
     def alloc(self, states, sidx, cur_state):
+        """Return allocated input from previous states."""
         ret = []
         for s, si in zip(states, sidx):
             s_slice = self.slice_map[(si, cur_state)]
@@ -201,6 +220,7 @@ class EvenSplitAllocator(AllocatorBase):
         return ret
 
     def chn_in(self, chn_states, sidx, cur_state):
+        """Return number of channels of allocated input."""
         chn_list = []
         for (chn_s, si) in zip(chn_states, sidx):
             etot = min(self.n_states, self.tot_states - si - 1)
@@ -214,23 +234,14 @@ class EvenSplitAllocator(AllocatorBase):
         return chn_list
 
 
-class FracSplitAllocator(AllocatorBase):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def alloc(self, states, sidx, cur_state):
-        return states
-
-    def chn_in(self, chn_states, sidx, cur_state):
-        return chn_states
-
-
+@register
 class ReplicateAllocator(AllocatorBase):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
+    """Allocator that replicate states for each input."""
 
     def alloc(self, states, sidx, cur_state):
+        """Return allocated input from previous states."""
         return states
 
     def chn_in(self, chn_states, sidx, cur_state):
+        """Return number of channels of allocated input."""
         return chn_states

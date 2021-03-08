@@ -1,3 +1,4 @@
+"""Run hyperparameter tuning on python scripts."""
 import os
 import sys
 import yaml
@@ -23,6 +24,7 @@ _default_hptune_config = {
 
 
 def tune_script():
+    """Run hyperparameter tuning on python scripts."""
     usage = "tune_script.py [options] script [args] ..."
     parser = optparse.OptionParser(usage=usage)
     parser.allow_interspersed_args = False
@@ -30,7 +32,6 @@ def tune_script():
     parser.add_option('-f', '--func', default=None, help="name of the tuned function")
     parser.add_option('-c', '--config', default=None, help="yaml config file")
     parser.add_option('-p', '--hparam', default=None, help="hparam")
-    parser.add_option('-e', '--exp', default='exp', help="experiment root dir")
     parser.add_option('-o', '--config_override', action="append", type=str, default=None, help="override config")
 
     (options, args) = parser.parse_args()

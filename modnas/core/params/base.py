@@ -1,9 +1,12 @@
+"""Base parameter."""
 from collections import OrderedDict
 from ..event import event_emit, event_on
 from ..param_space import ParamSpace
 
 
 class Param():
+    """Base parameter class."""
+
     def __init__(self, name=None, space=None, on_update=None):
         self.name = None
         self._parent = None
@@ -21,25 +24,32 @@ class Param():
         self.set_value = set_value_hooked
 
     def __repr__(self):
+        """Return representation string."""
         return '{}(name={}, {})'.format(self.__class__.__name__, self.name, self.extra_repr())
 
     def extra_repr(self):
+        """Return extra representation string."""
         return ''
 
     def is_valid(self, value):
+        """Return if the value is valid."""
         return True
 
     def value(self):
+        """Return parameter value."""
         return self.val
 
     def set_value(self, value):
+        """Set parameter value."""
         if not self.is_valid(value):
             raise ValueError('Invalid parameter value')
         self.val = value
 
     def on_update(self):
+        """Trigger parameter update event."""
         event_emit(self.event_name, self)
 
     def __deepcopy__(self, memo):
+        """Return deepcopy."""
         # disable deepcopy
         return self

@@ -1,3 +1,4 @@
+"""Local network hardware performance profiler metrics."""
 import time
 import torch
 from modnas.registry.metrics import register
@@ -6,6 +7,8 @@ from modnas.metrics.base import MetricsBase
 
 @register
 class LocalProfilerMetrics(MetricsBase):
+    """Local network hardware performance profiler metrics class."""
+
     def __init__(self, device=None, rep=50, warmup=10):
         super().__init__()
         self.rep = rep
@@ -13,6 +16,7 @@ class LocalProfilerMetrics(MetricsBase):
         self.device = device
 
     def __call__(self, node):
+        """Return metrics output."""
         in_shape = node['in_shape']
         op = node.module
         plist = list(op.parameters())

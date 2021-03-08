@@ -10,7 +10,10 @@ from modnas.registry.optim import register
 
 @register
 class DARTSOptim(GradientBasedOptim):
-    """Optimizer with DARTS algorithm."""
+    """Optimizer with DARTS algorithm.
+
+    modified from https://github.com/khanrc/pt.darts
+    """
 
     def __init__(self, a_optim=None, w_momentum=0.9, w_weight_decay=0.0003, space=None):
         super().__init__(space, a_optim)
@@ -188,7 +191,10 @@ class DirectGradBiLevelOptim(GradientBasedOptim):
 
 @register
 class REINFORCEOptim(GradientBasedOptim):
-    """Optimizer with REINFORCE algorithm."""
+    """Optimizer with REINFORCE algorithm.
+
+    modified from https://github.com/mit-han-lab/proxylessnas
+    """
 
     def __init__(self, a_optim=None, batch_size=10, space=None):
         super().__init__(space, a_optim)

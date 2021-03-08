@@ -1,10 +1,11 @@
+"""XGBoost score prediction model."""
 import numpy as np
 try:
     import xgboost as xgb
 except ImportError:
     xgb = None
-from .base import CostModel
-from modnas.registry.cost_model import register
+from .base import ScoreModel
+from modnas.registry.score_model import register
 
 
 xgb_params_reg = {
@@ -31,7 +32,9 @@ xgb_params_rank = {
 
 
 @register
-class XGBoostCostModel(CostModel):
+class XGBoostScoreModel(ScoreModel):
+    """XGBoost score prediction model class."""
+
     def __init__(self, space, loss_type='reg', xgb_kwargs={}):
         super().__init__(space)
         if xgb is None:
@@ -42,6 +45,7 @@ class XGBoostCostModel(CostModel):
         self.model = None
 
     def fit(self, inputs, results):
+        """Fit model with evaluation results."""
         x_train = self.to_feature(inputs)
         y_train = self.to_target(results)
         index = np.random.permutation(len(x_train))
@@ -53,6 +57,7 @@ class XGBoostCostModel(CostModel):
         )
 
     def predict(self, inputs):
+        """Return predicted evaluation score from model."""
         feats = self.to_feature(inputs)
         dtest = xgb.DMatrix(feats)
         return self.model.predict(dtest)

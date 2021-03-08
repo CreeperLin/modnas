@@ -1,3 +1,4 @@
+"""Torch data providers."""
 from modnas.utils import merge_config
 from modnas.registry.data_provider import build
 from modnas.registry.dataloader import build as build_dataloader
@@ -5,6 +6,7 @@ from modnas.registry.dataset import build as build_dataset
 
 
 def get_data(configs):
+    """Return a new dataset."""
     config = None
     for conf in configs:
         if conf is None:

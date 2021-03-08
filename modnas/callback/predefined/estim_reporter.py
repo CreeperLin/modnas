@@ -1,3 +1,4 @@
+"""Estimator statistics reporter."""
 from functools import partial
 from modnas.registry.callback import register
 from modnas.utils import format_value, format_dict
@@ -6,6 +7,7 @@ from ..base import CallbackBase
 
 @register
 class EstimReporter(CallbackBase):
+    """Estimator statistics reporter class."""
 
     priority = -10
 
@@ -18,6 +20,7 @@ class EstimReporter(CallbackBase):
         self.default_fmt_fn = partial(format_value, unit=False, factor=0, prec=4, to_str=True)
 
     def report_epoch(self, ret, estim, optim, epoch, tot_epochs):
+        """Log statistics report in each epoch."""
         if epoch >= tot_epochs:
             return
         interval = self.interval

@@ -39,6 +39,7 @@ class Config(dict):
                              lambda dumper, data: dumper.represent_mapping('tag:yaml.org,2002:map', data.items()))
 
     def to_dict(self):
+        """Return dict converted from Config."""
         dct = {}
         for k, v in self.items():
             if isinstance(v, Config):

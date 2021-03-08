@@ -1,3 +1,7 @@
+"""ProxylessNAS (PathLevel-EAS) architectures.
+
+modified from https://github.com/han-cai/PathLevel-EAS
+"""
 import math
 import json
 import copy
@@ -11,6 +15,7 @@ from modnas.registry.arch_space import register
 
 
 def list_sum(x):
+    """Return the sum of all elements of a list."""
     if len(x) == 1:
         return x[0]
     elif len(x) == 2:
@@ -20,20 +25,25 @@ def list_sum(x):
 
 
 class TransitionBlock(nn.Module):
+    """Feature transition block class."""
+
     def __init__(self, layers):
         super(TransitionBlock, self).__init__()
         self.layers = nn.ModuleList(layers)
 
     def forward(self, x):
+        """Return network output."""
         for layer in self.layers:
             x = layer(x)
         return x
 
     def get_config(self):
+        """Return config."""
         return {'name': TransitionBlock.__name__, 'layers': [layer.get_config() for layer in self.layers]}
 
     @staticmethod
     def set_from_config(config):
+        """Build network from config."""
         layers = []
         for layer_config in config.get('layers'):
             layer = set_layer_from_config(layer_config)
@@ -42,22 +52,27 @@ class TransitionBlock(nn.Module):
         return block
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         for layer in self.layers:
             x = layer.virtual_forward(x, init)
         return x
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         for layer in self.layers:
             layer.claim_ready(nBatch, noise)
 
 
 class BasicBlockWiseConvNet(nn.Module):
+    """Basic block-wise convolution network class."""
+
     def __init__(self, blocks, classifier):
         super(BasicBlockWiseConvNet, self).__init__()
         self.blocks = nn.ModuleList(blocks)
         self.classifier = classifier
 
     def forward(self, x):
+        """Return network output."""
         for block in self.blocks:
             x = block(x)
         x = x.view(x.size(0), -1)  # flatten
@@ -66,20 +81,25 @@ class BasicBlockWiseConvNet(nn.Module):
 
     @property
     def building_block(self):
+        """Return building block."""
         raise NotImplementedError
 
     def get_config(self):
+        """Return config."""
         raise NotImplementedError
 
     @staticmethod
     def set_from_config(config):
+        """Build network from config."""
         raise NotImplementedError
 
     @staticmethod
     def set_standard_net(**kwargs):
+        """Return built architecture."""
         raise NotImplementedError
 
     def init_model(self, model_init, init_div_groups):
+        """Initialize model weights."""
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 if model_init == 'he_fout':
@@ -103,6 +123,7 @@ class BasicBlockWiseConvNet(nn.Module):
 
 
 def get_block_by_name(name):
+    """Return block class by name."""
     if name == TransitionBlock.__name__:
         return TransitionBlock
     elif name == ResidualBlock.__name__:
@@ -112,6 +133,7 @@ def get_block_by_name(name):
 
 
 def get_layer_by_name(name):
+    """Return layer class by name."""
     if name == ConvLayer.__name__:
         return ConvLayer
     elif name == DepthConvLayer.__name__:
@@ -127,6 +149,7 @@ def get_layer_by_name(name):
 
 
 def set_layer_from_config(layer_config):
+    """Return layer from config."""
     layer_name = layer_config.pop('name')
     layer = get_layer_by_name(layer_name)
     layer = layer(**layer_config)
@@ -134,6 +157,7 @@ def set_layer_from_config(layer_config):
 
 
 def apply_noise(weights, noise=None):
+    """Return weights with noise applied."""
     if noise is None:
         return weights
     else:
@@ -157,6 +181,8 @@ def apply_noise(weights, noise=None):
 
 
 class BasicLayer(nn.Module):
+    """Basic layer class."""
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -195,10 +221,12 @@ class BasicLayer(nn.Module):
 
     @property
     def ops_list(self):
+        """Return a list of all the operations by order."""
         return self.ops_order.split('_')
 
     @property
     def bn_before_weight(self):
+        """Return if BN is before weight."""
         for op in self.ops_list:
             if op == 'bn':
                 return True
@@ -208,6 +236,7 @@ class BasicLayer(nn.Module):
 
     @property
     def bn_before_act(self):
+        """Return if BN is before activation."""
         for op in self.ops_list:
             if op == 'bn':
                 return True
@@ -216,6 +245,7 @@ class BasicLayer(nn.Module):
         raise ValueError('Invalid ops_order: %s' % self.ops_order)
 
     def forward(self, x):
+        """Return network output."""
         for op in self.ops_list:
             if op == 'weight':
                 x = self.weight_call(x)
@@ -232,9 +262,11 @@ class BasicLayer(nn.Module):
         return x
 
     def weight_call(self, x):
+        """Return network output from weights only."""
         raise NotImplementedError
 
     def get_same_padding(self, kernel_size):
+        """Return padding size for SAME convolution."""
         if kernel_size == 1:
             padding = 0
         elif kernel_size == 3:
@@ -248,6 +280,7 @@ class BasicLayer(nn.Module):
         return padding
 
     def get_config(self):
+        """Return config."""
         return {
             'in_channels': self.in_channels,
             'out_channels': self.out_channels,
@@ -258,6 +291,7 @@ class BasicLayer(nn.Module):
         }
 
     def copy_bn(self, copy_layer, noise=None):
+        """Copy BN states."""
         if noise is None:
             noise = {}
         if self.use_bn:
@@ -267,16 +301,20 @@ class BasicLayer(nn.Module):
             copy_layer.bn.running_var = self.bn.running_var.clone()
 
     def copy(self, noise=None):
+        """Return a copy of the layer."""
         raise NotImplementedError
 
     def split(self, split_list, noise=None):
+        """Return list of layers split at channel dimension."""
         raise NotImplementedError
 
     @property
     def get_str(self):
+        """Return formatted string desc."""
         raise NotImplementedError
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         if not self.layer_ready:
             if self.use_bn:
                 if init:
@@ -302,6 +340,7 @@ class BasicLayer(nn.Module):
             return self.forward(x)
 
     def claim_ready(self, nBatch):
+        """Set layer runtime statistics to ready state."""
         if not self.layer_ready:
             if self.use_bn:
                 self.bn.running_mean /= nBatch
@@ -312,6 +351,8 @@ class BasicLayer(nn.Module):
 
 
 class ConvLayer(BasicLayer):
+    """Convolution layer class."""
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -343,10 +384,12 @@ class ConvLayer(BasicLayer):
                               bias=self.bias)
 
     def weight_call(self, x):
+        """Return network output from weights only."""
         x = self.conv(x)
         return x
 
     def get_config(self):
+        """Return config."""
         config = {
             'name': ConvLayer.__name__,
             'kernel_size': self.kernel_size,
@@ -359,6 +402,7 @@ class ConvLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
+        """Return a copy of the layer."""
         if noise is None:
             noise = {}
         conv_copy = set_layer_from_config(self.get_config())
@@ -370,6 +414,7 @@ class ConvLayer(BasicLayer):
         return conv_copy
 
     def split(self, split_list, noise=None):
+        """Return list of layers split at channel dimension."""
         assert np.sum(split_list) == self.out_channels
         if noise is None:
             noise = {}
@@ -432,12 +477,14 @@ class ConvLayer(BasicLayer):
 
     @property
     def get_str(self):
+        """Return formatted string desc."""
         if self.groups == 1:
             return '%dx%d_Conv' % (self.kernel_size, self.kernel_size)
         else:
             return '%dx%d_GroupConv' % (self.kernel_size, self.kernel_size)
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         if not self.layer_ready and self.bias:
             assert self.ops_order == 'bn_act_weight'
             if init:
@@ -450,6 +497,7 @@ class ConvLayer(BasicLayer):
         return super(ConvLayer, self).virtual_forward(x, init)
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         if noise is None:
             noise = {}
         if not self.layer_ready:
@@ -466,6 +514,8 @@ class ConvLayer(BasicLayer):
 
 
 class DepthConvLayer(BasicLayer):
+    """Depth-wise convolution layer class."""
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -498,11 +548,13 @@ class DepthConvLayer(BasicLayer):
         self.point_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, groups=self.groups, bias=self.bias)
 
     def weight_call(self, x):
+        """Return network output from weights only."""
         x = self.depth_conv(x)
         x = self.point_conv(x)
         return x
 
     def get_config(self):
+        """Return config."""
         config = {
             'name': DepthConvLayer.__name__,
             'kernel_size': self.kernel_size,
@@ -515,6 +567,7 @@ class DepthConvLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
+        """Return a copy of the layer."""
         if noise is None:
             noise = {}
         depth_conv_copy = set_layer_from_config(self.get_config())
@@ -527,6 +580,7 @@ class DepthConvLayer(BasicLayer):
         return depth_conv_copy
 
     def split(self, split_list, noise=None):
+        """Return list of layers split at channel dimension."""
         if noise is None:
             noise = {}
         assert np.sum(split_list) == self.out_channels
@@ -557,9 +611,11 @@ class DepthConvLayer(BasicLayer):
 
     @property
     def get_str(self):
+        """Return formatted string desc."""
         return '%dx%d_DepthConv' % (self.kernel_size, self.kernel_size)
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         if not self.layer_ready and self.bias:
             assert self.ops_order == 'bn_act_weight'
             if init:
@@ -572,6 +628,7 @@ class DepthConvLayer(BasicLayer):
         return super(DepthConvLayer, self).virtual_forward(x, init)
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         if noise is None:
             noise = {}
         if not self.layer_ready:
@@ -592,6 +649,8 @@ class DepthConvLayer(BasicLayer):
 
 
 class PoolingLayer(BasicLayer):
+    """Pooling layer class."""
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -622,10 +681,12 @@ class PoolingLayer(BasicLayer):
             raise NotImplementedError
 
     def weight_call(self, x):
+        """Return network output from weights only."""
         x = self.pool(x)
         return x
 
     def get_config(self):
+        """Return config."""
         config = {
             'name': PoolingLayer.__name__,
             'pool_type': self.pool_type,
@@ -636,6 +697,7 @@ class PoolingLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
+        """Return a copy of the layer."""
         if noise is None:
             noise = {}
         copy_layer = set_layer_from_config(self.get_config())
@@ -643,6 +705,7 @@ class PoolingLayer(BasicLayer):
         return copy_layer
 
     def split(self, split_list, noise=None):
+        """Return list of layers split at channel dimension."""
         if noise is None:
             noise = {}
         assert np.sum(split_list) == self.out_channels
@@ -667,17 +730,22 @@ class PoolingLayer(BasicLayer):
 
     @property
     def get_str(self):
+        """Return formatted string desc."""
         return '%dx%d_%sPool' % (self.kernel_size, self.kernel_size, self.pool_type.upper())
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         return super(PoolingLayer, self).virtual_forward(x, init)
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         super(PoolingLayer, self).claim_ready(nBatch)
         assert self.layer_ready
 
 
 class IdentityLayer(BasicLayer):
+    """Identity layer class."""
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -689,9 +757,11 @@ class IdentityLayer(BasicLayer):
         super(IdentityLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
 
     def weight_call(self, x):
+        """Return network output from weights only."""
         return x
 
     def get_config(self):
+        """Return config."""
         config = {
             'name': IdentityLayer.__name__,
         }
@@ -699,6 +769,7 @@ class IdentityLayer(BasicLayer):
         return config
 
     def copy(self, noise=None):
+        """Return a copy of the layer."""
         if noise is None:
             noise = {}
         copy_layer = set_layer_from_config(self.get_config())
@@ -706,6 +777,7 @@ class IdentityLayer(BasicLayer):
         return copy_layer
 
     def split(self, split_list, noise=None):
+        """Return list of layers split at channel dimension."""
         if noise is None:
             noise = {}
         assert np.sum(split_list) == self.out_channels
@@ -730,17 +802,22 @@ class IdentityLayer(BasicLayer):
 
     @property
     def get_str(self):
+        """Return formatted string desc."""
         return 'Identity'
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         return super(IdentityLayer, self).virtual_forward(x, init)
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         super(IdentityLayer, self).claim_ready(nBatch)
         assert self.layer_ready
 
 
 class LinearLayer(nn.Module):
+    """Linear layer class."""
+
     def __init__(self, in_features, out_features, bias=True):
         super(LinearLayer, self).__init__()
 
@@ -751,9 +828,11 @@ class LinearLayer(nn.Module):
         self.linear = nn.Linear(self.in_features, self.out_features, self.bias)
 
     def forward(self, x):
+        """Return network output."""
         return self.linear(x)
 
     def get_config(self):
+        """Return config."""
         return {
             'name': LinearLayer.__name__,
             'in_features': self.in_features,
@@ -763,6 +842,7 @@ class LinearLayer(nn.Module):
 
 
 class TreeNode(nn.Module):
+    """Tree node class."""
 
     SET_MERGE_TYPE = 'set_merge_type'
     INSERT_NODE = 'insert_node'
@@ -810,10 +890,12 @@ class TreeNode(nn.Module):
 
     @property
     def child_num(self):
+        """Return number of children modules."""
         return len(self.edges)
 
     @property
     def in_dim_list(self):
+        """Return list of input channel dimensions."""
         if self.split_type == 'copy':
             in_dim_list = [self.in_channels] * self.child_num
         elif self.split_type == 'split':
@@ -825,6 +907,7 @@ class TreeNode(nn.Module):
 
     @property
     def out_dim_list(self):
+        """Return list of output channel dimensions."""
         if self.merge_type == 'add':
             out_dim_list = [self.out_channels] * self.child_num
         elif self.merge_type == 'concat':
@@ -836,6 +919,7 @@ class TreeNode(nn.Module):
 
     @staticmethod
     def get_split_list(in_dim, child_num):
+        """Return list of split input dimension."""
         in_dim_list = [in_dim // child_num] * child_num
         for _i in range(in_dim % child_num):
             in_dim_list[_i] += 1
@@ -843,6 +927,7 @@ class TreeNode(nn.Module):
 
     @staticmethod
     def path_normal_forward(x, edge=None, child=None, branch_bn=None, use_avg=False):
+        """Return normal network output."""
         if edge is not None:
             x = edge(x)
         edge_x = x
@@ -856,6 +941,7 @@ class TreeNode(nn.Module):
         return x
 
     def path_drop_forward(self, x, branch_idx):
+        """Return path dropped network output."""
         edge, child = self.edges[branch_idx], self.child_nodes[branch_idx]
         branch_bn = None if self.branch_bns is None else self.branch_bns[branch_idx]
         if self.drop_only_add and self.merge_type != 'add':
@@ -897,6 +983,7 @@ class TreeNode(nn.Module):
         return path_out
 
     def forward(self, x, virtual=False, init=False):
+        """Return network output."""
         if self.cell_drop_rate > 0:
             if self.training:
                 p = random.uniform(0, 1)
@@ -982,6 +1069,7 @@ class TreeNode(nn.Module):
         return output
 
     def get_config(self):
+        """Return config."""
         child_configs = []
         for child in self.child_nodes:
             if child is None:
@@ -1011,6 +1099,7 @@ class TreeNode(nn.Module):
 
     @staticmethod
     def set_from_config(config):
+        """Build network from config."""
         child_nodes = []
         for child_config in config.pop('child_nodes'):
             if child_config is None:
@@ -1026,12 +1115,14 @@ class TreeNode(nn.Module):
         return TreeNode(child_nodes=child_nodes, edges=edges, **config)
 
     def get_node(self, node_path):
+        """Return node by path."""
         node = self
         for branch in node_path:
             node = node.child_nodes[branch]
         return node
 
     def apply_transformation(self, node_path, op_type, op_param):
+        """Apply a transformation to a node."""
         tree_node = self.get_node(node_path)
 
         if op_type == TreeNode.SET_MERGE_TYPE:
@@ -1045,6 +1136,7 @@ class TreeNode(nn.Module):
 
     @property
     def get_str(self):
+        """Return formatted string desc."""
         if self.child_num > 0:
             children_str = []
             for _i, child in enumerate(self.child_nodes):
@@ -1056,9 +1148,11 @@ class TreeNode(nn.Module):
         return '{%s, %s, %s}' % (self.merge_type, self.split_type, children_str)
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         return self.forward(x, virtual=True, init=init)
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         idx = 0
         for edge, child in zip(self.edges, self.child_nodes):
             branch_bn = None if self.branch_bns is None else self.branch_bns[idx]
@@ -1076,6 +1170,7 @@ class TreeNode(nn.Module):
     # -------------------------------- transformation operations -------------------------------- #
 
     def set_merge_type(self, merge_type, branch_num, noise=None):
+        """Set layer merge type."""
         assert self.merge_type is None, 'current merge type is not None'
         assert self.child_num == 1 and self.child_nodes[0] is None, 'not applicable'
 
@@ -1098,6 +1193,7 @@ class TreeNode(nn.Module):
         self.child_nodes = nn.ModuleList([None for _ in range(branch_num)])
 
     def insert_node(self, branch_idx):
+        """Insert node to layer."""
         assert branch_idx < self.child_num, 'index out of range: %d' % branch_idx
         branch_edge = self.edges[branch_idx]
         branch_node = self.child_nodes[branch_idx]
@@ -1121,6 +1217,7 @@ class TreeNode(nn.Module):
         self.child_nodes[branch_idx] = inserted_node
 
     def replace_identity_edge(self, idx, edge_config):
+        """Replace identity edge in current layer."""
         assert idx < self.child_num, 'index out of range: %d' % idx
         old_edge = self.edges[idx]
         assert isinstance(old_edge, IdentityLayer), 'not applicable'
@@ -1140,6 +1237,8 @@ class TreeNode(nn.Module):
 
 
 class ResidualBlock(nn.Module):
+    """Residual block class."""
+
     def __init__(self, cell, in_bottle, out_bottle, shortcut, final_bn=False):
         super(ResidualBlock, self).__init__()
 
@@ -1158,6 +1257,7 @@ class ResidualBlock(nn.Module):
             self.final_bn = None
 
     def forward(self, x):
+        """Return network output."""
         _x = self.shortcut(x)
 
         if self.in_bottle is not None:
@@ -1185,6 +1285,7 @@ class ResidualBlock(nn.Module):
         return _x + x
 
     def get_config(self):
+        """Return config."""
         return {
             'name': ResidualBlock.__name__,
             'shortcut': self.shortcut.get_config(),
@@ -1196,6 +1297,7 @@ class ResidualBlock(nn.Module):
 
     @staticmethod
     def set_from_config(config):
+        """Build network from config."""
         if config.get('in_bottle'):
             in_bottle = set_layer_from_config(config.get('in_bottle'))
         else:
@@ -1213,6 +1315,7 @@ class ResidualBlock(nn.Module):
         return ResidualBlock(cell, in_bottle, out_bottle, shortcut, final_bn)
 
     def virtual_forward(self, x, init=False):
+        """Return virtual network output for statistics."""
         _x = self.shortcut.virtual_forward(x, init)
 
         if self.in_bottle is not None:
@@ -1238,6 +1341,7 @@ class ResidualBlock(nn.Module):
         return _x + x
 
     def claim_ready(self, nBatch, noise=None):
+        """Set layer runtime statistics to ready state."""
         if self.in_bottle:
             self.in_bottle.claim_ready(nBatch, noise)
         self.cell.claim_ready(nBatch, noise)
@@ -1247,6 +1351,8 @@ class ResidualBlock(nn.Module):
 
 
 class FixedTreeCell(nn.Module):
+    """Tree cell with fixed shape."""
+
     def __init__(self, C_in, C_out, conv1, conv2, edge_cls, edge_kwargs, tree_node_config):
         super().__init__()
         tree_bn = tree_node_config['bn_before_add']
@@ -1302,16 +1408,19 @@ class FixedTreeCell(nn.Module):
                              split_type='copy',
                              merge_type='add',
                              **tree_node_config)
-        # print('FixedTreeCell: chn_in:{} #p:{:.3f}'.format(C_in, param_count(self)))
 
     def forward(self, x):
+        """Return network output."""
         return self.root(x)
 
     def get_config(self):
+        """Return config."""
         return self.root.get_config()
 
 
 class ProxylessNASNet(BasicBlockWiseConvNet):
+    """ProxylessNAS architecture class."""
+
     def __init__(self, blocks, classifier, ops_order, tree_node_config, groups_3x3):
         super(ProxylessNASNet, self).__init__(blocks, classifier)
 
@@ -1321,11 +1430,13 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
 
     @property
     def building_block(self):
+        """Return building block."""
         for block in self.blocks:
             if isinstance(block, ResidualBlock):
                 return block.cell
 
     def get_config(self):
+        """Return config."""
         return {
             'name': ProxylessNASNet.__name__,
             'ops_order': self.ops_order,
@@ -1337,6 +1448,7 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
 
     @staticmethod
     def set_from_config(config):
+        """Build network from config."""
         blocks = []
         for block_config in config.get('blocks'):
             block = get_block_by_name(block_config.get('name'))
@@ -1383,6 +1495,7 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
                          edge_cls=None,
                          edge_kwargs={},
                          tree_node_config={}):
+        """Return ProxylessNAS architecture."""
         image_channel, image_size = data_shape[0:2]
 
         addrate = alpha / (block_per_group * total_groups)  # add pyramid_net
@@ -1581,6 +1694,7 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
 @register
 def ProxylessNAS(chn_in, chn, channel_multiplier, n_classes, groups, blocks, conv_groups, alpha, bottleneck_ratio,
                  path_drop_rate, ops_order, use_avg, bn_before_add, dropout_rate, **kwargs):
+    """Return ProxylessNAS architecture."""
     chn_cur = chn * channel_multiplier
     model_config = {
         'start_planes': chn_cur,
@@ -1618,6 +1732,7 @@ def ProxylessNAS(chn_in, chn, channel_multiplier, n_classes, groups, blocks, con
 
 @register
 def PathLevelEAS(net_config_path):
+    """Return PathLevel-EAS architecture."""
     net_config_json = json.load(open(net_config_path, 'r'))
     print('Net config:')
     for k, v in net_config_json.items():

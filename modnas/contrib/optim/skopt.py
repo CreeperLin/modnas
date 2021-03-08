@@ -1,3 +1,4 @@
+"""Bayesian Optimizer based on scikit-optimize."""
 import time
 import numpy as np
 from collections import OrderedDict
@@ -14,6 +15,8 @@ except ImportError:
 
 @register
 class SkoptOptim(OptimBase):
+    """Scikit-optimize Optimizer class."""
+
     def __init__(self, skopt_args=None, space=None):
         super().__init__(space)
         if skopt is None:
@@ -40,14 +43,17 @@ class SkoptOptim(OptimBase):
         self.skoptim = Optimizer(**skopt_args)
 
     def has_next(self):
+        """Return True if Optimizer has the next set of parameters."""
         return True
 
     def convert_param(self, p):
+        """Return value converted from scikit-optimize space."""
         if isinstance(p, np.float):
             return float(p)
         return p
 
     def _next(self):
+        """Return the next set of parameters."""
         next_pt = self.skoptim.ask()
         next_params = OrderedDict()
         for n, p in zip(self.param_names, next_pt):
@@ -55,6 +61,7 @@ class SkoptOptim(OptimBase):
         return next_params
 
     def next(self, batch_size):
+        """Return the next batch of parameter sets."""
         if batch_size == 1:
             return [self._next()]
         next_pts = self.skoptim.ask(n_points=batch_size)
@@ -67,6 +74,7 @@ class SkoptOptim(OptimBase):
         return next_params
 
     def step(self, estim):
+        """Update Optimizer states using Estimator evaluation results."""
         def to_metrics(res):
             if isinstance(res, dict):
                 return list(res.values())[0]

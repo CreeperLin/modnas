@@ -21,15 +21,15 @@ class OptimBase():
 
     def load_state_dict(self, sd):
         """Resume states."""
-        pass
+        raise NotImplementedError
 
     def has_next(self):
         """Return True if Optimizer has the next set of parameters."""
-        pass
+        raise NotImplementedError
 
     def _next(self):
         """Return the next set of parameters."""
-        pass
+        raise NotImplementedError
 
     def next(self, batch_size=1):
         """Return the next batch of parameter sets."""
@@ -43,10 +43,6 @@ class OptimBase():
     def step(self, estim):
         """Update Optimizer states using Estimator evaluation results."""
         pass
-
-    def update(self, estim):
-        """Equal to Optimizer step."""
-        return self.step(estim)
 
 
 class GradientBasedOptim(OptimBase):

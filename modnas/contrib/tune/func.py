@@ -1,3 +1,4 @@
+"""Wrappers that run hyperparameter tuning on functions."""
 import copy
 from functools import partial
 from modnas.utils.wrapper import run_hptune
@@ -21,6 +22,7 @@ _default_hptune_config = {
 
 
 def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **kwargs):
+    """Return tuned hyperparameters for given function."""
     tuned_args = tuned_args or {}
 
     def parse_hp(hp):
@@ -52,6 +54,7 @@ def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tune
 
 
 def tune_template(*args, **kwargs):
+    """Run hyperparameter tuning on given function."""
     tuned_args = {}
     tuned_args.update(kwargs)
     tuned_args.update({'#{}'.format(i): v for i, v in enumerate(args) if v is not None})
@@ -59,6 +62,7 @@ def tune_template(*args, **kwargs):
 
 
 def tunes(*args, **kwargs):
+    """Return hyperparameter tuner decorator."""
     def wrapper(func):
         return partial(tune, func, *args, **kwargs)
     return wrapper

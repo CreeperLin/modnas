@@ -1,9 +1,12 @@
+"""Hyperparameter constructor."""
 from modnas.registry.construct import register
 from modnas.core.params import Numeric, Categorical
 
 
 @register
 class DefaultHParamSpaceConstructor():
+    """Constructor that generates parameters from config."""
+
     def __init__(self, params):
         if isinstance(params, dict):
             params = params.items()
@@ -12,6 +15,7 @@ class DefaultHParamSpaceConstructor():
         self.params = params
 
     def __call__(self, model):
+        """Run constructor."""
         del model
         for k, v in self.params:
             if isinstance(v, list) and len(v) == 1 and isinstance(v[0], list):

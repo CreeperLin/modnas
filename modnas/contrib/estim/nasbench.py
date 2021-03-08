@@ -1,3 +1,4 @@
+"""NASBench estimator."""
 from modnas.core.params import Categorical
 from modnas.registry.estim import RegressionEstim
 from modnas.registry.construct import register as register_constructor
@@ -17,10 +18,13 @@ MAXPOOL3X3 = 'maxpool3x3'
 
 @register_constructor
 class NASBenchSpaceConstructor():
+    """NASBench space constructor."""
+
     def __init__(self, n_nodes=7):
         self.n_nodes = n_nodes
 
     def __call__(self, model):
+        """Run constructor."""
         del model
         n_nodes = self.n_nodes
         n_states = n_nodes - 2
@@ -30,6 +34,8 @@ class NASBenchSpaceConstructor():
 
 
 class NASBenchPredictor():
+    """NASBench predictor."""
+
     def __init__(self, record_path, record_key='test_accuracy'):
         if api is None:
             raise RuntimeError('nasbench api is not installed')
@@ -38,6 +44,7 @@ class NASBenchPredictor():
         self.max_nodes = 7
 
     def predict(self, arch_desc):
+        """Return predicted evaluation results."""
         max_nodes = self.max_nodes
         matrix = [[0] * max_nodes for i in range(max_nodes)]
         g_matrix = [g for g in arch_desc if g in [0, 1]]
@@ -59,7 +66,10 @@ class NASBenchPredictor():
 
 @register_estim
 class NASBenchEstim(RegressionEstim):
+    """NASBench regression estimator."""
+
     def run(self, optim):
+        """Run Estimator routine."""
         config = self.config
         self.logger.info('loading NASBench data')
         self.predictor = NASBenchPredictor(config.record_path)

@@ -15,7 +15,7 @@ class RandomSamplingEstim(DefaultEstim):
         self.space_size = ParamSpace().categorical_size()
 
     def loss(self, data, output=None, model=None, mode=None):
-        """Sample a subnet and compute its loss & logits."""
+        """Sample a subnet and compute its loss."""
         loss = super().loss(data, output, model, mode)
         params = ParamSpace().get_categorical_params(random.randint(0, self.space_size - 1))
         ParamSpace().update_params(params)

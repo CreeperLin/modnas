@@ -1,3 +1,4 @@
+"""Initialization constructor."""
 import numpy as np
 from modnas.registry.construct import register
 from modnas.core.param_space import ParamSpace

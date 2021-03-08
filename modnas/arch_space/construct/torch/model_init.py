@@ -1,69 +1,72 @@
+"""Model weight initializer."""
 import math
 import torch.nn as nn
 from modnas.registry.construct import register
 
 
-def init_he_normal_fout(t, gain, fan_in, fan_out):
+def _init_he_normal_fout(t, gain, fan_in, fan_out):
     stdv = gain / math.sqrt(fan_out)
     nn.init.normal_(t, 0, stdv)
 
 
-def init_he_normal_fin(t, gain, fan_in, fan_out):
+def _init_he_normal_fin(t, gain, fan_in, fan_out):
     stdv = gain / math.sqrt(fan_in)
     nn.init.normal_(t, 0, stdv)
 
 
-def init_he_uniform_fout(t, gain, fan_in, fan_out):
+def _init_he_uniform_fout(t, gain, fan_in, fan_out):
     b = math.sqrt(3.) * gain / math.sqrt(fan_out)
     nn.init.uniform_(t, -b, b)
 
 
-def init_he_uniform_fin(t, gain, fan_in, fan_out):
+def _init_he_uniform_fin(t, gain, fan_in, fan_out):
     b = math.sqrt(3.) * gain / math.sqrt(fan_in)
     nn.init.uniform_(t, -b, b)
 
 
-def init_xavier_uniform(t, gain, fan_in, fan_out):
+def _init_xavier_uniform(t, gain, fan_in, fan_out):
     b = math.sqrt(6.) * gain / math.sqrt(fan_in + fan_out)
     nn.init.uniform_(t, -b, b)
 
 
-def init_xavier_normal(t, gain, fan_in, fan_out):
+def _init_xavier_normal(t, gain, fan_in, fan_out):
     stdv = math.sqrt(2.) * gain / math.sqrt(fan_in + fan_out)
     nn.init.normal_(t, 0, stdv)
 
 
-def init_uniform_fin(t, gain, fan_in, fan_out):
+def _init_uniform_fin(t, gain, fan_in, fan_out):
     b = 1.0 / math.sqrt(fan_in)
     nn.init.uniform_(t, -b, b)
 
 
-def init_uniform_fout(t, gain, fan_in, fan_out):
+def _init_uniform_fout(t, gain, fan_in, fan_out):
     b = 1.0 / math.sqrt(fan_out)
     nn.init.uniform_(t, -b, b)
 
 
-def init_uniform(t, gain, fan_in, fan_out):
+def _init_uniform(t, gain, fan_in, fan_out):
     nn.init.uniform_(t)
 
 
-def init_normal(t, gain, fan_in, fan_out):
+def _init_normal(t, gain, fan_in, fan_out):
     nn.init.normal_(t)
 
 
-def init_zeros(t, gain, fan_in, fan_out):
+def _init_zeros(t, gain, fan_in, fan_out):
     nn.init.zeros_(t)
 
 
-def init_ones(t, gain, fan_in, fan_out):
+def _init_ones(t, gain, fan_in, fan_out):
     nn.init.ones_(t)
 
 
-_initializers = {k[5:]: v for (k, v) in globals().items() if k.startswith('init_')}
+_initializers = {k[5:]: v for (k, v) in globals().items() if k.startswith('_init_')}
 
 
 @register
 class DefaultModelInitializer():
+    """Model weight initializer class."""
+
     def __init__(self,
                  default_init_type=None,
                  conv_init_type=None,
@@ -87,13 +90,14 @@ class DefaultModelInitializer():
         self.nonlinear = nonlinear
         self.gain = nn.init.calculate_gain(nonlinear, neg_slope)
 
-    def init_tensor(self, init_type, t, gain, fan_in, fan_out):
+    def _init_tensor(self, init_type, t, gain, fan_in, fan_out):
         if init_type not in _initializers or t is None:
             return
         init_fn = _initializers[init_type]
         init_fn(t, gain, fan_in, fan_out)
 
     def __call__(self, model):
+        """Return initialized model."""
         gain = self.gain
         for m in model.modules():
             if isinstance(m, nn.Conv2d):

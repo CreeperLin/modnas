@@ -1,8 +1,10 @@
+"""Base callback."""
 from modnas.core.event import event_on, event_off
 from modnas.utils.logging import get_logger
 
 
 class CallbackBase():
+    """Base callback class."""
 
     logger = get_logger('callback')
     priority = 0
@@ -12,6 +14,7 @@ class CallbackBase():
         self.bind_handlers(handler_conf)
 
     def bind_handlers(self, handler_conf):
+        """Bind event handlers."""
         handlers = {}
         for ev, conf in handler_conf.items():
             prio = None
@@ -26,5 +29,6 @@ class CallbackBase():
         self.handlers = handlers
 
     def unbind_handlers(self):
+        """Un-bind event handlers."""
         for ev, h in self.handlers.items():
             event_off(ev, h)

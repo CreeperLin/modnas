@@ -1,8 +1,10 @@
+"""Layers of nested network modules."""
 import torch
 import torch.nn as nn
-from .layer_defs import get_merger, get_allocator, get_enumerator
 from .slot import Slot
 from .slot import register_slot_ccs
+from . import layer_defs
+from modnas.registry.layer_def import build as build_layer_def
 from modnas.utils.logging import get_logger
 
 
@@ -11,6 +13,8 @@ logger = get_logger('arch_space')
 
 @register_slot_ccs
 class DAGLayer(nn.Module):
+    """Directed Acyclic Graph Layer."""
+
     def __init__(self,
                  chn_in,
                  chn_out,
@@ -34,11 +38,11 @@ class DAGLayer(nn.Module):
         edge_kwargs = edge_kwargs or {}
         e_chn_in = edge_kwargs.get('_chn_in')
         self.n_input_e = 1 if e_chn_in is None or isinstance(e_chn_in, int) else len(e_chn_in)
-        self.allocator = get_allocator(allocator)(self.n_input, self.n_nodes)
-        self.merger_state = get_merger(merger_state)()
-        self.merger_out = get_merger(merger_out)(start=self.n_input)
+        self.allocator = build_layer_def(allocator, self.n_input, self.n_nodes)
+        self.merger_state = build_layer_def(merger_state)
+        self.merger_out = build_layer_def(merger_out, start=self.n_input)
         self.merge_out_range = self.merger_out.merge_range(self.n_states)
-        self.enumerator = get_enumerator(enumerator)()
+        self.enumerator = build_layer_def(enumerator)
         self.topology = []
 
         chn_states = []
@@ -79,6 +83,7 @@ class DAGLayer(nn.Module):
         self.chn_states = chn_states
 
     def forward(self, x):
+        """Compute Layer output."""
         states = x if isinstance(x, list) else [x]
         if self.preprocs is not None:
             states = [prep(s) for prep, s in zip(self.preprocs, states)]
@@ -99,6 +104,7 @@ class DAGLayer(nn.Module):
         return out
 
     def to_arch_desc(self, k=2):
+        """Return archdesc from Layer."""
         desc = []
         edge_k = 1
         k_states = k
@@ -161,6 +167,8 @@ class DAGLayer(nn.Module):
 
 @register_slot_ccs
 class MultiChainLayer(nn.Module):
+    """Layer with multiple chains of network modules."""
+
     def __init__(self,
                  chn_in,
                  chn_out,
@@ -189,8 +197,8 @@ class MultiChainLayer(nn.Module):
         self.n_input = len(chn_in)
         self.n_states = self.n_input + self.n_nodes
         self.n_input_e = 1
-        self.allocator = get_allocator(allocator)(self.n_input, self.n_chain)
-        self.merger_out = get_merger(merger_out)(start=self.n_input)
+        self.allocator = build_layer_def(allocator, self.n_input, self.n_chain)
+        self.merger_out = build_layer_def(merger_out, start=self.n_input)
         self.merge_out_range = self.merger_out.merge_range(self.n_states)
         chn_states = []
         if preproc is None:
@@ -228,6 +236,7 @@ class MultiChainLayer(nn.Module):
         self.chn_states = chn_states
 
     def forward(self, x):
+        """Compute Layer output."""
         states = x if isinstance(x, list) else [x]
         if self.preprocs is not None:
             states = [self.preprocs[i](x[i]) for i in range(self.n_input)]
@@ -242,6 +251,7 @@ class MultiChainLayer(nn.Module):
         return out
 
     def to_arch_desc(self, *args, **kwargs):
+        """Return archdesc from Layer."""
         desc = []
         for chain in self.chains:
             g_chain = [e.to_arch_desc(*args, **kwargs) for e in chain]
@@ -249,6 +259,7 @@ class MultiChainLayer(nn.Module):
         return desc
 
     def build_from_arch_desc(self, desc, *args, **kwargs):
+        """Build layer ops from desc."""
         assert len(desc) == len(self.chains)
         for g_chain, chain in zip(desc, self.chains):
             assert len(g_chain) == len(chain)

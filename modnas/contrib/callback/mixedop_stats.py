@@ -1,3 +1,4 @@
+"""Mixed operator statistics reporter."""
 import numpy as np
 import pickle
 import matplotlib
@@ -11,6 +12,8 @@ from matplotlib import pyplot as plt
 
 @register
 class MixedOpStatsReporter(CallbackBase):
+    """Mixed operator statistics reporter class."""
+
     def __init__(self):
         super().__init__({
             'before:EstimBase.run_epoch': self.record_probs,
@@ -19,9 +22,11 @@ class MixedOpStatsReporter(CallbackBase):
         self.probs = []
 
     def record_probs(self, estim, optim, epoch, tot_epochs):
+        """Record mixed operator probabilities on each epoch."""
         self.probs.append([F.softmax(m.alpha().detach(), dim=-1).cpu().numpy() for m in MixedOp.gen(estim.model)])
 
     def save_stats(self, ret, estim, optim):
+        """Save statistics on search end."""
         self.record_probs(estim, None, None, None)
         probs = self.probs
         n_epochs, n_alphas = len(probs), len(probs[0])
@@ -35,7 +40,7 @@ class MixedOpStatsReporter(CallbackBase):
             alpha_dim = prob.shape[1]
             for a in range(alpha_dim):
                 plt.plot(epochs, prob[:, a])
-            legends = m.primitive_names()
+            legends = m.candidate_names()
             plt.legend(legends)
             plt.savefig(estim.expman.join('plot', 'prob_{}.png'.format(i)))
             save_probs.append(prob)

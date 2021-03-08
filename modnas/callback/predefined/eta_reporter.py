@@ -1,3 +1,4 @@
+"""ETA (remaining time) reporter."""
 from modnas.utils import ETAMeter
 from modnas.registry.callback import register
 from ..base import CallbackBase
@@ -5,6 +6,7 @@ from ..base import CallbackBase
 
 @register
 class ETAReporter(CallbackBase):
+    """ETA reporter class."""
 
     priority = -1
 
@@ -16,6 +18,7 @@ class ETAReporter(CallbackBase):
         self.eta_m = None
 
     def init(self, estim, *args, **kwargs):
+        """Initialize ETA meter."""
         tot_epochs = estim.config.get('epochs', 0)
         if tot_epochs < 1:
             return
@@ -23,6 +26,7 @@ class ETAReporter(CallbackBase):
         self.eta_m.start()
 
     def report_epoch(self, ret, estim, *args, **kwargs):
+        """Report ETA in each epoch."""
         if self.eta_m is None:
             return
         self.eta_m.step()
