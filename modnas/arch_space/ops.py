@@ -147,7 +147,7 @@ class DilConv(nn.Module):
             if i == 'bn':
                 nets.append(nn.BatchNorm2d(C, **config.bn))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation=dilation, groups=C_in, **config.conv))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation, groups=C_in, **config.conv))
                 nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config.conv))
                 C = C_out
             elif i == 'act':

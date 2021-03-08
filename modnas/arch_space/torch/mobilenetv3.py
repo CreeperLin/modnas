@@ -10,16 +10,16 @@ from modnas.registry.construct import register as register_constructor
 from modnas.registry.arch_space import register
 from ..slot import Slot, register_slot_ccs
 
-for ksize in [3, 5, 7, 9]:
+for ks in [3, 5, 7, 9]:
     for exp in [1, 3, 6, 9]:
-        register_slot_ccs(lambda C_in, C_out, S, use_se=0, use_hs=0, k=ksize, e=exp: MobileInvertedConvV3(
-                          C_in, C_out, S, C_in * e, k, use_se, use_hs), 'M3B{}E{}'.format(ksize, exp))
-        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 0, 1),
-                          'M3B{}E{}H'.format(ksize, exp))
-        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 0),
-                          'M3B{}E{}S'.format(ksize, exp))
-        register_slot_ccs(lambda C_in, C_out, S, k=ksize, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 1),
-                          'M3B{}E{}SH'.format(ksize, exp))
+        register_slot_ccs(lambda C_in, C_out, S, use_se=0, use_hs=0, k=ks, e=exp: MobileInvertedConvV3(
+                          C_in, C_out, S, C_in * e, k, use_se, use_hs), 'M3B{}E{}'.format(ks, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ks, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 0, 1),
+                          'M3B{}E{}H'.format(ks, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ks, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 0),
+                          'M3B{}E{}S'.format(ks, exp))
+        register_slot_ccs(lambda C_in, C_out, S, k=ks, e=exp: MobileInvertedConvV3(C_in, C_out, S, C_in * e, k, 1, 1),
+                          'M3B{}E{}SH'.format(ks, exp))
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -164,8 +164,8 @@ class MobileNetV3(nn.Module):
         self.features = nn.Sequential(*layers)
         # building last several layers
         last_chn = _make_divisible(last_chn * width_mult, 8)
-        self.conv = nn.Sequential(nn.Conv2d(chn_in, last_chn, 1, 1, 0, bias=False), nn.BatchNorm2d(last_chn), HardSwish(),
-                                  SELayer(last_chn) if mode == 'small' else nn.Sequential())
+        self.conv = nn.Sequential(nn.Conv2d(chn_in, last_chn, 1, 1, 0, bias=False), nn.BatchNorm2d(last_chn),
+                                  HardSwish(), SELayer(last_chn) if mode == 'small' else nn.Sequential())
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         chn_out = 1024 if mode == 'small' else 1280
         chn_out = _make_divisible(chn_out * width_mult, 8)

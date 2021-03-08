@@ -59,7 +59,8 @@ class GradientBasedOptim(OptimBase):
 
     def __init__(self, space=None, a_optim=None):
         super().__init__(space)
-        self.a_optim = backend.get_optimizer(self.space.tensor_values(), a_optim or GradientBasedOptim._default_optimizer_conf)
+        a_optim = a_optim or GradientBasedOptim._default_optimizer_conf
+        self.a_optim = backend.get_optimizer(self.space.tensor_values(), a_optim)
 
     def state_dict(self):
         """Return current states."""

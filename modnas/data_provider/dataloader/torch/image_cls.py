@@ -43,7 +43,7 @@ def get_dataset_class(data):
     return []
 
 
-def filter_class(data_idx, labels, classes):
+def filter_index_class(data_idx, labels, classes):
     """Return data indices from given classes."""
     return [idx for idx in data_idx if get_label_class(labels[idx]) in classes]
 
@@ -77,6 +77,29 @@ def map_data_label(data, mapping):
         data.test_labels = [mapping.get(get_label_class(c), c) for c in labels]
 
 
+def select_class(trn_data, classes):
+    """Return train data class list selected from given classes."""
+    all_classes = list(set([get_label_class(c) for c in get_dataset_label(trn_data)]))
+    if isinstance(classes, int):
+        all_classes = random.sample(all_classes, classes)
+    elif isinstance(classes, list):
+        all_classes = []
+        class_name = get_dataset_class(trn_data)
+        for c in classes:
+            if isinstance(c, str):
+                idx = class_name.index(c)
+                if idx == -1:
+                    continue
+                all_classes.append(idx)
+            elif isinstance(c, int):
+                all_classes.append(c)
+            else:
+                raise ValueError('invalid class type')
+    elif classes is not None:
+        raise ValueError('invalid classes type')
+    return sorted(all_classes)
+
+
 @register
 def ImageClsDataLoader(trn_data,
                        val_data,
@@ -95,28 +118,15 @@ def ImageClsDataLoader(trn_data,
     """Return image classification DataLoader."""
     # classes
     trn_labels = get_dataset_label(trn_data)
-    class_name = get_dataset_class(trn_data)
-    all_classes = list(set(trn_labels))
-    if isinstance(classes, list):
-        all_classes = []
-        for c in classes:
-            if isinstance(c, str):
-                idx = class_name.index(c)
-                if idx == -1:
-                    continue
-                all_classes.append(idx)
-            elif isinstance(c, int):
-                all_classes.append(c)
-            else:
-                raise ValueError('invalid class type')
-    elif isinstance(classes, int):
-        random.seed(train_seed)
-        all_classes = sorted(random.sample(all_classes, classes))
-        logger.info('data_loader: random classes: {}'.format(all_classes))
+    random.seed(train_seed)
+    all_classes = select_class(trn_data, classes)
+    if classes is not None:
+        logger.info('data_loader: selected classes: {}'.format(all_classes))
     n_classes = len(all_classes)
     # index
+    val_idx = []
     trn_idx = list(range(len(trn_data)))
-    trn_idx = filter_class(trn_idx, trn_labels, all_classes)
+    trn_idx = filter_index_class(trn_idx, trn_labels, all_classes)
     n_train_data = len(trn_idx)
     if train_size <= 0:
         train_size = int(n_train_data * min(train_ratio, 1.))
@@ -126,7 +136,7 @@ def ImageClsDataLoader(trn_data,
     if val_data is not None:
         val_labels = get_dataset_label(val_data)
         val_idx = list(range(len(val_data)))
-        val_idx = filter_class(val_idx, val_labels, all_classes)
+        val_idx = filter_index_class(val_idx, val_labels, all_classes)
         n_valid_data = len(val_idx)
         if valid_size <= 0 and valid_ratio > 0:
             valid_size = int(n_valid_data * min(valid_ratio, 1.))
@@ -143,8 +153,6 @@ def ImageClsDataLoader(trn_data,
             for i, c in enumerate(all_classes):
                 val_class_size[c] = valid_size // n_classes + (1 if i < valid_size % n_classes else 0)
             trn_idx, val_idx = train_valid_split(trn_idx, trn_labels, val_class_size)
-        else:
-            val_idx = list()
     logger.info('data_loader: trn: {} val: {} cls: {}'.format(len(trn_idx), len(val_idx), n_classes))
     # map labels
     if classes is not None:

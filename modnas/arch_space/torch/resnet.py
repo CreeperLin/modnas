@@ -148,7 +148,7 @@ class ResNet(nn.Module):
         layers.append(block(self.chn, planes, stride, downsample, self.groups, self.base_width, norm_layer=norm_layer))
         self.chn = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.chn, planes, groups=self.groups, base_width=self.base_width, norm_layer=norm_layer))
+            layers.append(block(self.chn, planes, 1, None, self.groups, self.base_width, norm_layer=norm_layer))
 
         return nn.Sequential(*layers)
 
@@ -175,7 +175,7 @@ class ResNetPredefinedConstructor(DefaultSlotTraversalConstructor):
     def convert(self, slot):
         """Convert slot to module."""
         return nn.Sequential(
-            nn.Conv2d(slot.chn_in, slot.chn_out, kernel_size=3, padding=1, stride=slot.stride, bias=False, **slot.kwargs),
+            nn.Conv2d(slot.chn_in, slot.chn_out, 3, stride=slot.stride, padding=1, bias=False, **slot.kwargs),
             nn.BatchNorm2d(slot.chn_out) if self.use_bn else Identity(),
         )
 

@@ -14,10 +14,10 @@ from ..slot import register_slot_ccs
 kernel_sizes = [3, 5, 7, 9]
 for k in kernel_sizes:
     register_slot_ccs(
-        lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnit(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid),
+        lambda C_in, C_out, S, chn_mid=None, ks=k: ShuffleUnit(C_in, C_out, S, ksize=ks, chn_mid=chn_mid),
         'SHU{}'.format(k))
     register_slot_ccs(
-        lambda C_in, C_out, stride, chn_mid=None, ks=k: ShuffleUnitXception(C_in, C_out, stride, ksize=ks, chn_mid=chn_mid),
+        lambda C_in, C_out, S, chn_mid=None, ks=k: ShuffleUnitXception(C_in, C_out, S, ksize=ks, chn_mid=chn_mid),
         'SHX{}'.format(k))
 
 

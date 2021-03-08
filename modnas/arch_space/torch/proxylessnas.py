@@ -366,7 +366,7 @@ class ConvLayer(BasicLayer):
                  dropout_rate=0,
                  ops_order='weight_bn_act',
                  layer_ready=True):
-        super(ConvLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
+        super().__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
         self.kernel_size = kernel_size
         self.stride = stride
         self.dilation = dilation
@@ -529,7 +529,7 @@ class DepthConvLayer(BasicLayer):
                  dropout_rate=0,
                  ops_order='weight_bn_act',
                  layer_ready=True):
-        super(DepthConvLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
+        super().__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
         self.kernel_size = kernel_size
         self.stride = stride
         self.dilation = dilation
@@ -662,7 +662,7 @@ class PoolingLayer(BasicLayer):
                  dropout_rate=0,
                  ops_order='weight_bn_act',
                  layer_ready=True):
-        super(PoolingLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
+        super().__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
 
         self.pool_type = pool_type
         self.kernel_size = kernel_size
@@ -754,7 +754,8 @@ class IdentityLayer(BasicLayer):
                  dropout_rate=0,
                  ops_order='weight_bn_act',
                  layer_ready=True):
-        super(IdentityLayer, self).__init__(in_channels, out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
+        super(IdentityLayer, self).__init__(in_channels,
+                                            out_channels, use_bn, act_func, dropout_rate, ops_order, layer_ready)
 
     def weight_call(self, x):
         """Return network output from weights only."""
@@ -1639,7 +1640,8 @@ class ProxylessNASNet(BasicBlockWiseConvNet):
                                            ops_order=ops_order)
 
                 edge_kwargs['_chn_in'] = (out_plane, )
-                cell = FixedTreeCell(out_plane, out_plane, cell_edge1, cell_edge2, edge_cls, edge_kwargs, tree_node_config)
+                cell = FixedTreeCell(out_plane, out_plane, cell_edge1, cell_edge2,
+                                     edge_cls, edge_kwargs, tree_node_config)
 
                 out_bottle = ConvLayer(out_plane,
                                        out_plane * bottleneck,
