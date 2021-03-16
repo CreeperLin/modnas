@@ -11,14 +11,14 @@ from modnas.registry.estim import register as register_estim
 class FakeDataSpaceConstructor():
     """Fake data space constructor class."""
 
-    def __init__(self, n_nodes=2**10, dim=2**1):
-        self.n_nodes = n_nodes
+    def __init__(self, n_params=2**5, dim=2**1):
+        self.n_params = n_params
         self.dim = dim
 
     def __call__(self, model):
         """Construct search space."""
         del model
-        _ = [Categorical(list(range(self.dim))) for _ in range(self.n_nodes)]
+        _ = [Categorical(list(range(self.dim))) for _ in range(self.n_params)]
 
 
 class FakeDataPredictor():

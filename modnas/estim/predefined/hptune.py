@@ -4,8 +4,8 @@ import itertools
 import traceback
 from multiprocessing import Process, Pipe
 from ..base import EstimBase
-from ...utils.config import Config
-from ...utils.wrapper import build as build_runner
+from modnas.utils.config import Config
+from modnas.registry.runner import build as build_runner
 from modnas.registry.estim import register
 
 

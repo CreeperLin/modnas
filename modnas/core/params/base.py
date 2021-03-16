@@ -1,7 +1,7 @@
 """Base parameter."""
 from collections import OrderedDict
-from ..event import event_emit, event_on
-from ..param_space import ParamSpace
+from modnas.core.event import event_emit, event_on
+from modnas.core.param_space import ParamSpace
 
 
 class Param():

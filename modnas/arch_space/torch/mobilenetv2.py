@@ -80,9 +80,9 @@ class MobileNetV2(nn.Module):
     """MobileNetV2 Architecture Backbone."""
 
     def __init__(self,
-                 chn_in,
-                 n_classes,
                  cfgs,
+                 chn_in=3,
+                 n_classes=1000,
                  width_coeff=1.0,
                  depth_coeff=1.0,
                  resolution=None,
@@ -221,42 +221,46 @@ class MobileNetV2ArchDescConstructor(DefaultSlotArchDescConstructor):
         return ent
 
 
-@register
-def imagenet_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
-    """Return MobileNetV2 ImageNet model."""
-    default_cfgs = [
-        # t, c, n, s,
-        [0, 32, 1, 2],
-        [1, 16, 1, 1],
-        [6, 24, 2, 2],
-        [6, 32, 3, 2],
-        [6, 64, 4, 2],
-        [6, 96, 3, 1],
-        [6, 160, 3, 2],
-        [6, 320, 1, 1]
-    ]
-    if cfgs is None:
-        cfgs = default_cfgs
-    return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
+_mbv2_ori_cfgs = [
+    # t, c, n, s,
+    [0, 32, 1, 2],
+    [1, 16, 1, 1],
+    [6, 24, 2, 2],
+    [6, 32, 3, 2],
+    [6, 64, 4, 2],
+    [6, 96, 3, 1],
+    [6, 160, 3, 2],
+    [6, 320, 1, 1]
+]
 
 
-@register
-def cifar_mobilenetv2(chn_in, n_classes, cfgs=None, **kwargs):
-    """Return MobileNetV2 CIFAR model."""
-    default_cfgs = [
-        # t, c, n, s,
-        [0, 32, 1, 1],  # stride = 1
-        [1, 16, 1, 1],
-        [6, 24, 2, 2],
-        [6, 32, 3, 2],
-        [6, 64, 4, 2],
-        [6, 96, 3, 1],
-        [6, 160, 3, 1],  # stride = 1
-        [6, 320, 1, 1]
-    ]
+_mbv2_gpu_cfgs = [
+    # t, c, n, s,
+    [0, 32, 1, 2],
+    [1, 16, 1, 1],
+    [6, 24, 4, 2],
+    [6, 40, 4, 2],
+    [6, 80, 4, 2],
+    [6, 96, 4, 1],
+    [6, 192, 4, 2],
+    [6, 320, 1, 1]
+]
+
+
+def mobilenetv2(cfgs=None, cifar=False, **kwargs):
+    """Return MobileNetV2 model."""
     if cfgs is None:
-        cfgs = default_cfgs
-    return MobileNetV2(chn_in, n_classes, cfgs, **kwargs)
+        cfgs = _mbv2_ori_cfgs
+    if cifar:
+        cfgs[0][3] = 1
+        cfgs[6][3] = 1
+    return MobileNetV2(cfgs=cfgs, **kwargs)
+
+
+for cifar in [True, False]:
+    img = 'CIFAR' if cifar else 'ImageNet'
+    register(partial(mobilenetv2, cifar=cifar), '{}_MobileNetV2'.format(img))
+    register(partial(mobilenetv2, cfgs=_mbv2_gpu_cfgs, cifar=cifar), '{}_MobileNetV2_GPU'.format(img))
 
 
 kernel_sizes = [3, 5, 7, 9]

@@ -1,5 +1,5 @@
 import importlib
-from ..registry.backend import build
+from modnas.registry.backend import build
 from . import predefined
 
 _backend = None
@@ -10,7 +10,7 @@ _backend_keys = []
 def use(backend, *args, imported=False, **kwargs):
     """Switch to backend by name."""
     global _backend, _backend_keys
-    if backend == _backend:
+    if backend == _backend or backend in ['none', None]:
         return
     if imported:
         bk_mod = importlib.import_module(backend)
@@ -22,6 +22,8 @@ def use(backend, *args, imported=False, **kwargs):
     for k in _backend_keys:
         ns.pop(k, None)
     for k in bk_keys:
+        if k.startswith('__'):
+            continue
         ns[k] = bk_vars[k]
     _backend_keys = bk_keys
     _backend = backend
@@ -30,3 +32,8 @@ def use(backend, *args, imported=False, **kwargs):
 def backend():
     """Return name of current backend."""
     return _backend
+
+
+def is_backend(backend):
+    """Return if the current backend is the given one."""
+    return _backend == backend

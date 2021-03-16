@@ -2,7 +2,7 @@
 import random
 import numpy as np
 from .base import Param
-from ...registry.params import register
+from modnas.registry.params import register
 
 
 def _default_categorical_sampler(dim):

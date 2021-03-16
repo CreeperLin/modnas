@@ -114,8 +114,7 @@ class KnowledgeDistillLoss():
 
     def __init__(self, kd_model_constructor=None, kd_model=None, kd_ratio=0.5, loss_scale=1., loss_type='ce'):
         super().__init__()
-        if kd_model_constructor is not None:
-            kd_model = self._load_model(kd_model, kd_model_constructor)
+        self.kd_model_constructor = kd_model_constructor
         self.kd_model = kd_model
         self.kd_ratio = kd_ratio
         self.loss_scale = loss_scale
@@ -135,6 +134,8 @@ class KnowledgeDistillLoss():
 
     def __call__(self, loss, estim, y_pred, X, y_true):
         """Return loss."""
+        if self.kd_model is None and self.kd_model_constructor is not None:
+            self.kd_model = self._load_model(self.kd_model, self.kd_model_constructor)
         with torch.no_grad():
             self.kd_model.to(device=X.device)
             soft_logits = self.kd_model(X)

@@ -2,8 +2,8 @@
 import itertools
 import traceback
 from ..base import EstimBase
-from ...import backend
-from ...core.param_space import ParamSpace
+from modnas import backend
+from modnas.core.param_space import ParamSpace
 from modnas.registry.estim import register
 
 
@@ -22,7 +22,7 @@ class SubNetEstim(EstimBase):
     def step(self, params):
         """Return evaluation results of a parameter set."""
         ParamSpace().update_params(params)
-        arch_desc = self.exporter(self.model)
+        arch_desc = self.get_arch_desc()
         config = self.config
         try:
             self.construct_subnet(arch_desc)

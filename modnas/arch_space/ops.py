@@ -1,8 +1,8 @@
 """Network operators / candidates."""
 import torch
 import torch.nn as nn
-from ..utils import get_same_padding
-from ..utils.config import Config
+from modnas.utils import get_same_padding
+from modnas.utils.config import Config
 from .slot import register_slot_ccs
 
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')

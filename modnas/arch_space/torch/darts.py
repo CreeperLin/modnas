@@ -49,17 +49,11 @@ class AuxiliaryHead(nn.Module):
 class DARTSLikeNet(nn.Module):
     """Cell-based architecture in DARTS."""
 
-    def __init__(self, chn_in, chn, n_classes, n_inputs_model, n_inputs_layer, n_inputs_node, layers, shared_a,
+    def __init__(self, chn_in, chn, n_classes, layers, shared_a,
                  channel_multiplier, auxiliary, cell_cls, cell_kwargs):
         super().__init__()
         self.chn_in = chn_in
         self.chn = chn
-        assert n_inputs_model == 1
-        assert n_inputs_layer == 2
-        assert n_inputs_node == 1
-        self.n_inputs_model = n_inputs_model
-        self.n_inputs_layer = n_inputs_layer
-        self.n_inputs_node = n_inputs_node
         self.aux_pos = 2 * layers // 3 if auxiliary else -1
         self.shared_a = shared_a
 
@@ -194,9 +188,6 @@ def build_from_config(darts_cls=DARTSLikeNet, **kwargs):
     if 'nodes' in kwargs:
         n_nodes = kwargs.pop('nodes')
     darts_kwargs = {
-        'n_inputs_model': 1,
-        'n_inputs_layer': 2,
-        'n_inputs_node': 1,
         'cell_cls': DAGLayer,
         'cell_kwargs': {
             'chn_in': None,

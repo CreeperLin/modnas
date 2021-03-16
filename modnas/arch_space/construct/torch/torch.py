@@ -48,7 +48,7 @@ def configure_ops(new_config):
 
 
 @register
-class DefaultInitConstructor():
+class TorchInitConstructor():
     """Constructor that initializes the architecture space."""
 
     def __init__(self, seed=None, device=None, ops_conf=None):
@@ -68,7 +68,7 @@ class DefaultInitConstructor():
 
 
 @register
-class ToDevice():
+class TorchToDevice():
     """Constructor that moves model to some device."""
 
     def __init__(self, device='all', data_parallel=True):
@@ -90,7 +90,7 @@ class ToDevice():
 
 
 @register
-class DefaultTorchCheckpointLoader():
+class TorchCheckpointLoader():
     """Constructor that loads model checkpoints."""
 
     def __init__(self, path):

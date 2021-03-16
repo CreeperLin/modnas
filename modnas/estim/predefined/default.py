@@ -14,6 +14,11 @@ class DefaultEstim(EstimBase):
         self.best_score = None
         self.valid_intv = valid_intv
 
+    def step(self, params):
+        """Return evaluation results of a parameter set."""
+        del params
+        return self.compute_metrics()
+
     def run_epoch(self, optim, epoch, tot_epochs):
         """Run Estimator routine for one epoch."""
         config = self.config
@@ -23,7 +28,7 @@ class DefaultEstim(EstimBase):
         self.train_epoch(epoch, tot_epochs)
         # valid
         if epoch + 1 == tot_epochs or (self.valid_intv is not None and not (epoch + 1) % self.valid_intv):
-            val_score = self.get_score(self.compute_metrics())
+            val_score = self.get_score(self.step(None))
         else:
             val_score = None
         # save

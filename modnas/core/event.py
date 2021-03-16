@@ -2,7 +2,7 @@
 import inspect
 from functools import wraps
 from . import singleton, make_decorator
-from ..utils.logging import get_logger
+from modnas.utils.logging import get_logger
 
 
 logger = get_logger(__name__)
@@ -12,14 +12,19 @@ logger = get_logger(__name__)
 class EventManager():
     """Event manager class."""
 
-    def __init__(self):
+    def __init__(self, verbose=False):
         self.handlers = {}
         self.event_queue = []
+        self.verbose = verbose
 
     def reset(self):
         """Reset event states."""
         self.handlers.clear()
         self.event_queue.clear()
+
+    def set_verbose(self, verbose):
+        """Set verbosity."""
+        self.verbose = verbose
 
     def get_handlers(self, ev):
         """Return generator over handlers of event."""
@@ -29,7 +34,8 @@ class EventManager():
 
     def on(self, ev, handler, priority=0):
         """Bind handler on event with priority."""
-        logger.debug('on: {} {} {}'.format(ev, handler, priority))
+        if self.verbose:
+            logger.info('on: {} {} {}'.format(ev, handler, priority))
         ev_handlers = self.handlers.get(ev, [])
         ev_handlers.append((priority, handler))
         ev_handlers.sort(key=lambda s: -s[0])
@@ -37,17 +43,19 @@ class EventManager():
 
     def emit(self, ev, *args, callback=None, delayed=False, **kwargs):
         """Trigger event with arguments."""
-        logger.debug('emit: {} a: {} kw: {} d: {}'.format(ev, len(args), len(kwargs), delayed))
+        if self.verbose:
+            logger.info('emit: {} a: {} kw: {} d: {}'.format(ev, len(args), len(kwargs), delayed))
         if ev not in self.handlers:
             return
         self.event_queue.append((ev, args, kwargs, callback))
         if delayed:
             return
-        return self.dispatch_all()[ev]
+        return self.dispatch_all()
 
     def off(self, ev, handler=None):
         """Un-bind handler on event."""
-        logger.debug('off: {} {}'.format(ev, handler))
+        if self.verbose:
+            logger.info('off: {} {}'.format(ev, handler))
         ev_handlers = self.handlers.get(ev, None)
         if ev_handlers is None:
             return
@@ -72,6 +80,8 @@ class EventManager():
                 ret = handler(*args, **kwargs)
             if callback is not None:
                 callback(ret)
+            if len(ev_queue) == 1:
+                return ret
             rets[ev] = ret
         return rets
 

@@ -22,6 +22,7 @@ class OptimumReporter(CallbackBase):
 
     def __init__(self, cmp_keys=None, cmp_fn=None, cmp_th=None, score_fn=None, stat_epoch=True):
         handlers = {
+            'before:EstimBase.run': self.reset,
             'after:EstimBase.step': self.on_step,
             'after:EstimBase.run': self.report_results,
         }
@@ -39,11 +40,18 @@ class OptimumReporter(CallbackBase):
         self.opt_results = []
         self.ep_opt_results = []
 
+    def reset(self, estim, optim):
+        """Reset callback states."""
+        self.results = []
+        self.opt_results = []
+        self.ep_opt_results = []
+        self.cur_cmp_keys = self.cmp_keys
+
     def update_optimal(self, res, opts):
         """Update current optimal results."""
         met = res[1]
-        if self.cmp_keys is None:
-            self.cmp_keys = list(met.keys())
+        if self.cur_cmp_keys is None:
+            self.cur_cmp_keys = list(met.keys())
         rem_opt = []
         for i, (_, m) in enumerate(opts):
             c = self.dom_cmp(met, m)
@@ -58,7 +66,7 @@ class OptimumReporter(CallbackBase):
     def dom_cmp(self, m1, m2):
         """Return dominating comparison between metrics."""
         dom = 0
-        for k in self.cmp_keys:
+        for k in self.cur_cmp_keys:
             v1, v2 = m1.get(k, None), m2.get(k, None)
             cmp = self.cmp_fn.get(k, MAX_CMP)(v1, v2)
             th = self.cmp_th.get(k, 0)
@@ -78,7 +86,8 @@ class OptimumReporter(CallbackBase):
             ret = {'score': self.score_fn(ret)}
         if not isinstance(ret, dict):
             ret = {'default': ret}
-        res = (dict(params), ret)
+        arch_desc = estim.get_arch_desc()
+        res = (arch_desc or (None if params is None else dict(params)), ret)
         self.results.append(res)
         self.opt_results = self.update_optimal(res, self.opt_results)
         if self.stat_epoch:

@@ -160,9 +160,14 @@ class MobileNetV2ElasticSequentialConstructor():
 class MobileNetV2ElasticConstructor(MobileNetV2ElasticSpatialConstructor, MobileNetV2ElasticSequentialConstructor):
     """MobileNetV2 Elastic Spatial & Sequential Constructor."""
 
-    __call__ = MobileNetV2ElasticSequentialConstructor.__call__
     convert = MobileNetV2ElasticSpatialConstructor.convert
 
     def __init__(self, search=True, spatial_kwargs=None, sequential_kwargs=None):
         MobileNetV2ElasticSpatialConstructor.__init__(self, search=search, **(spatial_kwargs or {}))
         MobileNetV2ElasticSequentialConstructor.__init__(self, search=search, **(sequential_kwargs or {}))
+
+    def __call__(self, model):
+        """Enable elastic transformation on MBV2 model."""
+        MobileNetV2ElasticSequentialConstructor.__call__(self, model)
+        MobileNetV2ElasticSpatialConstructor.__call__(self, model)
+        return model

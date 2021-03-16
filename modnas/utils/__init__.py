@@ -4,7 +4,8 @@ import inspect
 import importlib
 import numpy as np
 import hashlib
-from ..version import __version__
+from functools import partial
+from modnas.version import __version__
 from .logging import get_logger
 try:
     from tensorboardX import SummaryWriter
@@ -49,8 +50,6 @@ def import_modules(modules):
 
 def get_exp_name(config):
     """Return experiment name."""
-    if 'name' in config:
-        return config['name']
     return '{}.{}'.format(time.strftime('%Y%m%d', time.localtime()), hashlib.sha1(str(config).encode()).hexdigest()[:4])
 
 
@@ -116,6 +115,8 @@ def check_config(config):
         return False
 
     defaults = {
+        'backend': 'torch',
+        'device_ids': 'all',
         'estim.*.save_arch_desc': True,
         'estim.*.save_freq': 0,
         'estim.*.arch_update_epoch_start': 0,
@@ -231,11 +232,15 @@ def format_value(value, binary=False, div=None, factor=None, prec=2, unit=True, 
     return '{{:.{}f}}'.format(prec).format(value) + (units[factor] if unit else '')
 
 
-def format_dict(dct, sep=None, kv_sep=None, fmt_key=True):
+def format_dict(dct, sep=None, kv_sep=None, fmt_key=None, fmt_val=None):
     """Return formatted dict."""
     sep = sep or ' | '
     kv_sep = kv_sep or ':'
-    return sep.join(['{}{} {{{}}}'.format(format_key(k) if fmt_key else k, kv_sep, k) for k in dct]).format(**dct)
+    fmt_vals = None if fmt_val is False else (fmt_val if isinstance(fmt_val, dict) else {})
+    fmt_val = fmt_val if callable(fmt_val) else partial(format_value, unit=False, factor=0, prec=4, to_str=True)
+    fmt_key = fmt_key if callable(fmt_key) else None if fmt_key is False else format_key
+    val_dct = {k: v if fmt_vals is None else fmt_vals.get(k, fmt_val)(v) for k, v in dct.items()}
+    return sep.join(['{}{} {{{}}}'.format(fmt_key(k) if fmt_key else k, kv_sep, k) for k in dct]).format(**val_dct)
 
 
 class ETAMeter():

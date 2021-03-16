@@ -6,8 +6,8 @@ import torch.nn.functional as F
 from modnas.registry.callback import register
 from modnas.arch_space.mixed_ops import MixedOp
 from modnas.callback.base import CallbackBase
-matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+plt.switch_backend('Agg')
 
 
 @register

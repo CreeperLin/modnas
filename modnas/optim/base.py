@@ -1,8 +1,8 @@
 """Basic Optimizer classes."""
 import random
-from .. import backend
-from ..core.param_space import ParamSpace
-from ..core.event import event_hooked_subclass
+from modnas import backend
+from modnas.core.param_space import ParamSpace
+from modnas.core.event import event_hooked_subclass
 from modnas.utils.logging import get_logger
 
 

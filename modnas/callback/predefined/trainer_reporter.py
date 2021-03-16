@@ -20,8 +20,8 @@ class TrainerReporter(CallbackBase):
             'after:TrainerBase.loss': self.on_loss,
         })
         self.interval = interval
-        self.fmt_fn = format_fn or {}
-        self.default_fmt_fn = partial(format_value, unit=False, factor=0, prec=4)
+        self.format_fn = format_fn
+        self.last_batch_size = 1
         self.stats = None
 
     def init_stats(self, keys):
@@ -31,6 +31,7 @@ class TrainerReporter(CallbackBase):
     def reset(self):
         """Reset statistics."""
         self.stats = None
+        self.last_batch_size = 1
 
     def on_loss(self, ret, trainer, output, data, model):
         """Record batch size in each loss call."""
@@ -55,6 +56,7 @@ class TrainerReporter(CallbackBase):
         if interval and interval < 1:
             interval = int(interval * tot_steps)
         stats = ret.copy() if isinstance(ret, dict) else {}
+        stats = {k: v for k, v in stats.items() if isinstance(v, (int, float))}
         if self.stats is None and stats:
             self.init_stats(stats.keys())
         writer = trainer.writer
@@ -63,5 +65,5 @@ class TrainerReporter(CallbackBase):
             if writer is not None:
                 writer.add_scalar('/'.join(['trainer', proc, k]), v, cur_step)
         if interval is None or (interval != 0 and (step + 1) % interval == 0) or step + 1 == tot_steps:
-            fmt_info = format_dict({k: self.fmt_fn.get(k, self.default_fmt_fn)(v.avg) for k, v in self.stats.items()})
+            fmt_info = format_dict({k: v.avg for k, v in self.stats.items()}, fmt_val=self.format_fn)
             trainer.logger.info('{}: [{:3d}/{}] {}'.format(proc.title(), step + 1, tot_steps, fmt_info))

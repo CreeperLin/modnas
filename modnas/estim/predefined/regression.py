@@ -1,7 +1,7 @@
 """Regression Estimator."""
 import itertools
 from ..base import EstimBase
-from ...core.param_space import ParamSpace
+from modnas.core.param_space import ParamSpace
 from modnas.registry.estim import register
 
 

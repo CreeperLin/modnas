@@ -1,8 +1,8 @@
 """Distributed Estimator."""
 from ..base import EstimBase
 from modnas.registry.estim import register, build
-from ...registry.dist_remote import build as build_remote
-from ...registry.dist_worker import build as build_worker
+from modnas.registry.dist_remote import build as build_remote
+from modnas.registry.dist_worker import build as build_worker
 
 
 @register

@@ -8,9 +8,8 @@ from modnas.core.param_space import ParamSpace
 class DefaultInitConstructor():
     """Constructor that initializes the architecture space."""
 
-    def __init__(self, seed=None, device=None):
+    def __init__(self, seed=None):
         self.seed = seed
-        self.device = device
 
     def __call__(self, model):
         """Run constructor."""

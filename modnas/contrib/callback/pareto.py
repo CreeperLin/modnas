@@ -2,15 +2,15 @@
 import matplotlib
 from modnas.registry.callback import register
 from modnas.registry.callback import OptimumReporter
-matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+plt.switch_backend('Agg')
 
 
 @register
 class ParetoReporter(OptimumReporter):
     """Pareto optimum statistics reporter class."""
 
-    def __init__(self, *args, plot_keys=None, plot_args=None, plot_intv=100, **kwargs):
+    def __init__(self, *args, plot_keys=None, plot_args=None, plot_intv=0.2, **kwargs):
         super().__init__(*args, **kwargs)
         self.plot_keys = plot_keys
         self.plot_args = plot_args
@@ -23,7 +23,7 @@ class ParetoReporter(OptimumReporter):
         plt.figure()
         plt.title('Pareto optimum')
         plot_keys = self.plot_keys or self.cmp_keys or list(self.results[0][1].keys())
-        plot_keys = plot_keys[:2]
+        plot_keys = plot_keys[:2][::-1]
         if len(plot_keys) < 2:
             self.logger.error('Not enough metrics for pareto plot')
             return
@@ -40,7 +40,10 @@ class ParetoReporter(OptimumReporter):
 
     def report_epoch(self, ret, estim, optim, epoch, tot_epochs):
         """Plot pareto optimum on epochs."""
-        if self.plot_intv is not None and (epoch + 1) % self.plot_intv == 0:
+        intv = self.plot_intv
+        if intv and intv < 1:
+            intv = int(intv * tot_epochs)
+        if intv is not None and (epoch + 1) % intv == 0:
             self.plot_pareto(estim, epoch + 1)
         return super().report_epoch(ret, estim, optim, epoch, tot_epochs)
 

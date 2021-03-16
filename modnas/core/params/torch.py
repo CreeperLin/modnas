@@ -1,7 +1,7 @@
 """Torch tensor parameter."""
 import torch
 from .base import Param
-from ...registry.params import register
+from modnas.registry.params import register
 
 
 def _default_tensor_sampler(shape, init_ratio=1e-3):

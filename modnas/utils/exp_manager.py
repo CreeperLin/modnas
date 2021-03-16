@@ -9,7 +9,7 @@ class ExpManager():
 
     logger = get_logger('exp_manager')
 
-    def __init__(self, name, root_dir='exp', subdir_timefmt='%Y-%m-%d_%H-%M'):
+    def __init__(self, name, root_dir='exp', subdir_timefmt=None):
         if subdir_timefmt is None:
             root_dir = os.path.join(root_dir, name)
         else:

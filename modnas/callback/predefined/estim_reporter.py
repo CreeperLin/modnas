@@ -16,8 +16,7 @@ class EstimReporter(CallbackBase):
             'after:EstimBase.run_epoch': self.report_epoch,
         })
         self.interval = interval
-        self.fmt_fn = format_fn or {}
-        self.default_fmt_fn = partial(format_value, unit=False, factor=0, prec=4, to_str=True)
+        self.format_fn = format_fn
 
     def report_epoch(self, ret, estim, optim, epoch, tot_epochs):
         """Log statistics report in each epoch."""
@@ -29,6 +28,6 @@ class EstimReporter(CallbackBase):
         stats = ret.copy() if isinstance(ret, dict) else {}
         stats.update(estim.stats)
         if interval is None or (interval != 0 and (epoch + 1) % interval == 0) or epoch + 1 == tot_epochs:
-            fmt_info = format_dict({k: self.fmt_fn.get(k, self.default_fmt_fn)(v) for k, v in stats.items()})
+            fmt_info = format_dict(stats, fmt_val=self.format_fn)
             estim.logger.info('[{:3d}/{}] {}'.format(epoch + 1, tot_epochs, fmt_info))
         estim.stats = {}

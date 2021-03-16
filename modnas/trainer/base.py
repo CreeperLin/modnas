@@ -1,7 +1,7 @@
 """Base Trainer."""
-from ..utils.logging import get_logger
-from ..utils import DummyWriter
-from ..core.event import event_hooked_subclass
+from modnas.utils.logging import get_logger
+from modnas.utils import DummyWriter
+from modnas.core.event import event_hooked_subclass
 
 
 @event_hooked_subclass

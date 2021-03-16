@@ -55,7 +55,7 @@ class DefaultParamsExporter():
     def __call__(self, model):
         """Run Exporter."""
         if self.with_keys:
-            params = {k: p.value() for k, p in ParamSpace().named_params()}
+            params = dict(ParamSpace().named_param_values())
         else:
             params = [p.value() for p in ParamSpace().params()]
         if self.export_fmt:

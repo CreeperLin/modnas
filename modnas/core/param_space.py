@@ -1,7 +1,7 @@
 """Architecture Parameter Space."""
 from collections import OrderedDict
 from . import singleton
-from ..utils.logging import get_logger
+from modnas.utils.logging import get_logger
 
 
 logger = get_logger(__name__)
@@ -55,6 +55,11 @@ class ParamSpace():
         """Return an iterator over named parameters."""
         for n, p in self._params_map.items():
             yield n, p
+
+    def named_param_values(self, ):
+        """Return an iterator over named parameter values."""
+        for n, p in self._params_map.items():
+            yield n, p.value()
 
     def add_param(self, name, param):
         """Add a parameter to space."""

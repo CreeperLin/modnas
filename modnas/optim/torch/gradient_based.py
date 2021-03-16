@@ -3,8 +3,8 @@ import math
 import copy
 import torch
 from ..base import GradientBasedOptim
-from ...core.param_space import ParamSpace
-from ...arch_space.mixed_ops import MixedOp
+from modnas.core.param_space import ParamSpace
+from modnas.arch_space.mixed_ops import MixedOp
 from modnas.registry.optim import register
 
 

@@ -2,11 +2,11 @@
 import traceback
 import threading
 import pickle
-from .. import backend
-from ..metrics import build_metrics_all
-from ..arch_space.export import build as build_exporter
-from ..core.event import event_hooked_subclass
-from ..utils.logging import get_logger
+from modnas import backend
+from modnas.metrics import build_metrics_all
+from modnas.registry.export import build as build_exporter
+from modnas.core.event import event_hooked_subclass
+from modnas.utils.logging import get_logger
 
 
 def build_criterions_all(crit_configs, device_ids=None):

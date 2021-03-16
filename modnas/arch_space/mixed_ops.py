@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..core.params import Categorical
+from modnas.core.params import Categorical
 from modnas.registry.params import build
 from modnas.registry.arch_space import register
 from modnas.utils.logging import get_logger

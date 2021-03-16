@@ -1,7 +1,7 @@
 """Supernet-based Estimator."""
 import itertools
 from ..base import EstimBase
-from ...core.param_space import ParamSpace
+from modnas.core.param_space import ParamSpace
 from modnas.registry.estim import register
 
 
@@ -13,6 +13,14 @@ class SuperNetEstim(EstimBase):
         super().__init__(*args, **kwargs)
         self.best_score = None
         self.best_arch_desc = None
+
+    def step(self, params):
+        """Return evaluation results of a parameter set."""
+        ParamSpace().update_params(params)
+        arch_desc = self.get_arch_desc()
+        ret = self.compute_metrics()
+        self.logger.info('Evaluate: {} -> {}'.format(arch_desc, ret))
+        return ret
 
     def print_tensor_params(self, max_num=3):
         """Log current tensor parameter values."""
@@ -71,19 +79,17 @@ class SuperNetEstim(EstimBase):
                                     step=step,
                                     tot_steps=n_trn_batch)
         # eval
-        arch_desc = self.get_arch_desc()
-        mt_ret = self.compute_metrics()
-        self.logger.info('Evaluate: {} -> {}'.format(arch_desc, mt_ret))
-        score = self.get_score(mt_ret)
-        if self.best_score is None or score > self.best_score:
-            self.best_score = score
-            self.best_arch_desc = arch_desc
+        self.clear_buffer()
+        self.stepped(dict(ParamSpace().named_param_values()))
+        self.wait_done()
+        for _, res, arch_desc in self.buffer():
+            score = self.get_score(res)
+            if self.best_score is None or (score is not None and score > self.best_score):
+                self.best_score = score
+                self.best_arch_desc = arch_desc
         # save
         if config.save_arch_desc:
             self.save_arch_desc(epoch, arch_desc=arch_desc)
         if config.save_freq != 0 and epoch % config.save_freq == 0:
             self.save_checkpoint(epoch)
         self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
-        return {
-            'epoch_best': score,
-        }

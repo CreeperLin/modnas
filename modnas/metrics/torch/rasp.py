@@ -1,7 +1,7 @@
 """RASP-based metrics."""
 from ..base import MetricsBase
 from modnas.registry.metrics import register, build
-from ...arch_space.mixed_ops import MixedOp
+from modnas.arch_space.mixed_ops import MixedOp
 try:
     import rasp
     import rasp.frontend as F

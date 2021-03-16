@@ -1,7 +1,7 @@
 """Default Trainer."""
 import torch
 import torch.nn as nn
-from ... import backend
+from modnas import backend
 from ..base import TrainerBase
 from modnas.registry.trainer import register
 

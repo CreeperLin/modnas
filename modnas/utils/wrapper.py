@@ -2,21 +2,21 @@
 import argparse
 from collections import OrderedDict
 from functools import partial
-from ..registry.runner import build, register_as
+from modnas.registry.runner import build, register_as
 from .exp_manager import ExpManager
 from .config import Config
-from ..core.event import EventManager
-from ..core.param_space import ParamSpace
-from ..registry.construct import build as build_con
-from ..registry.callback import build as build_callback
-from ..registry.export import build as build_exp
-from ..registry.optim import build as build_optim
-from ..registry.estim import build as build_estim
-from ..registry.trainer import build as build_trainer
-from .. import utils
+from modnas.core.event import EventManager
+from modnas.core.param_space import ParamSpace
+from modnas.registry.construct import build as build_con
+from modnas.registry.callback import build as build_callback
+from modnas.registry.export import build as build_exp
+from modnas.registry.optim import build as build_optim
+from modnas.registry.estim import build as build_estim
+from modnas.registry.trainer import build as build_trainer
+from modnas.registry import parse_spec, to_spec
+from modnas import utils
 from .logging import configure_logging, get_logger
-from ..backend import use as use_backend
-from . import predefined
+from modnas import backend as be
 
 
 logger = get_logger()
@@ -55,7 +55,7 @@ _default_arg_specs = [
         'help': 'checkpoint file'
     },
     {
-        'flags': ['-d', '--device'],
+        'flags': ['-d', '--device_ids'],
         'type': str,
         'default': 'all',
         'help': 'override device ids'
@@ -67,7 +67,7 @@ _default_arg_specs = [
         'help': 'override arch_desc file'
     },
     {
-        'flags': ['-o', '--config_override'],
+        'flags': ['-o', '--override'],
         'type': str,
         'default': None,
         'help': 'override config',
@@ -112,7 +112,12 @@ def get_data_provider_config(config):
 
 def get_init_constructor(config, device):
     """Return default init constructor."""
-    default_conf = {'type': 'DefaultInitConstructor', 'args': {'device': device}}
+    if be.is_backend('torch'):
+        default_conf = {'type': 'TorchInitConstructor', 'args': {'device': device}}
+    elif be.is_backend(None):
+        default_conf = {'type': 'DefaultInitConstructor'}
+    else:
+        raise NotImplementedError
     default_conf.update(config)
     return default_conf
 
@@ -129,7 +134,8 @@ def get_model_constructor(config):
 
 def get_chkpt_constructor(path):
     """Return default checkpoint loader."""
-    return {'type': 'DefaultTorchCheckpointLoader', 'args': {'path': path}}
+    if be.is_backend('torch'):
+        return {'type': 'TorchCheckpointLoader', 'args': {'path': path}}
 
 
 def get_mixed_op_constructor(config):
@@ -213,77 +219,79 @@ def estims_routine(optim, estims):
     return results
 
 
-def default_constructor(model, construct_fn=None, construct_config=None, arch_desc=None):
+def default_constructor(model, construct_config=None, arch_desc=None):
     """Apply all constructors on model."""
-    construct_fn = construct_fn or {}
-    if isinstance(construct_fn, list):
-        construct_fn = [(str(i), v) for i, v in enumerate(construct_fn)]
-    construct_fn = OrderedDict(construct_fn)
     if arch_desc:
-        construct_config['arch_desc']['args']['arch_desc'] = arch_desc
-    construct_fn.update(build_constructor_all(construct_config or {}))
+        reg_id, args = parse_spec(construct_config['arch_desc'])
+        args['arch_desc'] = arch_desc
+        construct_config['arch_desc'] = to_spec(reg_id, args)
+    construct_fn = build_constructor_all(construct_config or {})
     for name, con_fn in construct_fn.items():
         logger.info('Running constructor: {} type: {}'.format(name, con_fn.__class__.__name__))
         model = con_fn(model)
     return model
 
 
-def init_all(config,
-             name=None,
-             routine=None,
-             backend='torch',
-             chkpt=None,
-             device=None,
-             arch_desc=None,
-             construct_fn=None,
-             config_override=None,
-             model=None):
+def get_default_constructors(config):
+    """Return default constructors from config."""
+    con_config = OrderedDict()
+    device_conf = config.get('device', {})
+    device_ids = config.get('device_ids', None)
+    arch_desc = config.get('arch_desc', None)
+    if device_ids is not None:
+        device_conf['device'] = device_ids
+    else:
+        device_ids = device_conf.get('device', device_ids)
+    con_config['init'] = get_init_constructor(config.get('init', {}), device_ids)
+    if 'ops' in config:
+        con_config['init']['args']['ops_conf'] = config['ops']
+    if 'model' in config:
+        con_config['model'] = get_model_constructor(config['model'])
+    if 'mixed_op' in config:
+        con_config['mixed_op'] = get_mixed_op_constructor(config['mixed_op'])
+    if arch_desc is not None:
+        con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
+    con_config = utils.merge_config(con_config, config.get('construct', {}))
+    if be.is_backend('torch'):
+        con_config['device'] = {'type': 'TorchToDevice', 'args': device_conf}
+    if config.get('chkpt'):
+        con_config['chkpt'] = get_chkpt_constructor(config['chkpt'])
+    constructor = partial(default_constructor, construct_config=con_config, arch_desc=arch_desc)
+    return constructor
+
+
+def init_all(config, construct_fn=None, model=None, **kwargs):
     """Initialize all components from config."""
-    if backend is not None:
-        use_backend(backend)
     config = load_config(config)
-    Config.apply(config, config_override or {})
+    config.update(kwargs)
+    Config.apply(config, config.get('override') or {})
+    routine = config.get('routine')
     if routine:
         Config.apply(config, config.pop(routine, {}))
     utils.check_config(config)
     # dir
-    name = name or utils.get_exp_name(config)
+    name = config.get('name') or utils.get_exp_name(config)
     expman = ExpManager(name, **config.get('expman', {}))
     configure_logging(config=config.get('logging', None), log_dir=expman.subdir('logs'))
     writer = utils.get_writer(expman.subdir('writer'), **config.get('writer', {}))
     logger.info('Name: {} Routine: {} Config:\n{}'.format(name, routine, config))
     logger.info(utils.env_info())
     # imports
-    utils.import_modules(config.get('imports', None))
-    # device
-    device_conf = config.get('device', {})
-    if device is not None:
-        device_conf['device'] = device
-    else:
-        device = device_conf.get('device', device)
+    imports = config.get('import', [])
+    if not isinstance(imports, list):
+        imports = [imports]
+    if config.get('predefined') is not False:
+        imports.insert(0, 'modnas.utils.predefined')
+    utils.import_modules(imports)
+    be.use(config.get('backend'))
     # data
     data_provider_conf = get_data_provider_config(config)
     # construct
-    con_config = OrderedDict()
-    con_config['init'] = get_init_constructor(config.get('init', {}), device)
-    if 'ops' in config:
-        con_config['init']['args']['ops_conf'] = config.ops
-    if 'model' in config:
-        con_config['model'] = get_model_constructor(config.model)
-    if 'mixed_op' in config:
-        con_config['mixed_op'] = get_mixed_op_constructor(config.mixed_op)
-    if arch_desc is not None:
-        con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
-    con_config = utils.merge_config(con_config, config.get('construct', {}))
-    con_config['device'] = {'type': 'ToDevice', 'args': device_conf}
-    if chkpt is not None:
-        con_config['chkpt'] = get_chkpt_constructor(chkpt)
-    # model
-    constructor = partial(default_constructor,
-                          construct_fn=construct_fn,
-                          construct_config=con_config,
-                          arch_desc=arch_desc)
-    model = constructor(model)
+    if construct_fn is not False:
+        constructor = construct_fn or get_default_constructors(config)
+        model = constructor(model)
+    else:
+        constructor = None
     # export
     exporter = build_exporter_all(config.get('export', {}))
     # callback
@@ -293,7 +301,8 @@ def init_all(config,
         cb_user_conf = {i: v for i, v in enumerate(cb_user_conf)}
     cb_config.update(cb_user_conf)
     for cb in cb_config.values():
-        build_callback(cb)
+        if cb is not None:
+            build_callback(cb)
     # optim
     optim = None
     if 'optim' in config:

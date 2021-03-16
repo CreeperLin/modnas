@@ -2,22 +2,31 @@
 
 > [MLSys 2021] ModularNAS: Towards Modularized and Reusable Neural Architecture Search
 
+[![Documentation Status](https://readthedocs.org/projects/modularnas/badge/?version=latest)](https://modularnas.readthedocs.io/en/latest/?badge=latest)
+
+[ModularNAS Docs](https://modularnas.readthedocs.io/)
+
 ## Introduction
 
 ModularNAS is a neural architecture search (NAS) code library that breaks down state-of-the-art efficient NAS methods into modularized and reusable components, such as search algorithms, evaluation strategies, architecture search space and candidates, and network transformations, while unifies the interactions between components in search procedure.
 It also supports automatic search space generation for customized use cases while reusing predefined search strategies, allowing user-friendly NAS deployment with little extra work needed.
 
-<center><img src="./images/modnas_formulation.png" style="zoom:30%;" /></center>
+<center><img src="https://raw.githubusercontent.com/creeperlin/modnas-res/main/images/overview.svg" style="zoom:50%;" /></center>
 
 Supported NAS methods:
 
 - DARTS [^fn1]
 - ProxylessNAS [^fn2]
 - Once for All [^fn3]
+- Single-Path-One-Shot
 
 Supported search space:
 
 - MobileNetV2 [^fn4] blocks
+- MobileNetV3 blocks
+- ResNet blocks
+- PyramidNet blocks
+- ShuffleNetV2 blocks
 - Customized network model
 
 ## User Guide
@@ -26,9 +35,9 @@ Supported search space:
 
 Requirements:
 
-- Python >= 3.5
+- Python>=3.5
+- pyyaml>=5.1
 - numpy
-- pyyaml >= 5.1
 
 In current directory, run the setup script:
 
@@ -44,12 +53,7 @@ Run an experiment specified by YAML configuration file:
 python3 -m modnas.exec.local -c <path_to_yaml>
 ```
 
-We provide some predefined YAML configurations on the MobleNetV2 architecture search space:
-
-- nas/modnas/mbv2.yml: training the original MobileNetV2 network
-- nas/modnas/ps.yml: apply Progressive Shrinking training and evolution search as in Once for All [^fn3]
-- nas/modnas/darts.yml: apply DARTS [^fn1] search algorithm and Supernet estimation strategy
-- nas/modnas/pxl.yml: apply ProxylessNAS [^fn2] search algorithm and Supernet estimation strategy
+See documentations for detailed descriptions on config files.
 
 ### Search space configuration
 
@@ -60,16 +64,15 @@ Here is a example YAML configuration of the MobileNetV2 search space that define
 ```yaml
 model:
   type: CIFAR_MobileNetV2_GPU
-construct:
-  mixed_op:
-    type: BinGate
-    primitives:
-      - MB3E3
-      - MB3E6
-      - MB5E3
-      - MB5E6
-      - MB7E3
-      - MB7E6
+mixed_op:
+  type: BinaryGateMixedOp
+  candidates:
+    - MB3E3
+    - MB3E6
+    - MB5E3
+    - MB5E6
+    - MB7E3
+    - MB7E6
 ```
 
 Supported base model types are (in model.type):
@@ -81,11 +84,11 @@ Supported base model types are (in model.type):
 
 Supported mixed operator types are (in mixed_op.type):
 
-- BinGate: mixed operator controlled by binary gates, as in ProxylessNAS
-- BinGateUniform: variant of the BinGate where candidates are sampled from uniform distribution in forward pass
-- WeightedSum: returns the sum of the candidate operator outputs weighted by the softmax of some architecture parameter, as in DARTS
-- GumbelSum: returns the sum of outputs weighted by the gumbel softmax of some parameter, as in SNAS
-- Index: returns the output of the candidate selected by the architecture parameter (discrete), as in SPOS, CARS and so on
+- BinaryGateMixedOp: mixed operator controlled by binary gates, as in ProxylessNAS
+- BinaryGateUniformMixedOp: variant of the BinGate where candidates are sampled from uniform distribution in forward pass
+- SoftmaxSumMixedOp: returns the sum of the candidate operator outputs weighted by the softmax of some architecture parameter, as in DARTS
+- GumbelSumMixedOp: returns the sum of outputs weighted by the gumbel softmax of some parameter, as in SNAS
+- IndexMixedOp: returns the output of the candidate selected by the architecture parameter (discrete), as in SPOS, CARS and so on
 
 Supported candidate operator types are (in mixed_op.candidates):
 
@@ -133,7 +136,7 @@ Here is an example of Estimator configuration in YAML that specifies a single Es
 ```yaml
 estim:
   search:
-    type: SuperNetEstimator
+    type: SuperNetEstim
     epochs: 1
 ```
 
@@ -142,19 +145,19 @@ Additionally, multiple Estimators can be chained together to carry out complex a
 ```yaml
 estim:
   warmup:
-    type: DefaultEstimator
+    type: DefaultEstim
     epochs: 20
   search:
-    type: SuperNetEstimator
+    type: SuperNetEstim
     epochs: 100
 ```
 
 Supported Estimator types are (in estim.*.type):
 
-- DefaultEstimator: train the network weights only
-- SuperNetEstimator: train the network weights and update architecture parameter alternatively
-- SubNetEstimator: train and evaluate each candidate architecture separately
-- ProgressiveShrinkingEstimator: train the network using progressive shrinking (PS) as in Once for All [^fn1]
+- DefaultEstim: train the network weights only
+- SuperNetEstim: train the network weights and update architecture parameter alternatively
+- SubNetEstim: train and evaluate each candidate architecture separately
+- ProgressiveShrinkingEstim: train the network using progressive shrinking (PS) as in Once for All [^fn1]
 
 ### Output specifications
 
@@ -242,10 +245,10 @@ construct:
   mixed_op:
     type: DefaultMixedOpConstructor
     args:
-      # mixed operator and primitives
+      # mixed operator and candidates
 ```
 
-Now we have a supernet on top of the base model where the original convolution operators are replaced with specified mixed operators and primitives. A search routine can then be set up by matching the search space with selected Optimizer and Estimators.
+Now we have a supernet on top of the base model where the original convolution operators are replaced with specified mixed operators and candidates. A search routine can then be set up by matching the search space with selected Optimizer and Estimators.
 
 ## Citation
 

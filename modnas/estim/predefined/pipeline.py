@@ -3,8 +3,8 @@ import traceback
 import queue
 from multiprocessing import Process, Pipe
 from ..base import EstimBase
-from ...registry.runner import build as build_runner
-from ...registry import parse_spec
+from modnas.registry.runner import build as build_runner
+from modnas.registry import parse_spec
 from modnas.registry.estim import register
 
 
