@@ -1,7 +1,6 @@
 """Metrics statistics reporter."""
 import pickle
 import itertools
-import matplotlib
 from modnas.registry.callback import register
 from modnas.callback.base import CallbackBase
 from matplotlib import pyplot as plt
