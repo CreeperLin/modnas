@@ -268,7 +268,7 @@ def init_all(config, construct_fn=None, model=None, **kwargs):
     routine = config.get('routine')
     if routine:
         Config.apply(config, config.pop(routine, {}))
-    utils.check_config(config)
+    utils.check_config(config, config.get('defaults'))
     # dir
     name = config.get('name') or utils.get_exp_name(config)
     expman = ExpManager(name, **config.get('expman', {}))
@@ -387,9 +387,13 @@ def run_pipeline(*args, **kwargs):
     return estims_routine(**init_all_pipeline(*args, **kwargs))
 
 
-def run(*args, routine=None, **kwargs):
+def run(*args, routine=None, parse=False, **kwargs):
     """Run routine."""
-    if not args and not kwargs:
-        kwargs = parse_routine_args()
-    routine_parsed = kwargs.pop('routine', None) or 'default'
-    return build(routine or routine_parsed, *args, **kwargs)
+    if parse or (not args and not kwargs):
+        parsed_kwargs = parse_routine_args()
+        # parsed_kwargs.update(kwargs)
+        parsed_kwargs = utils.merge_config(parsed_kwargs, kwargs)
+    else:
+        parsed_kwargs = kwargs
+    routine_parsed = parsed_kwargs.pop('routine', None) or 'default'
+    return build(routine or routine_parsed, *args, **parsed_kwargs)

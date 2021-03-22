@@ -3,7 +3,8 @@ from modnas.utils.wrapper import run
 
 
 def exec_local():
-    run()
+    """Run ModularNAS locally."""
+    return run()
 
 
 if __name__ == '__main__':

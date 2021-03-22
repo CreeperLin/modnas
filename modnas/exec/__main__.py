@@ -1,3 +1,4 @@
+"""Default exec point."""
 from .local import exec_local
 
 

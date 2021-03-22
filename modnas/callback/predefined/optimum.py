@@ -23,7 +23,7 @@ class OptimumReporter(CallbackBase):
     def __init__(self, cmp_keys=None, cmp_fn=None, cmp_th=None, score_fn=None, stat_epoch=True):
         handlers = {
             'before:EstimBase.run': self.reset,
-            'after:EstimBase.step': self.on_step,
+            'after:EstimBase.step_done': self.on_step_done,
             'after:EstimBase.run': self.report_results,
         }
         if stat_epoch:
@@ -80,14 +80,14 @@ class OptimumReporter(CallbackBase):
                 dom = -1
         return dom
 
-    def on_step(self, ret, estim, params):
+    def on_step_done(self, ret, estim, params, value, arch_desc=None):
         """Record Estimator evaluation result on each step."""
         if self.score_fn:
-            ret = {'score': self.score_fn(ret)}
-        if not isinstance(ret, dict):
-            ret = {'default': ret}
-        arch_desc = estim.get_arch_desc()
-        res = (arch_desc or (None if params is None else dict(params)), ret)
+            value = {'score': self.score_fn(value)}
+        if not isinstance(value, dict):
+            value = {'default': value}
+        arch_desc = arch_desc or estim.get_arch_desc()
+        res = (arch_desc or (None if params is None else dict(params)), value)
         self.results.append(res)
         self.opt_results = self.update_optimal(res, self.opt_results)
         if self.stat_epoch:

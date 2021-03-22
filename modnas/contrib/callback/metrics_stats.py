@@ -13,15 +13,15 @@ class MetricsStatsReporter(CallbackBase):
 
     def __init__(self, axis_list=None):
         super().__init__({
-            'after:EstimBase.step': self.on_step,
+            'after:EstimBase.step_done': self.on_step_done,
             'after:EstimBase.run': self.save_stats,
         })
         self.results = []
         self.axis_list = axis_list
 
-    def on_step(self, ret, estim, params):
+    def on_step_done(self, ret, estim, params, value, arch_desc=None):
         """Record Estimator evaluation result on each step."""
-        self.results.append((params, ret))
+        self.results.append((params, value))
 
     def save_stats(self, ret, estim, optim):
         """Save statistics on search end."""

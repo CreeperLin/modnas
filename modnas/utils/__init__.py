@@ -82,7 +82,7 @@ def env_info():
     return 'env info: {}'.format(', '.join(['{k}={{{k}}}'.format(k=k) for k in info])).format(**info)
 
 
-def check_config(config):
+def check_config(config, defaults=None):
     """Check config and set default values."""
     def check_field(config, field, default):
         cur_key = ''
@@ -114,7 +114,7 @@ def check_config(config):
                 cur_dict[cur_key] = default
         return False
 
-    defaults = {
+    default_config = {
         'backend': 'torch',
         'device_ids': 'all',
         'estim.*.save_arch_desc': True,
@@ -125,8 +125,9 @@ def check_config(config):
         'estim.*.arch_update_batch': 1,
         'estim.*.metrics': 'ValidateMetrics',
     }
+    default_config.update(defaults or {})
 
-    for key, val in defaults.items():
+    for key, val in default_config.items():
         check_field(config, key, val)
 
 

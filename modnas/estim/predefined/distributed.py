@@ -18,7 +18,6 @@ class DistributedEstim(EstimBase):
             'exporter',
             'model',
             'writer',
-            'logger',
         ]
         estim_comp = {k: getattr(self, k) for k in estim_comp_keys}
         self.estim = build(estim_conf, config=estim_conf, **estim_comp)
@@ -42,7 +41,7 @@ class DistributedEstim(EstimBase):
             self.remote.call('step', params, on_done=on_done, on_failed=on_failed)
             return
         ret = self.estim_step(params)
-        self.logger.debug('Dist worker: params: {} ret: {}'.format(params, ret))
+        self.logger.info('Dist worker: params: {} ret: {}'.format(params, ret))
         return ret
 
     def run(self, optim):
