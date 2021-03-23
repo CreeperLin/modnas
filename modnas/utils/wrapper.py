@@ -326,10 +326,10 @@ def init_all(config, construct_fn=None, model=None, **kwargs):
     return {'optim': optim, 'estims': estims}
 
 
-def init_all_hptune(config, *args, config_override=None, measure_fn=None, **kwargs):
+def init_all_hptune(config, *args, override=None, measure_fn=None, **kwargs):
     """Initialize all components from hptune config."""
     config = load_config(config)
-    Config.apply(config, config_override or {})
+    Config.apply(config, override or {})
     Config.apply(config, config.pop('hptune', {}))
     # hpspace
     config['export'] = None
@@ -349,12 +349,12 @@ def init_all_hptune(config, *args, config_override=None, measure_fn=None, **kwar
     return init_all(config, *args, **kwargs)
 
 
-def init_all_pipeline(config, *args, config_override=None, **kwargs):
+def init_all_pipeline(config, *args, override=None, **kwargs):
     """Initialize all components from pipeline config."""
     config = load_config(config)
-    Config.apply(config, config_override or {})
-    config_override = {'estim': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.get('pipeline', {})}}}
-    return init_all(config, *args, config_override=config_override, **kwargs)
+    Config.apply(config, override or {})
+    override = {'estim': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.get('pipeline', {})}}}
+    return init_all(config, *args, override=override, **kwargs)
 
 
 @register_as('default')
@@ -391,7 +391,6 @@ def run(*args, routine=None, parse=False, **kwargs):
     """Run routine."""
     if parse or (not args and not kwargs):
         parsed_kwargs = parse_routine_args()
-        # parsed_kwargs.update(kwargs)
         parsed_kwargs = utils.merge_config(parsed_kwargs, kwargs)
     else:
         parsed_kwargs = kwargs
