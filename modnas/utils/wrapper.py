@@ -267,7 +267,8 @@ def init_all(config, construct_fn=None, model=None, **kwargs):
     Config.apply(config, config.get('override') or {})
     routine = config.get('routine')
     if routine:
-        Config.apply(config, config.pop(routine, {}))
+        apply_config_fn = config.pop('apply_config_fn', default_apply_config)
+        apply_config_fn(config)
     utils.check_config(config, config.get('defaults'))
     # dir
     name = config.get('name') or utils.get_exp_name(config)
@@ -326,10 +327,13 @@ def init_all(config, construct_fn=None, model=None, **kwargs):
     return {'optim': optim, 'estims': estims}
 
 
-def init_all_hptune(config, *args, override=None, measure_fn=None, **kwargs):
-    """Initialize all components from hptune config."""
-    config = load_config(config)
-    Config.apply(config, override or {})
+def default_apply_config(config):
+    """Apply routine config by default."""
+    Config.apply(config, config.pop(config['routine'], {}))
+
+
+def apply_hptune_config(config):
+    """Apply hptune routine config."""
     Config.apply(config, config.pop('hptune', {}))
     # hpspace
     config['export'] = None
@@ -344,17 +348,14 @@ def init_all_hptune(config, *args, override=None, measure_fn=None, **kwargs):
         }
     hptune_config = list(config.estim.values())[0]
     hptune_args = hptune_config.get('args', {})
-    hptune_args['measure_fn'] = measure_fn
+    hptune_args['measure_fn'] = config.pop('measure_fn')
     hptune_config['args'] = hptune_args
-    return init_all(config, *args, **kwargs)
 
 
-def init_all_pipeline(config, *args, override=None, **kwargs):
-    """Initialize all components from pipeline config."""
-    config = load_config(config)
-    Config.apply(config, override or {})
-    override = {'estim': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.get('pipeline', {})}}}
-    return init_all(config, *args, override=override, **kwargs)
+def apply_pipeline_config(config):
+    """Apply pipeline routine config."""
+    override = {'estim': {'pipeline': {'type': 'PipelineEstim', 'pipeline': config.pop('pipeline', {})}}}
+    Config.apply(config, override)
 
 
 @register_as('default')
@@ -378,13 +379,13 @@ def run_augment(*args, **kwargs):
 @register_as('hptune')
 def run_hptune(*args, **kwargs):
     """Run hptune routines."""
-    return estims_routine(**init_all_hptune(*args, **kwargs))
+    return estims_routine(**init_all(*args, routine='hptune', apply_config_fn=apply_hptune_config, **kwargs))
 
 
 @register_as('pipeline')
 def run_pipeline(*args, **kwargs):
     """Run pipeline routines."""
-    return estims_routine(**init_all_pipeline(*args, **kwargs))
+    return estims_routine(**init_all(*args, routine='pipeline', apply_config_fn=apply_pipeline_config, **kwargs))
 
 
 def run(*args, routine=None, parse=False, **kwargs):
