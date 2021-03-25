@@ -17,6 +17,7 @@ def singleton(cls):
     """Return wrapped class that has only one instance."""
     inst = []
 
+    @wraps(cls)
     def get_instance(*args, **kwargs):
         if not inst:
             inst.append(cls(*args, **kwargs))

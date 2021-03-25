@@ -5,12 +5,12 @@ import traceback
 from multiprocessing import Process, Pipe
 from ..base import EstimBase
 from modnas.utils.config import Config
-from modnas.registry.runner import build as build_runner
+from modnas.utils.wrapper import run
 from modnas.registry.estim import register
 
 
-def _default_trial_runner(conn, trial_proc, trial_args):
-    ret = build_runner(trial_proc, **trial_args)
+def _default_trial_runner(conn, trial_args):
+    ret = run(**trial_args)
     conn.send(ret)
 
 
@@ -22,7 +22,6 @@ class HPTuneEstim(EstimBase):
                  measure_fn=None,
                  batch_size=1,
                  early_stopping=None,
-                 trial_proc=None,
                  trial_config=None,
                  trial_args=None,
                  *args,
@@ -31,7 +30,6 @@ class HPTuneEstim(EstimBase):
         self.measure_fn = measure_fn or self._default_measure_fn
         self.batch_size = batch_size
         self.early_stopping = early_stopping
-        self.trial_proc = trial_proc
         self.trial_config = trial_config
         self.trial_args = trial_args
         self.best_hparams = None
@@ -46,7 +44,7 @@ class HPTuneEstim(EstimBase):
         trial_args['name'] = '{}_{}'.format(trial_args.get('name', 'trial'), self.trial_index)
         trial_args['config'] = trial_config.to_dict()
         p_con, c_con = Pipe()
-        proc = Process(target=_default_trial_runner, args=(c_con, self.trial_proc, trial_args))
+        proc = Process(target=_default_trial_runner, args=(c_con, trial_args))
         proc.start()
         proc.join()
         if not p_con.poll(0):
@@ -58,7 +56,6 @@ class HPTuneEstim(EstimBase):
         """Return evaluation results of a parameter set."""
         self.trial_index += 1
         logger = self.logger
-        logger.info('measuring hparam: {}'.format(hp))
         config = self.config
         fn_args = config.get('trial_args', {})
         try:
@@ -72,13 +69,14 @@ class HPTuneEstim(EstimBase):
             'score': score or 0,
             'error_no': error_no,
         }
+        logger.info('Evaluate hparam: {} -> {}'.format(hp, result))
         return result
 
     def run_epoch(self, optim, epoch, tot_epochs):
         """Run Estimator routine for one epoch."""
         batch_size = self.batch_size
         early_stopping = self.early_stopping
-        if epoch >= tot_epochs:
+        if tot_epochs != -1 and epoch >= tot_epochs:
             return 1
         if not optim.has_next():
             self.logger.info('HPTune: all finished')

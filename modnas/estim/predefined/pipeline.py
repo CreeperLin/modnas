@@ -3,19 +3,18 @@ import traceback
 import queue
 from multiprocessing import Process, Pipe
 from ..base import EstimBase
-from modnas.registry.runner import build as build_runner
-from modnas.registry import parse_spec
 from modnas.registry.estim import register
+from modnas.utils.wrapper import run
 
 
 def _mp_step_runner(conn, step_conf):
-    ret = build_runner(step_conf)
+    ret = run(**step_conf)
     conn.send(ret)
 
 
 def _mp_runner(step_conf):
     p_con, c_con = Pipe()
-    proc = Process(target=_mp_step_runner, args=(c_con, step_conf))
+    proc = Process(target=_mp_step_runner, args=(c_con, step_conf.to_dict()))
     proc.start()
     proc.join()
     if not p_con.poll(0):
@@ -24,14 +23,14 @@ def _mp_runner(step_conf):
 
 
 def _default_runner(step_conf):
-    return build_runner(step_conf)
+    return run(**step_conf)
 
 
 @register
 class PipelineEstim(EstimBase):
     """Pipeline Estimator class."""
 
-    def __init__(self, *args, use_multiprocessing=False, **kwargs):
+    def __init__(self, *args, use_multiprocessing=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.runner = _mp_runner if use_multiprocessing else _default_runner
 
@@ -65,8 +64,7 @@ class PipelineEstim(EstimBase):
             if not dep_sat:
                 pending.put(pname)
                 continue
-            ptype, pargs = parse_spec(pconf)
-            pargs['name'] = pargs.get('name', pname)
+            pconf['name'] = pconf.get('name', pname)
             for inp_kw, inp_idx in pconf.get('inputs', {}).items():
                 keys = inp_idx.split('.')
                 inp_val = ret_values
@@ -74,8 +72,8 @@ class PipelineEstim(EstimBase):
                     if not inp_val or k not in inp_val:
                         raise RuntimeError('input key {} not found in return {}'.format(inp_idx, ret_values))
                     inp_val = inp_val[k]
-                pargs[inp_kw] = inp_val
-            logger.info('pipeline: running {}, type={}'.format(pname, ptype))
+                pconf[inp_kw] = inp_val
+            logger.info('pipeline: running {}'.format(pname))
             ret = self.step(pconf)
             ret_values[pname] = ret
             logger.info('pipeline: finished {}, results={}'.format(pname, ret))

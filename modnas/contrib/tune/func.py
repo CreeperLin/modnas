@@ -12,7 +12,7 @@ _default_hptune_config = {
     'optim': {
         'type': 'RandomSearchOptim'
     },
-    'estimator': {
+    'estim': {
         'tune': {
             'type': 'HPTuneEstim',
             'epochs': -1,
@@ -21,7 +21,7 @@ _default_hptune_config = {
 }
 
 
-def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **kwargs):
+def tune(func, *args, tune_name=None, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **kwargs):
     """Return tuned hyperparameters for given function."""
     tuned_args = tuned_args or {}
 
@@ -37,12 +37,12 @@ def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tune
         return func(*fn_args, **fn_kwargs)
 
     opts = {
-        'name': func.__name__,
+        'name': tune_name or func.__name__,
         'config': [_default_hptune_config.copy()],
     }
     opts['config'][0]['hp_space'] = tuned_args
     opts['config'].extend(tune_config or [])
-    opts['config_override'] = tune_options
+    opts['override'] = tune_options
     tune_res = run_hptune(measure_fn=measure_fn, **opts)
     best_hparams = list(tune_res.values())[0]['best_hparams']
     logger.info('tune: best hparams: {}'.format(dict(best_hparams)))

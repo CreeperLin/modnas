@@ -2,62 +2,24 @@
 import os
 import sys
 import yaml
-import optparse
-from modnas.utils.wrapper import run_hptune
-from modnas.utils.logging import get_logger
-
-
-logger = get_logger()
-
-
-_default_hptune_config = {
-    'optim': {
-        'type': 'RandomSearchOptim'
-    },
-    'estimator': {
-        'tune': {
-            'type': 'HPTuneEstim',
-            'epochs': -1,
-        }
-    }
-}
+import argparse
+from .func import tune
 
 
 def tune_script():
     """Run hyperparameter tuning on python scripts."""
-    usage = "tune_script.py [options] script [args] ..."
-    parser = optparse.OptionParser(usage=usage)
-    parser.allow_interspersed_args = False
-    parser.add_option('-n', '--name', default=None, help="name of the experiment")
-    parser.add_option('-f', '--func', default=None, help="name of the tuned function")
-    parser.add_option('-c', '--config', default=None, help="yaml config file")
-    parser.add_option('-p', '--hparam', default=None, help="hparam")
-    parser.add_option('-o', '--config_override', action="append", type=str, default=None, help="override config")
-
-    (options, args) = parser.parse_args()
-
-    if not sys.argv[1:] or len(args) == 0:
-        parser.print_usage()
-        sys.exit(2)
-
+    parser = argparse.ArgumentParser(description='Tune script hyperaparameters')
+    parser.add_argument('-n', '--name', default=None, help="name of the experiment")
+    parser.add_argument('-f', '--func', default=None, help="name of the tuned function")
+    parser.add_argument('-c', '--config', default=None, help="yaml config file")
+    parser.add_argument('-p', '--hparam', default=None, help="hparam config")
+    parser.add_argument('-o', '--override', default=None, help="config override")
+    (opts, args) = parser.parse_known_args()
     progname = args[0]
-    options = vars(options)
-    funcname = options.pop('func', None)
-    opts = {
-        'name': options.pop('name') or os.path.basename(progname),
-        'config': [_default_hptune_config.copy()],
-    }
-    hparam = options.pop('hparam')
-    if hparam is None and 'hp_space' not in opts['config']:
-        raise RuntimeError('Argument -p is required')
-    hp_dict = yaml.load(hparam, Loader=yaml.FullLoader)
-    opts['config'][0]['hp_space'] = hp_dict
-    opts['config'].extend(options.pop('config') or [])
-    overrides = options.pop('config_override')
-    if overrides is None:
-        overrides = []
-    opts.update(options)
-
+    funcname = opts.func
+    hp_dict = {}
+    if opts.hparam is not None:
+        hp_dict = yaml.load(opts.hparam, Loader=yaml.FullLoader)
     sys.argv[:] = args[:]
     sys.path.insert(0, os.path.dirname(progname))
     with open(progname, 'rb') as fp:
@@ -77,10 +39,8 @@ def tune_script():
     func = globs.get(funcname, None)
     if func is None:
         raise ValueError('function {} not exist'.format(funcname))
-
-    tune_res = run_hptune(**opts, measure_fn=lambda hp: func(**hp))
-    best_hparams = list(tune_res.values())[0]['best_hparams']
-    logger.info('tune_script: best hparams: {}'.format(dict(best_hparams)))
+    tune_name = opts.name or '{}.{}'.format(os.path.basename(progname), funcname)
+    tune(func, *args[1:], tune_name=tune_name, tune_config=opts.config, tune_options=opts.override, tuned_args=hp_dict)
 
 
 if __name__ == '__main__':

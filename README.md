@@ -50,7 +50,7 @@ python3 setup.py install
 Run an experiment specified by YAML configuration file:
 
 ```bash
-python3 -m modnas.exec -c <path_to_yaml>
+python3 -m modnas.exec <path_to_yaml>
 ```
 
 See documentations for detailed descriptions on config files.
