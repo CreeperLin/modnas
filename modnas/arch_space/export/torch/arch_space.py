@@ -25,6 +25,8 @@ class DefaultSlotTraversalExporter():
 
     def __call__(self, model):
         """Run Exporter."""
+        if model is None:
+            return
         Slot.set_export_fn(self.export)
         arch_desc = []
         gen = self.gen or Slot.gen_slots_model(model)

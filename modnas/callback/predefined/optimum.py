@@ -6,12 +6,16 @@ from modnas.callback.base import CallbackBase
 
 def MIN_CMP(x, y):
     """Return min comparison result."""
-    return 0 if x is None or y is None else y - x
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        return 0
+    return y - x
 
 
 def MAX_CMP(x, y):
     """Return max comparison result."""
-    return 0 if x is None or y is None else x - y
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        return 0
+    return x - y
 
 
 @register
@@ -87,7 +91,7 @@ class OptimumReporter(CallbackBase):
         if not isinstance(value, dict):
             value = {'default': value}
         arch_desc = arch_desc or estim.get_arch_desc()
-        res = ((None if params is None else (arch_desc or dict(params))), value)
+        res = ((None if params is None or not isinstance(params, dict) else (arch_desc or dict(params))), value)
         self.results.append(res)
         self.opt_results = self.update_optimal(res, self.opt_results)
         if self.stat_epoch:

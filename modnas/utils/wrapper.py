@@ -166,7 +166,10 @@ def build_exporter_all(config):
     if config is None:
         return None
     if len(config) == 0:
-        config = {'default': {'type': 'DefaultSlotTraversalExporter'}}
+        if be.is_backend(None):
+            config = {'default': {'type': 'DefaultParamsExporter'}}
+        else:
+            config = {'default': {'type': 'DefaultSlotTraversalExporter'}}
     if len(config) > 1:
         return build_exp('MergeExporter', config)
     if len(config) == 1:

@@ -59,6 +59,11 @@ class ManagedRemotes(RemoteBase):
         elif not self.idle_remotes():
             self.idle_cond.acquire()
 
+    def close(self):
+        """Close the remote client."""
+        for rmt in self.remotes.values():
+            rmt.close()
+
     def call(self, *args, on_done=None, on_failed=None, **kwargs):
         """Call function on remote client with callbacks."""
         def wrap_cb(cb, r):

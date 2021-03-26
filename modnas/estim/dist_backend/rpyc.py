@@ -14,6 +14,14 @@ class RPyCRemote(RemoteBase):
         super().__init__()
         self.conn = rpyc.connect(address, port)
 
+    def close(self):
+        """Close the remote client."""
+        try:
+            self.conn.root.close()
+        except EOFError:
+            pass
+        self.conn.close()
+
     def rpc(self, func, *args, **kwargs):
         """Call function on remote client."""
         ret = self.conn.root.estim_call(func, *args, **kwargs)
@@ -33,6 +41,10 @@ class ModNASService(rpyc.Service):
         """Return estimator."""
         return self.estim
 
+    def exposed_close(self):
+        """Close server."""
+        self.server.close()
+
     def exposed_estim_call(self, func, *args, **kwargs):
         """Return result of estimator call."""
         args = [_convert_normal(a) for a in args]
@@ -50,4 +62,9 @@ class RPyCWorker():
     def run(self, estim):
         """Run worker."""
         self.server.service.estim = estim
+        self.server.service.server = self.server
         self.server.start()
+
+    def close(self):
+        """Close worker."""
+        self.server.close()

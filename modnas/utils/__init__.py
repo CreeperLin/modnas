@@ -117,8 +117,6 @@ def check_config(config, defaults=None):
     default_config = {
         'backend': 'torch',
         'device_ids': 'all',
-        'estim.*.save_arch_desc': True,
-        'estim.*.save_freq': 0,
         'estim.*.arch_update_epoch_start': 0,
         'estim.*.arch_update_epoch_intv': 1,
         'estim.*.arch_update_intv': -1,

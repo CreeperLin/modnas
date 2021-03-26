@@ -17,6 +17,10 @@ class RemoteBase():
         self.th_rpc = threading.Thread(target=self.rpc, args=(func,) + args, kwargs=kwargs)
         self.th_rpc.start()
 
+    def close(self):
+        """Close the remote client."""
+        raise NotImplementedError
+
     def rpc(self, func, *args, **kwargs):
         """Call function on remote client."""
         raise NotImplementedError
@@ -36,4 +40,8 @@ class WorkerBase():
 
     def run(self, estim):
         """Run worker."""
+        raise NotImplementedError
+
+    def close(self):
+        """Close worker."""
         raise NotImplementedError

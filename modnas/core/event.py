@@ -71,6 +71,7 @@ class EventManager():
             ret = None
             for handler in self.get_handlers(ev):
                 hret = handler(*args, **kwargs)
+                logger.debug('handler: %s %s' % (handler, hret))
                 ret = merge_config(ret, hret) if merge_ret and hret is not None else hret
             if callback is not None:
                 callback(ret)
