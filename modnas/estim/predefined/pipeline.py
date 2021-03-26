@@ -79,6 +79,5 @@ class PipelineEstim(EstimBase):
             ret_values[pname] = ret
             logger.info('pipeline: finished {}, results={}'.format(pname, ret))
             finished.add(pname)
-        ret_values['final'] = ret
         logger.info('pipeline: all finished')
         return ret_values

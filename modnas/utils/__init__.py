@@ -59,14 +59,14 @@ def merge_config(src, dest, overwrite=True):
         for k, v in dest.items():
             if k not in src:
                 src[k] = v
-                logger.warning('merge_config: add key {}'.format(k))
+                logger.debug('merge_config: add key %s' % k)
             else:
                 src[k] = merge_config(src[k], v, overwrite)
     elif isinstance(src, list) and isinstance(dest, list):
-        logger.warning('merge_config: extend list: {} + {}'.format(src, dest))
+        logger.debug('merge_config: extend list: %s + %s' % (src, dest))
         src.extend(dest)
     elif overwrite:
-        logger.warning('merge_config: overwrite: {} -> {}'.format(src, dest))
+        logger.debug('merge_config: overwrite: %s -> %s' % (src, dest))
         src = dest
     return src
 

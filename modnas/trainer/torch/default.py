@@ -124,6 +124,7 @@ class DefaultTrainer(TrainerBase):
         return {
             'loss': loss.item(),
             'LR': lr,
+            'N': len(batch[-1]),
         }
 
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
@@ -142,4 +143,5 @@ class DefaultTrainer(TrainerBase):
             loss = estim.loss(batch, model=model, mode='eval')
         return {
             'loss': loss.item(),
+            'N': len(batch[-1]),
         }

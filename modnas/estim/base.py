@@ -67,6 +67,7 @@ class EstimBase():
         self.arch_descs = []
         self.stats = {}
         self.step_cond = threading.Lock()
+        self.n_step_waiting = 0
         self.cur_trn_batch = None
         self.cur_val_batch = None
 
@@ -113,6 +114,7 @@ class EstimBase():
         """Return evaluation results of a parameter set."""
         if not self.step_cond.locked():
             self.step_cond.acquire()
+        self.n_step_waiting += 1
         value = self.step(params)
         if value is not None:
             self.step_done(params, value)
@@ -127,7 +129,8 @@ class EstimBase():
         self.inputs.append(params)
         self.results.append(value)
         self.arch_descs.append(self.get_arch_desc() if arch_desc is None else arch_desc)
-        if len(self.results) == self.config.arch_update_batch:
+        self.n_step_waiting -= 1
+        if self.n_step_waiting == 0:
             self.step_cond.release()
 
     def print_model_info(self):
@@ -285,6 +288,8 @@ class EstimBase():
 
     def save_model(self, save_name=None, exporter='DefaultTorchCheckpointExporter'):
         """Save model checkpoint to file."""
+        if self.model is None:
+            return
         expman = self.expman
         save_name = 'model_{}_{}.pt'.format(self.name, save_name)
         chkpt_path = expman.join('chkpt', save_name)
@@ -316,10 +321,10 @@ class EstimBase():
         expman = self.expman
         logger = self.logger
         if save_name is not None:
-            fname = 'arch_{}_{}'.format(self.name, save_name)
+            fname = '{}_{}'.format(self.name, save_name)
         else:
             epoch = epoch or self.cur_epoch
-            fname = 'arch_{}_ep{:03d}'.format(self.name, epoch + 1)
+            fname = '{}_ep{:03d}'.format(self.name, epoch + 1)
         save_path = expman.join('output', fname)
         try:
             build_exporter(exporter, path=save_path)(arch_desc)

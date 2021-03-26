@@ -12,8 +12,6 @@ class RegressionEstim(EstimBase):
     def __init__(self, *args, predictor=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.predictor = predictor
-        self.best_score = None
-        self.best_arch_desc = None
 
     def step(self, params):
         """Return evaluation results from remote Estimator."""
@@ -42,15 +40,6 @@ class RegressionEstim(EstimBase):
             # estim step
             self.stepped(params)
         self.wait_done()
-        for _, res, arch_desc in self.buffer():
-            score = self.get_score(res)
-            if self.best_score is None or score > self.best_score:
-                self.best_score = score
-                self.best_arch_desc = arch_desc
-        # save
-        if config.save_arch_desc:
-            self.save_arch_desc(epoch, arch_desc=self.best_arch_desc)
-        self.save_arch_desc(save_name='best', arch_desc=self.best_arch_desc)
 
     def run(self, optim):
         """Run Estimator routine."""
@@ -59,7 +48,3 @@ class RegressionEstim(EstimBase):
         for epoch in itertools.count(self.cur_epoch + 1):
             if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) == 1:
                 break
-        return {
-            'best_score': self.best_score,
-            'best_arch': self.best_arch_desc,
-        }

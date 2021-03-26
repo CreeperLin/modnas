@@ -52,7 +52,8 @@ class HPTuneEstim(EstimBase):
         if not p_con.poll(0):
             return 0
         ret = p_con.recv()
-        return ret['final'].get('best_score', list(ret.values())[0])
+        ret = ret.get('final', list(ret.values())[-1])
+        return ret.get('best_score', list(ret.values())[0])
 
     def step(self, hp):
         """Return evaluation results of a parameter set."""

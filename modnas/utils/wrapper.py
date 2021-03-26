@@ -215,7 +215,6 @@ def estims_routine(optim, estims):
         ret = estim.run(optim)
         results[estim_name] = ret
     logger.info('All results: {{\n{}\n}}'.format('\n'.join(['{}: {}'.format(k, v) for k, v in results.items()])))
-    results['final'] = ret
     reset_all()
     return results
 

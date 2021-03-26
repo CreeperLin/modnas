@@ -1,7 +1,6 @@
 """Estimator statistics reporter."""
-from functools import partial
 from modnas.registry.callback import register
-from modnas.utils import format_value, format_dict
+from modnas.utils import format_dict
 from ..base import CallbackBase
 
 

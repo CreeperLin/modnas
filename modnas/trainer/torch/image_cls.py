@@ -149,6 +149,7 @@ class ImageClsTrainer(TrainerBase):
             'acc_top5': prec5.item(),
             'loss': loss.item(),
             'LR': lr,
+            'N': len(trn_y),
         }
 
     def valid_epoch(self, estim, model, tot_steps, epoch=0, tot_epochs=1):
@@ -172,4 +173,5 @@ class ImageClsTrainer(TrainerBase):
             'acc_top1': prec1.item(),
             'acc_top5': prec5.item(),
             'loss': loss.item(),
+            'N': len(val_y),
         }

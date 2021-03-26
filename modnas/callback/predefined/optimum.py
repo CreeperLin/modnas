@@ -87,7 +87,7 @@ class OptimumReporter(CallbackBase):
         if not isinstance(value, dict):
             value = {'default': value}
         arch_desc = arch_desc or estim.get_arch_desc()
-        res = (arch_desc or (None if params is None else dict(params)), value)
+        res = ((None if params is None else (arch_desc or dict(params))), value)
         self.results.append(res)
         self.opt_results = self.update_optimal(res, self.opt_results)
         if self.stat_epoch:
@@ -99,8 +99,7 @@ class OptimumReporter(CallbackBase):
             return None
         met = [r[1] for r in opts]
         met = [{k: format_value(v, unit=False, factor=0, prec=4) for k, v in m.items()} for m in met]
-        if len(met[0]) == 1:
-            met[0] = list(met[0].values())[0]
+        met = [(list(m.values())[0] if len(m) == 1 else m) for m in met]
         if len(met) == 1:
             met = met[0]
         return met
