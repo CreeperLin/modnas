@@ -9,9 +9,10 @@ from modnas.registry.dist_worker import build as build_worker
 class DistributedEstim(EstimBase):
     """Distributed Estimator class."""
 
-    def __init__(self, estim_conf, remote_conf, worker_conf, *args, close_remote=True, **kwargs):
+    def __init__(self, estim_conf, remote_conf, worker_conf, *args, close_remote=True, return_res=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.close_remote = close_remote
+        self.return_res = return_res
         self.is_main = self.config.get('main', False)
         estim_comp_keys = [
             'expman',
@@ -52,5 +53,10 @@ class DistributedEstim(EstimBase):
             if self.close_remote:
                 self.remote.close()
             self.logger.info('Dist main: estim ret: {}'.format(ret))
+            if self.return_res:
+                return {'main_results': ret}
         else:
-            self.worker.run(self.estim)
+            ret = self.worker.run(self.estim)
+            self.logger.info('Dist worker: estim ret: {}'.format(ret))
+            if self.return_res:
+                return {'worker_results': ret}

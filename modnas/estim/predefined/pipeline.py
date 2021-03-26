@@ -1,4 +1,5 @@
 """Pipeline Estimator."""
+import time
 import traceback
 import queue
 import threading
@@ -17,6 +18,7 @@ def _mp_runner(step_conf):
     ctx = mp.get_context('spawn')
     p_con, c_con = ctx.Pipe()
     proc = ctx.Process(target=_mp_step_runner, args=(c_con, step_conf.to_dict()))
+    time.sleep(step_conf.get('delay', 0))
     proc.start()
     proc.join()
     if not p_con.poll(0):
@@ -25,6 +27,7 @@ def _mp_runner(step_conf):
 
 
 def _default_runner(step_conf):
+    time.sleep(step_conf.get('delay', 0))
     return run(**step_conf)
 
 
@@ -32,8 +35,9 @@ def _default_runner(step_conf):
 class PipelineEstim(EstimBase):
     """Pipeline Estimator class."""
 
-    def __init__(self, *args, use_multiprocessing=True, **kwargs):
+    def __init__(self, *args, use_multiprocessing=True, return_res=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.return_res = return_res
         self.runner = _mp_runner if use_multiprocessing else _default_runner
         self.step_results = dict()
         self.pending = queue.Queue()
@@ -50,7 +54,7 @@ class PipelineEstim(EstimBase):
         self.step_done(pname, ret, None)
 
     def step(self, pname):
-        """Return step_results from single pipeline process."""
+        """Return results from single pipeline process."""
         pconf = self.config.pipeline[pname]
         pconf['name'] = pconf.get('name', pname)
         for inp_kw, inp_idx in pconf.get('inputs', {}).items():
@@ -106,3 +110,5 @@ class PipelineEstim(EstimBase):
         self.cond_all_finished.acquire()
         self.cond_all_finished.release()
         logger.info('pipeline: all finished: {}'.format(self.step_results))
+        if self.return_res:
+            return {'step_results': self.step_results}

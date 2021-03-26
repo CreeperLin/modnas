@@ -53,7 +53,7 @@ def get_exp_name(config):
     return '{}.{}'.format(time.strftime('%Y%m%d', time.localtime()), hashlib.sha1(str(config).encode()).hexdigest()[:4])
 
 
-def merge_config(src, dest, overwrite=True):
+def merge_config(src, dest, extend_list=True, overwrite=True):
     """Return merged config."""
     if isinstance(src, dict) and isinstance(dest, dict):
         for k, v in dest.items():
@@ -61,8 +61,8 @@ def merge_config(src, dest, overwrite=True):
                 src[k] = v
                 logger.debug('merge_config: add key %s' % k)
             else:
-                src[k] = merge_config(src[k], v, overwrite)
-    elif isinstance(src, list) and isinstance(dest, list):
+                src[k] = merge_config(src[k], v, extend_list, overwrite)
+    elif isinstance(src, list) and isinstance(dest, list) and extend_list:
         logger.debug('merge_config: extend list: %s + %s' % (src, dest))
         src.extend(dest)
     elif overwrite:
