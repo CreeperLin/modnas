@@ -2,7 +2,7 @@
 import copy
 import itertools
 import traceback
-from multiprocessing import Process, Pipe
+import multiprocessing as mp
 from ..base import EstimBase
 from modnas.utils.config import Config
 from modnas.utils.wrapper import run
@@ -36,6 +36,7 @@ class HPTuneEstim(EstimBase):
         self.best_score = None
         self.best_iter = 0
         self.trial_index = 0
+        self.is_succ = False
 
     def _default_measure_fn(self, hp, **kwargs):
         trial_config = copy.deepcopy(Config.load(self.trial_config))
@@ -43,8 +44,9 @@ class HPTuneEstim(EstimBase):
         trial_args = dict(copy.deepcopy(self.trial_args))
         trial_args['name'] = '{}_{}'.format(trial_args.get('name', 'trial'), self.trial_index)
         trial_args['config'] = trial_config.to_dict()
-        p_con, c_con = Pipe()
-        proc = Process(target=_default_trial_runner, args=(c_con, trial_args))
+        ctx = mp.get_context('spawn')
+        p_con, c_con = ctx.Pipe()
+        proc = ctx.Process(target=_default_trial_runner, args=(c_con, trial_args))
         proc.start()
         proc.join()
         if not p_con.poll(0):
@@ -61,6 +63,7 @@ class HPTuneEstim(EstimBase):
         try:
             score = self.measure_fn(hp, **fn_args)
             error_no = 0
+            self.is_succ = True
         except RuntimeError:
             score = 0
             error_no = -1
@@ -104,6 +107,8 @@ class HPTuneEstim(EstimBase):
         for epoch in itertools.count(self.cur_epoch + 1):
             if self.run_epoch(optim, epoch, tot_epochs) == 1:
                 break
+        if not self.is_succ:
+            raise RuntimeError('All trials failed')
         return {
             'best_iter': self.best_iter,
             'best_score': self.best_score,

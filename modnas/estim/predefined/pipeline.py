@@ -1,7 +1,7 @@
 """Pipeline Estimator."""
 import traceback
 import queue
-from multiprocessing import Process, Pipe
+import multiprocessing as mp
 from ..base import EstimBase
 from modnas.registry.estim import register
 from modnas.utils.wrapper import run
@@ -13,8 +13,9 @@ def _mp_step_runner(conn, step_conf):
 
 
 def _mp_runner(step_conf):
-    p_con, c_con = Pipe()
-    proc = Process(target=_mp_step_runner, args=(c_con, step_conf.to_dict()))
+    ctx = mp.get_context('spawn')
+    p_con, c_con = ctx.Pipe()
+    proc = ctx.Process(target=_mp_step_runner, args=(c_con, step_conf.to_dict()))
     proc.start()
     proc.join()
     if not p_con.poll(0):
