@@ -29,5 +29,7 @@ class ETAReporter(CallbackBase):
         """Report ETA in each epoch."""
         if self.eta_m is None:
             return
+        ret = ret or {}
         self.eta_m.step()
-        estim.stats['ETA'] = self.eta_m.eta_fmt()
+        ret['ETA'] = self.eta_m.eta_fmt()
+        return ret

@@ -56,10 +56,10 @@ class SubNetEstim(EstimBase):
         arch_batch_size = config.arch_update_batch
         # arch step
         if epoch >= tot_epochs:
-            return 1
+            return {'stop': True}
         if not optim.has_next():
             logger.info('Search: finished')
-            return 1
+            return {'stop': True}
         if epoch >= arch_epoch_start and (epoch - arch_epoch_start) % arch_epoch_intv == 0:
             optim.step(self)
         inputs = optim.next(batch_size=arch_batch_size)
@@ -75,5 +75,5 @@ class SubNetEstim(EstimBase):
         config = self.config
         tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):
-            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) == 1:
+            if (self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) or {}).get('stop'):
                 break

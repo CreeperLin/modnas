@@ -35,7 +35,7 @@ def _default_runner(step_conf):
 class PipelineEstim(EstimBase):
     """Pipeline Estimator class."""
 
-    def __init__(self, *args, use_multiprocessing=True, return_res=False, **kwargs):
+    def __init__(self, *args, use_multiprocessing=True, return_res=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.return_res = return_res
         self.runner = _mp_runner if use_multiprocessing else _default_runner
@@ -54,7 +54,7 @@ class PipelineEstim(EstimBase):
         self.step_done(pname, ret, None)
 
     def step(self, pname):
-        """Return results from single pipeline process."""
+        """Run a single pipeline step."""
         pconf = self.config.pipeline[pname]
         pconf['name'] = pconf.get('name', pname)
         for inp_kw, inp_idx in pconf.get('inputs', {}).items():
@@ -70,13 +70,14 @@ class PipelineEstim(EstimBase):
         self.th_step.start()
 
     def step_done(self, params, value, arch_desc=None):
-        """Store evaluation results of a parameter set."""
-        super().step_done(params, value, arch_desc)
+        """Store evaluation results of a pipeline step."""
+        super().step_done(False, value, arch_desc)
         pname = params
-        self.logger.info('pipeline: finished {}, step_results={}'.format(pname, value))
+        self.logger.info('pipeline: finished {}, results={}'.format(pname, value))
         self.step_results[pname] = value
         self.finished.add(pname)
         self._schedule()
+        return {'no_opt': True}
 
     def _schedule(self):
         """Scheduler available jobs."""

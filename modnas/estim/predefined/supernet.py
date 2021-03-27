@@ -31,13 +31,13 @@ class SuperNetEstim(EstimBase):
         config = self.config
         tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):
-            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) == 1:
+            if (self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) or {}).get('stop'):
                 break
 
     def run_epoch(self, optim, epoch, tot_epochs):
         """Run Estimator routine for one epoch."""
         if epoch == tot_epochs:
-            return 1
+            return {'stop': True}
         config = self.config
         # train
         self.print_tensor_params()

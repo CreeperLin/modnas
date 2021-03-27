@@ -62,14 +62,13 @@ class EstimBase():
         self.criterions_all, self.criterions_train, self.criterions_eval, self.criterions_valid = build_criterions_all(
             config.get('criterion', None), getattr(model, 'device_ids', None))
         self.trainer = trainer
-        self.results = []
-        self.inputs = []
-        self.arch_descs = []
-        self.stats = {}
-        self.step_cond = threading.Lock()
-        self.n_step_waiting = 0
-        self.cur_trn_batch = None
-        self.cur_val_batch = None
+        self._results = []
+        self._inputs = []
+        self._arch_descs = []
+        self._step_cond = threading.Lock()
+        self._n_step_waiting = 0
+        self._cur_trn_batch = None
+        self._cur_val_batch = None
 
     def set_trainer(self, trainer):
         """Set current trainer."""
@@ -112,26 +111,26 @@ class EstimBase():
 
     def stepped(self, params):
         """Return evaluation results of a parameter set."""
-        if not self.step_cond.locked():
-            self.step_cond.acquire()
-        self.n_step_waiting += 1
+        if not self._step_cond.locked():
+            self._step_cond.acquire()
+        self._n_step_waiting += 1
         value = self.step(params)
         if value is not None:
             self.step_done(params, value)
 
     def wait_done(self):
         """Wait evaluation steps to finish."""
-        self.step_cond.acquire()
-        self.step_cond.release()
+        self._step_cond.acquire()
+        self._step_cond.release()
 
     def step_done(self, params, value, arch_desc=None):
         """Store evaluation results of a parameter set."""
-        self.inputs.append(params)
-        self.results.append(value)
-        self.arch_descs.append(self.get_arch_desc() if arch_desc is None else arch_desc)
-        self.n_step_waiting -= 1
-        if self.n_step_waiting == 0:
-            self.step_cond.release()
+        self._inputs.append(params)
+        self._results.append(value)
+        self._arch_descs.append(self.get_arch_desc() if arch_desc is None else arch_desc)
+        self._n_step_waiting -= 1
+        if self._n_step_waiting == 0:
+            self._step_cond.release()
 
     def print_model_info(self):
         """Output model information."""
@@ -141,15 +140,15 @@ class EstimBase():
 
     def clear_buffer(self):
         """Clear evaluation results."""
-        self.inputs, self.results, self.arch_descs = [], [], []
+        self._inputs, self._results, self._arch_descs = [], [], []
 
     def get_last_results(self):
         """Return last evaluation results."""
-        return self.inputs, self.results
+        return self._inputs, self._results
 
     def buffer(self):
         """Return generator over evaluated results with parameters and arch_descs."""
-        for inp, res, desc in zip(self.inputs, self.results, self.arch_descs):
+        for inp, res, desc in zip(self._inputs, self._results, self._arch_descs):
             yield inp, res, desc
 
     def compute_metrics(self, *args, name=None, model=None, to_scalar=True, **kwargs):
@@ -257,22 +256,22 @@ class EstimBase():
     def get_next_train_batch(self):
         """Return the next training batch."""
         ret = self.trainer.get_next_train_batch()
-        self.cur_trn_batch = ret
+        self._cur_trn_batch = ret
         return ret
 
     def get_cur_train_batch(self):
         """Return the current training batch."""
-        return self.cur_trn_batch or self.get_next_train_batch()
+        return self._cur_trn_batch or self.get_next_train_batch()
 
     def get_next_valid_batch(self):
         """Return the next validating batch."""
         ret = self.trainer.get_next_valid_batch()
-        self.cur_val_batch = ret
+        self._cur_val_batch = ret
         return ret
 
     def get_cur_valid_batch(self):
         """Return the current validating batch."""
-        return self.cur_val_batch
+        return self._cur_val_batch
 
     def load_state_dict(self, state_dict):
         """Resume states."""

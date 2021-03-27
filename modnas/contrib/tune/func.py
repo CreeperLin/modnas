@@ -44,7 +44,7 @@ def tune(func, *args, tune_name=None, tune_config=None, tune_options=None, tuned
     opts['config'].extend(tune_config or [])
     opts['override'] = tune_options
     tune_res = run_hptune(measure_fn=measure_fn, **opts)
-    best_hparams = list(tune_res.values())[0]['best_hparams']
+    best_hparams = list(tune_res.values())[0]['best_arch_desc']
     logger.info('tune: best hparams: {}'.format(dict(best_hparams)))
     ret = parse_hp(best_hparams)
     if tuned:

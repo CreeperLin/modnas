@@ -25,8 +25,7 @@ class EstimReporter(CallbackBase):
         if interval and interval < 1:
             interval = int(interval * tot_epochs)
         stats = ret.copy() if isinstance(ret, dict) else {}
-        stats.update(estim.stats)
         if interval is None or (interval != 0 and (epoch + 1) % interval == 0) or epoch + 1 == tot_epochs:
             fmt_info = format_dict(stats, fmt_val=self.format_fn)
             estim.logger.info('[{:3d}/{}] {}'.format(epoch + 1, tot_epochs, fmt_info))
-        estim.stats = {}
+        return ret

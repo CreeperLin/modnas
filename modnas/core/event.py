@@ -36,15 +36,16 @@ class EventManager():
         ev_handlers.sort(key=lambda s: -s[0])
         self.handlers[ev] = ev_handlers
 
-    def emit(self, ev, *args, callback=None, delayed=False, merge_ret=True, **kwargs):
+    def emit(self, ev, *args, e_cb=None, e_delayed=False, e_merge_ret=False,
+             e_chain_ret=True, e_fret=None, e_is_ret=False, **kwargs):
         """Trigger event with arguments."""
-        logger.debug('emit: %s a: %s kw: %s d: %s' % (ev, len(args), len(kwargs), delayed))
+        logger.debug('emit: %s a: %s kw: %s d: %s' % (ev, len(args), len(kwargs), e_delayed))
         if ev not in self.handlers:
             return
-        self.event_queue.append((ev, args, kwargs, callback))
-        if delayed:
+        self.event_queue.append((ev, args, kwargs, e_cb))
+        if e_delayed:
             return
-        return self.dispatch_all(merge_ret)
+        return self.dispatch_all(merge_ret=e_merge_ret, chain_ret=e_chain_ret, fret=e_fret, is_ret=e_is_ret)
 
     def off(self, ev, handler=None):
         """Un-bind handler on event."""
@@ -62,7 +63,7 @@ class EventManager():
         if not ev_handlers:
             del self.handlers[ev]
 
-    def dispatch_all(self, merge_ret=True):
+    def dispatch_all(self, merge_ret=False, chain_ret=True, fret=None, is_ret=False):
         """Trigger all delayed event handlers."""
         rets = {}
         self.event_queue, ev_queue = [], self.event_queue
@@ -72,6 +73,8 @@ class EventManager():
             for handler in self.get_handlers(ev):
                 hret = handler(*args, **kwargs)
                 logger.debug('handler: %s %s' % (handler, hret))
+                if chain_ret and is_ret:
+                    args = (fret if hret is None else hret, ) + args[1:]
                 ret = merge_config(ret, hret) if merge_ret and hret is not None else hret
             if callback is not None:
                 callback(ret)
@@ -103,7 +106,7 @@ def event_hooked(func, name=None, before=True, after=True, pass_ret=True, qual=T
         if ev_after:
             if wrapped.pass_ret:
                 args = (fret,) + args
-            hret = EventManager().emit(ev_after, *args, **kwargs, **emit_args)
+            hret = EventManager().emit(ev_after, *args, **kwargs, e_fret=fret, e_is_ret=True, **emit_args)
             if hret is not None:
                 return hret
         return fret

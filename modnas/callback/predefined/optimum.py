@@ -86,6 +86,9 @@ class OptimumReporter(CallbackBase):
 
     def on_step_done(self, ret, estim, params, value, arch_desc=None):
         """Record Estimator evaluation result on each step."""
+        ret = ret or {}
+        if params is False or ret.get('no_opt'):
+            return
         if self.score_fn:
             value = {'score': self.score_fn(value)}
         if not isinstance(value, dict):
@@ -96,6 +99,9 @@ class OptimumReporter(CallbackBase):
         self.opt_results = self.update_optimal(res, self.opt_results)
         if self.stat_epoch:
             self.ep_opt_results = self.update_optimal(res, self.ep_opt_results)
+        if res in self.opt_results:
+            ret['is_opt'] = True
+        return ret
 
     def format_metrics(self, opts):
         """Format metrics."""
@@ -110,15 +116,19 @@ class OptimumReporter(CallbackBase):
 
     def report_epoch(self, ret, estim, optim, epoch, tot_epochs):
         """Report optimum in each epoch."""
-        estim.stats['epoch_opt'] = self.format_metrics(self.ep_opt_results)
-        estim.stats['opt'] = self.format_metrics(self.opt_results)
+        ret = ret or {}
+        if self.ep_opt_results:
+            ret['epoch_opt'] = self.format_metrics(self.ep_opt_results)
+        if self.opt_results:
+            ret['opt'] = self.format_metrics(self.opt_results)
         self.ep_opt_results = []
+        return ret
 
     def report_results(self, ret, estim, optim):
         """Report optimum on search end."""
-        opt_res = {
-            'opt_results': self.opt_results,
-        }
+        opt_res = {}
+        if self.opt_results:
+            opt_res['opt_results'] = self.opt_results
         ret = ret or {}
         ret.update(opt_res)
         return ret

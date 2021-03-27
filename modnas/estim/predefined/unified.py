@@ -60,11 +60,11 @@ class UnifiedEstim(EstimBase):
         train_steps = self.train_steps
         n_epoch_steps = 1 if train_steps == 0 else (self.get_num_train_batch() + train_steps - 1) // train_steps
         if self.cur_epoch >= tot_epochs:
-            return 1
+            return {'stop': True}
         # arch step
         if not optim.has_next():
             logger.info('Search: finished')
-            return 1
+            return {'stop': True}
         if self.cur_epoch >= arch_epoch_start and (self.cur_epoch - arch_epoch_start) % arch_epoch_intv == 0:
             optim.step(self)
         self.inputs = optim.next(batch_size=arch_batch_size)
@@ -85,5 +85,5 @@ class UnifiedEstim(EstimBase):
         tot_epochs = config.epochs
         self.cur_epoch += 1
         for epoch in itertools.count(0):
-            if self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) == 1:
+            if (self.run_epoch(optim, epoch=epoch, tot_epochs=tot_epochs) or {}).get('stop'):
                 break

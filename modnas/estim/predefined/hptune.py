@@ -63,15 +63,12 @@ class HPTuneEstim(EstimBase):
         fn_args = config.get('trial_args', {})
         try:
             score = self.measure_fn(hp, **fn_args)
-            error_no = 0
             self.is_succ = True
         except RuntimeError:
             score = 0
-            error_no = -1
             logger.info('trial {} failed with error: {}'.format(self.trial_index, traceback.format_exc()))
         result = {
-            'score': score or 0,
-            'error_no': error_no,
+            'score': score,
         }
         logger.info('Evaluate hparam: {} -> {}'.format(hp, result))
         return result
@@ -81,37 +78,31 @@ class HPTuneEstim(EstimBase):
         batch_size = self.batch_size
         early_stopping = self.early_stopping
         if tot_epochs != -1 and epoch >= tot_epochs:
-            return 1
+            return {'stop': True}
         if not optim.has_next():
             self.logger.info('HPTune: all finished')
-            return 1
+            return {'stop': True}
         inputs = optim.next(batch_size)
         self.clear_buffer()
         for hp in inputs:
             res = self.stepped(hp)
         self.wait_done()
         for hp, res, _ in self.buffer():
-            score = 0 if res['error_no'] else res['score']
+            score = res['score']
             if self.best_score is None or score > self.best_score:
                 self.best_score = score
-                self.best_hparams = hp
                 self.best_iter = epoch
         optim.step(self)
         if early_stopping is not None and epoch >= self.best_iter + early_stopping:
             self.logger.info('HPTune: early stopped: {}'.format(epoch))
-            return 1
+            return {'stop': True}
 
     def run(self, optim):
         """Run Estimator routine."""
         config = self.config
         tot_epochs = config.epochs
         for epoch in itertools.count(self.cur_epoch + 1):
-            if self.run_epoch(optim, epoch, tot_epochs) == 1:
+            if (self.run_epoch(optim, epoch, tot_epochs) or {}).get('stop'):
                 break
         if not self.is_succ:
             raise RuntimeError('All trials failed')
-        return {
-            'best_iter': self.best_iter,
-            'best_score': self.best_score,
-            'best_hparams': self.best_hparams,
-        }
