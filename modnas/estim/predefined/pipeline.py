@@ -1,5 +1,6 @@
 """Pipeline Estimator."""
 import time
+import yaml
 import traceback
 import queue
 import threading
@@ -10,25 +11,25 @@ from modnas.utils.wrapper import run
 
 
 def _mp_step_runner(conn, step_conf):
-    ret = run(**step_conf)
+    ret = run(**(yaml.load(step_conf, Loader=yaml.SafeLoader) or {}))
     conn.send(ret)
 
 
 def _mp_runner(step_conf):
     ctx = mp.get_context('spawn')
     p_con, c_con = ctx.Pipe()
-    proc = ctx.Process(target=_mp_step_runner, args=(c_con, step_conf.to_dict()))
+    proc = ctx.Process(target=_mp_step_runner, args=(c_con, yaml.dump(step_conf)))
     time.sleep(step_conf.get('delay', 0))
     proc.start()
     proc.join()
     if not p_con.poll(0):
-        return None
+        raise RuntimeError('step process failed')
     return p_con.recv()
 
 
 def _default_runner(step_conf):
     time.sleep(step_conf.get('delay', 0))
-    return run(**step_conf)
+    return run(**(yaml.load(step_conf, Loader=yaml.SafeLoader) or {}))
 
 
 @register

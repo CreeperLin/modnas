@@ -3,6 +3,7 @@ import copy
 import itertools
 import traceback
 import multiprocessing as mp
+import yaml
 from ..base import EstimBase
 from modnas.utils.config import Config
 from modnas.utils.wrapper import run
@@ -10,7 +11,7 @@ from modnas.registry.estim import register
 
 
 def _default_trial_runner(conn, trial_args):
-    ret = run(**trial_args)
+    ret = run(**(yaml.load(trial_args, Loader=yaml.SafeLoader) or {}))
     conn.send(ret)
 
 
@@ -46,7 +47,7 @@ class HPTuneEstim(EstimBase):
         trial_args['config'] = trial_config.to_dict()
         ctx = mp.get_context('spawn')
         p_con, c_con = ctx.Pipe()
-        proc = ctx.Process(target=_default_trial_runner, args=(c_con, trial_args))
+        proc = ctx.Process(target=_default_trial_runner, args=(c_con, yaml.dump(trial_args)))
         proc.start()
         proc.join()
         if not p_con.poll(0):
