@@ -21,7 +21,7 @@ _default_hptune_config = {
 }
 
 
-def tune(func, *args, tune_name=None, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **kwargs):
+def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **kwargs):
     """Return tuned hyperparameters for given function."""
     tuned_args = tuned_args or {}
 
@@ -36,14 +36,11 @@ def tune(func, *args, tune_name=None, tune_config=None, tune_options=None, tuned
         fn_args, fn_kwargs = parse_hp(hp)
         return func(*fn_args, **fn_kwargs)
 
-    opts = {
-        'name': tune_name or func.__name__,
-        'config': [_default_hptune_config.copy()],
-    }
-    opts['config'][0]['hp_space'] = tuned_args
-    opts['config'].extend(tune_config or [])
-    opts['override'] = tune_options
-    tune_res = run_hptune(measure_fn=measure_fn, **opts)
+    tune_config = tune_config or _default_hptune_config.copy()
+    if not isinstance(tune_config, list):
+        tune_config = [tune_config]
+    override = [{'hp_space': tuned_args}, {'defaults': {'name': func.__name__}}] + (tune_options or [])
+    tune_res = run_hptune(measure_fn=measure_fn, config=tune_config, override=override)
     best_hparams = list(tune_res.values())[0]['best_arch_desc']
     logger.info('tune: best hparams: {}'.format(dict(best_hparams)))
     ret = parse_hp(best_hparams)

@@ -23,7 +23,7 @@ logger = get_logger()
 
 _default_arg_specs = [
     {
-        'flags': ['config'],
+        'flags': ['-c', '--config'],
         'type': str,
         'action': 'append',
         'help': 'yaml config file'
@@ -300,10 +300,10 @@ _default_apply_config_fn = {
 }
 
 
-def init_all(config, construct_fn=None, model=None, **kwargs):
+def init_all(**kwargs):
     """Initialize all components from config."""
-    config = load_config(config)
-    config.update(kwargs)
+    config = load_config(kwargs.pop('config', {}))
+    Config.apply(config, kwargs)
     Config.apply(config, config.get('override') or {})
     routine = config.get('routine')
     if routine:
@@ -330,6 +330,8 @@ def init_all(config, construct_fn=None, model=None, **kwargs):
     # data
     data_provider_conf = get_data_provider_config(config)
     # construct
+    construct_fn = config.pop('construct_fn', None)
+    model = config.pop('base_model', None)
     if construct_fn is not False:
         constructor = construct_fn or get_default_constructors(config)
         model = constructor(model)

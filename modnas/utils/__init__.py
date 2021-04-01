@@ -26,6 +26,20 @@ def import_file(path, name=None):
     return module
 
 
+def exec_file(path):
+    """Execute file and return globals."""
+    with open(path, 'rb') as fp:
+        code = compile(fp.read(), path, 'exec')
+    globs = {
+        '__file__': path,
+        '__name__': '__main__',
+        '__package__': None,
+        '__cached__': None,
+    }
+    exec(code, globs, None)
+    return globs
+
+
 def import_modules(modules):
     """Import modules by name."""
     if modules is None:
