@@ -13,7 +13,7 @@ try:
     git_head = open(os.path.join(root_dir, '.git', 'HEAD')).read().split()[1]
     git_version = open(os.path.join(root_dir, '.git', git_head)).read()[:7]
     version += ('+git' + git_version)
-except FileNotFoundError:
+except Exception:
     pass
 
 setup(
