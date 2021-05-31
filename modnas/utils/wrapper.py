@@ -246,15 +246,16 @@ def get_default_constructors(config):
     else:
         device_ids = device_conf.get('device', device_ids)
     con_config['init'] = get_init_constructor(config.get('init', {}), device_ids)
+    con_user_config = config.get('construct', {})
     if 'ops' in config:
         con_config['init']['args']['ops_conf'] = config['ops']
     if 'model' in config:
         con_config['model'] = get_model_constructor(config['model'])
     if 'mixed_op' in config:
         con_config['mixed_op'] = get_mixed_op_constructor(config['mixed_op'])
-    if arch_desc is not None:
+    if arch_desc is not None and 'arch_desc' not in con_user_config:
         con_config['arch_desc'] = get_arch_desc_constructor(arch_desc)
-    con_config = utils.merge_config(con_config, config.get('construct', {}))
+    con_config = utils.merge_config(con_config, con_user_config)
     if be.is_backend('torch'):
         con_config['device'] = {'type': 'TorchToDevice', 'args': device_conf}
     if config.get('chkpt'):

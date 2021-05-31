@@ -94,6 +94,7 @@ class DefaultSlotTraversalConstructor():
         self.skip_exist = skip_exist
         if convert_fn:
             self.convert = get_convert_fn(convert_fn, **(args or {}))
+        self.visited = set()
 
     def convert(self, slot):
         """Return converted module from slot."""
@@ -101,6 +102,7 @@ class DefaultSlotTraversalConstructor():
 
     def __call__(self, model):
         """Run constructor."""
+        Slot.set_convert_fn(self.convert)
         gen = self.gen or Slot.gen_slots_model(model)
         all_slots = list(gen())
         for m in all_slots:
@@ -109,6 +111,7 @@ class DefaultSlotTraversalConstructor():
             ent = self.convert(m)
             if ent is not None:
                 m.set_entity(ent)
+        self.visited.clear()
         return model
 
 

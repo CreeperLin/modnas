@@ -2,7 +2,6 @@
 import time
 import yaml
 import traceback
-import queue
 import threading
 import multiprocessing as mp
 from ..base import EstimBase
@@ -41,7 +40,7 @@ class PipelineEstim(EstimBase):
         self.return_res = return_res
         self.runner = _mp_runner if use_multiprocessing else _default_runner
         self.step_results = dict()
-        self.pending = queue.Queue()
+        self.pending = []
         self.finished = set()
         self.cond_all_finished = threading.Lock()
 
@@ -85,8 +84,8 @@ class PipelineEstim(EstimBase):
         if len(self.finished) == len(self.config.pipeline):
             self.cond_all_finished.release()
             return
-        while not self.pending.empty():
-            pname = self.pending.get()
+        while len(self.pending):
+            pname = self.pending.pop(0)
             pconf = self.config.pipeline.get(pname)
             dep_sat = True
             deps = pconf.get('depends', []) + list(set([v.split('.')[0] for v in pconf.get('inputs', {}).values()]))
@@ -95,7 +94,7 @@ class PipelineEstim(EstimBase):
                     dep_sat = False
                     break
             if not dep_sat:
-                self.pending.put(pname)
+                self.pending.append(pname)
                 continue
             self.stepped(pname)
 
@@ -106,7 +105,7 @@ class PipelineEstim(EstimBase):
         config = self.config
         pipeconf = config.pipeline
         for pn in pipeconf.keys():
-            self.pending.put(pn)
+            self.pending.append(pn)
         self.cond_all_finished.acquire()
         self._schedule()
         self.cond_all_finished.acquire()

@@ -55,16 +55,18 @@ class DefaultArchDescConstructor():
 class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
     """Constructor that recursively builds network submodules from archdesc."""
 
-    def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None, substitute=False):
+    def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None,
+                 substitute=False, skip_exist=True):
         super().__init__(arch_desc, parse_args)
         self.construct_fn = construct_fn
         self.fn_args = fn_args or {}
         self.substitute = substitute
+        self.skip_exist = skip_exist
 
     def visit(self, module):
         """Construct and return module."""
         construct_fn = getattr(module, self.construct_fn, None)
-        if construct_fn is not None:
+        if construct_fn is not None and not (isinstance(module, Slot) and module.get_entity() is not None):
             ret = construct_fn(self.arch_desc, **copy.deepcopy(self.fn_args))
             return module if ret is None else ret
         for n, m in module.named_children():
@@ -80,6 +82,9 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
 
     def convert(self, slot, desc, *args, **kwargs):
         """Convert Slot to module from archdesc."""
+        if slot.get_entity() is not None and self.skip_exist:
+            logger.warning('slot {} already built'.format(slot.sid))
+            return None
         desc = desc[0] if isinstance(desc, list) else desc
         return build_module(desc, slot, *args, **kwargs)
 
@@ -88,9 +93,11 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
 class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArchDescConstructor):
     """Constructor that converts Slots to modules from archdesc."""
 
-    def __init__(self, arch_desc, parse_args=None, fn_args=None):
-        DefaultSlotTraversalConstructor.__init__(self)
-        DefaultArchDescConstructor.__init__(self, arch_desc, parse_args)
+    def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None,
+                 traversal_args=None, desc_args=None):
+        DefaultSlotTraversalConstructor.__init__(self, **(traversal_args or {}))
+        DefaultArchDescConstructor.__init__(self, arch_desc, parse_args, **(desc_args or {}))
+        self.construct_fn = construct_fn
         self.fn_args = fn_args or {}
         self.idx = -1
 
@@ -102,7 +109,17 @@ class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArc
             desc = desc[0]
         return desc
 
-    def convert(self, slot):
+    def convert(self, slot, desc=None, *args, **kwargs):
         """Convert Slot to module from archdesc."""
-        m_type = self.get_next_desc()
-        return build_module(m_type, slot, **copy.deepcopy(self.fn_args))
+        if slot in self.visited:
+            return None
+        self.visited.add(slot)
+        desc = desc or self.get_next_desc()
+        ent = slot.get_entity()
+        fn_args = copy.deepcopy(self.fn_args)
+        if ent is not None:
+            construct_fn = getattr(ent, self.construct_fn, None)
+            if construct_fn is not None:
+                ret = construct_fn(desc, **fn_args)
+                return ent if ret is None else ret
+        return build_module(desc, slot, *args, **fn_args, **kwargs)
