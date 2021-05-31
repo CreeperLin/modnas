@@ -43,6 +43,7 @@ class PipelineEstim(EstimBase):
         self.pending = []
         self.finished = set()
         self.cond_all_finished = threading.Lock()
+        self.lock_schedule = threading.Lock()
 
     def exec_runner(self, pname):
         """Execute runner in a thread."""
@@ -76,16 +77,17 @@ class PipelineEstim(EstimBase):
         self.logger.info('pipeline: finished {}, results={}'.format(pname, value))
         self.step_results[pname] = value
         self.finished.add(pname)
-        self._schedule()
+        if len(self.finished) == len(self.config.pipeline):
+            self.cond_all_finished.release()
+        else:
+            self._schedule()
         return {'no_opt': True}
 
     def _schedule(self):
         """Scheduler available jobs."""
-        if len(self.finished) == len(self.config.pipeline):
-            self.cond_all_finished.release()
-            return
-        while len(self.pending):
-            pname = self.pending.pop(0)
+        self.lock_schedule.acquire()
+        new_pending = []
+        for pname in self.pending:
             pconf = self.config.pipeline.get(pname)
             dep_sat = True
             deps = pconf.get('depends', []) + list(set([v.split('.')[0] for v in pconf.get('inputs', {}).values()]))
@@ -94,9 +96,11 @@ class PipelineEstim(EstimBase):
                     dep_sat = False
                     break
             if not dep_sat:
-                self.pending.append(pname)
+                new_pending.append(pname)
                 continue
             self.stepped(pname)
+        self.pending = new_pending
+        self.lock_schedule.release()
 
     def run(self, optim):
         """Run Estimator routine."""
