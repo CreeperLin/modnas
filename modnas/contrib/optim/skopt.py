@@ -48,8 +48,10 @@ class SkoptOptim(OptimBase):
 
     def convert_param(self, p):
         """Return value converted from scikit-optimize space."""
-        if isinstance(p, np.float):
+        if isinstance(p, (np.float, np.float64)):
             return float(p)
+        if isinstance(p, (np.int, np.int64)):
+            return int(p)
         return p
 
     def _next(self):
