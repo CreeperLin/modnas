@@ -37,6 +37,17 @@ def to_spec(reg_id, kwargs):
     }
 
 
+def streamline_spec(spec):
+    """Return a list of one or multiple specs."""
+    if spec is None:
+        return []
+    if isinstance(spec, dict) and 'type' not in spec:
+        return list(spec.values())
+    if not isinstance(spec, list):
+        return [spec]
+    return spec
+
+
 def build(_reg_path, _spec, *args, **kwargs):
     """Instantiate class by name."""
     reg_id, sp_kwargs = parse_spec(_spec)

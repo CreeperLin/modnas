@@ -231,8 +231,8 @@ def get_slot_builder(builder, args_fmt=None, kwargs_fmt=None):
         kwargs = slot.kwargs if kwargs_fmt == '*' else {k: slot.kwargs[k] for k in (kwargs_fmt or [])}
         return args, kwargs
 
-    def bld(s, *args, **kwargs):
-        s_args, s_kwargs = get_slot_args(s, args_fmt, kwargs_fmt)
+    def bld(slot, *args, **kwargs):
+        s_args, s_kwargs = get_slot_args(slot, args_fmt, kwargs_fmt)
         return builder(*s_args, *args, **s_kwargs, **kwargs)
 
     return bld

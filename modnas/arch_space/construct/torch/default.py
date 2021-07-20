@@ -127,7 +127,11 @@ class DefaultMixedOpConstructor(DefaultSlotTraversalConstructor):
 
     def convert(self, slot):
         """Return converted MixedOp from slot."""
-        cands = OrderedDict([(cand, build_module(cand, slot, **self.candidate_args)) for cand in self.candidates])
+        cand_args = self.candidate_args.copy()
+        candidates = self.candidates
+        if isinstance(candidates, (list, tuple)):
+            candidates = {k: k for k in candidates}
+        cands = OrderedDict([(k, build_module(v, slot=slot, **cand_args)) for k, v in candidates.items()])
         return build_module(self.mixed_op_conf, candidates=cands)
 
 

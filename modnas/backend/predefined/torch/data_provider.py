@@ -1,4 +1,5 @@
 """Torch data providers."""
+import copy
 from modnas.utils import merge_config
 from modnas.registry.data_provider import build
 from modnas.registry.dataloader import build as build_dataloader
@@ -11,7 +12,7 @@ def get_data(configs):
     for conf in configs:
         if conf is None:
             continue
-        config = conf if config is None else merge_config(config, conf)
+        config = copy.deepcopy(conf) if config is None else merge_config(config, conf)
     if config is None:
         return None
     return build_dataset(config)

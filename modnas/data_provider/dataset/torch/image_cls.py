@@ -70,15 +70,16 @@ _valid_transforms = {
 class Cutout(object):
     """Apply Cutout on dataset."""
 
-    def __init__(self, length):
+    def __init__(self, length, seed=11235):
         self.length = length
+        self.rng = np.random.RandomState(seed)
 
     def __call__(self, img):
         """Return image with Cutout applied."""
         h, w = img.size(1), img.size(2)
         mask = np.ones((h, w), np.float32)
-        y = np.random.randint(h)
-        x = np.random.randint(w)
+        y = self.rng.randint(h)
+        x = self.rng.randint(w)
 
         y1 = np.clip(y - self.length // 2, 0, h)
         y2 = np.clip(y + self.length // 2, 0, h)
@@ -134,7 +135,6 @@ def ImageClsData(dataset,
         transf.extend([transforms.ToTensor(), transforms.Normalize(mean, stddev)])
     if cutout > 0:
         transf.append(Cutout(cutout))
-
     if dset == datasets.ImageFolder:
         data = dset(root, transform=transforms.Compose(transf))
     else:

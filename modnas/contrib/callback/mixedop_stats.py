@@ -48,3 +48,4 @@ class MixedOpStatsReporter(CallbackBase):
             pickle.dump(save_probs, f)
             self.logger.info('mixed op probs saved to {}'.format(probs_path))
         self.probs = []
+        return ret

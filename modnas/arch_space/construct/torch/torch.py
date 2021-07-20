@@ -13,6 +13,8 @@ logger = get_logger('construct')
 
 def parse_device(device):
     """Return device ids from config."""
+    if isinstance(device, int):
+        device = str(device)
     if not isinstance(device, str):
         return []
     device = device.lower()

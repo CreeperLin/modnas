@@ -15,7 +15,7 @@ def _mp_step_runner(conn, step_conf):
 
 
 def _mp_runner(step_conf):
-    ctx = mp.get_context('spawn')
+    ctx = mp.get_context(step_conf.get('mp_context', 'spawn'))
     p_con, c_con = ctx.Pipe()
     proc = ctx.Process(target=_mp_step_runner, args=(c_con, yaml.dump(step_conf)))
     time.sleep(step_conf.get('delay', 0))

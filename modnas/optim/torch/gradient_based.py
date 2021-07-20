@@ -48,8 +48,7 @@ class DARTSOptim(GradientBasedOptim):
         # calc unrolled loss
         loss = estim.loss(val_batch, model=self.v_net, mode='valid')  # L_val(w`)
         # compute gradient
-        alphas = ParamSpace().tensor_values()
-        v_alphas = tuple(alphas)
+        v_alphas = tuple(ParamSpace().tensor_values())
         v_weights = tuple(self.v_net.parameters())
         v_grads = torch.autograd.grad(loss, v_alphas + v_weights)
         dalpha = v_grads[:len(v_alphas)]
@@ -57,7 +56,7 @@ class DARTSOptim(GradientBasedOptim):
         hessian = self._compute_hessian(dw, trn_batch, estim)
         # update final gradient = dalpha - lr*hessian
         with torch.no_grad():
-            for a, da, h in zip(alphas, dalpha, hessian):
+            for a, da, h in zip(v_alphas, dalpha, hessian):
                 a.grad = da - lr * h
         self.optim_step()
 
@@ -71,9 +70,9 @@ class DARTSOptim(GradientBasedOptim):
         eps = 0.01 / ||dw||
         """
         model = estim.model
-        alphas = ParamSpace().tensor_values()
+        alphas = tuple(ParamSpace().tensor_values())
         norm = torch.cat([w.view(-1) for w in dw]).norm()
-        eps = 0.01 / norm
+        eps = (0.01 / norm).item()
         # w+ = w + eps*dw`
         with torch.no_grad():
             for p, d in zip(model.parameters(), dw):
@@ -90,7 +89,7 @@ class DARTSOptim(GradientBasedOptim):
         with torch.no_grad():
             for p, d in zip(model.parameters(), dw):
                 p += eps * d
-        hessian = [(p - n) / 2. * eps.item() for p, n in zip(dalpha_pos, dalpha_neg)]
+        hessian = [(p - n) / 2. * eps for p, n in zip(dalpha_pos, dalpha_neg)]
         return hessian
 
 

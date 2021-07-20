@@ -33,27 +33,6 @@ config = Config(dct={
 })
 
 
-class DropPath(nn.Module):
-    """DropPath module."""
-
-    def __init__(self, prob=0.):
-        super().__init__()
-        self.drop_prob = prob
-
-    def extra_repr(self):
-        """Return extra representation string."""
-        return 'prob={}, inplace'.format(self.drop_prob)
-
-    def forward(self, x):
-        """Return operator output."""
-        if self.training and self.drop_prob > 0.:
-            keep_prob = 1. - self.drop_prob
-            # per data point mask; assuming x in cuda.
-            mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
-            x.div_(keep_prob).mul_(mask)
-        return x
-
-
 class PoolBN(nn.Module):
     """AvgPool or MaxPool - BN."""
 

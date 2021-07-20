@@ -165,9 +165,11 @@ def get_writer(log_dir, enabled=False):
     return writer
 
 
-def copy_members(dest, src, excepts=None, skip_private=True, method=True):
+def copy_members(dest, src, includes=None, excepts=None, skip_private=True, method=True):
     """Copy member methods from src to dest."""
     for attr, mem in inspect.getmembers(src):
+        if includes is not None and attr not in includes:
+            continue
         if excepts is not None and attr in excepts:
             continue
         if skip_private and attr.startswith('_'):
