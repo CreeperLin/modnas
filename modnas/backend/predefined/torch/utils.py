@@ -1,7 +1,16 @@
 """Torch utils."""
 import numpy as np
 import torch
-from modnas.utils import format_value
+from modnas.utils import format_value, format_dict
+
+
+def version():
+    """Return backend version information."""
+    return format_dict({
+        'torch': torch.__version__,
+        'cuda': torch._C._cuda_getCompiledVersion(),
+        'cudnn': torch.backends.cudnn.version(),
+    }, sep=', ', kv_sep='=', fmt_key=False, fmt_val=False)
 
 
 def init_device(device=None, seed=11235):

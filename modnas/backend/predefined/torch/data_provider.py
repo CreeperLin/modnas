@@ -1,6 +1,6 @@
 """Torch data providers."""
 import copy
-from modnas.utils import merge_config
+from modnas.utils.config import merge_config
 from modnas.registry.data_provider import build
 from modnas.registry.dataloader import build as build_dataloader
 from modnas.registry.dataset import build as build_dataset

@@ -6,6 +6,9 @@ except ImportError:
     xgb = None
 from .base import ScoreModel
 from modnas.registry.score_model import register
+from collections import OrderedDict
+from numpy import ndarray
+from typing import List
 
 
 xgb_params_reg = {
@@ -44,7 +47,7 @@ class XGBoostScoreModel(ScoreModel):
         self.xgb_params = xgb_params
         self.model = None
 
-    def fit(self, inputs, results):
+    def fit(self, inputs: List[OrderedDict], results: List[float]) -> None:
         """Fit model with evaluation results."""
         x_train = self.to_feature(inputs)
         y_train = self.to_target(results)
@@ -56,7 +59,7 @@ class XGBoostScoreModel(ScoreModel):
             num_boost_round=400,
         )
 
-    def predict(self, inputs):
+    def predict(self, inputs: List[OrderedDict]) -> ndarray:
         """Return predicted evaluation score from model."""
         feats = self.to_feature(inputs)
         dtest = xgb.DMatrix(feats)

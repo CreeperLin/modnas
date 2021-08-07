@@ -2,6 +2,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from collections import OrderedDict
+from torch import Tensor
+from typing import Any, Collection, Iterator, List, Tuple, Optional, Union
+from torch.nn.modules.module import Module
+from modnas.core.params.base import Param
 from modnas.core.params import Categorical
 from modnas.registry.params import build
 from modnas.registry.arch_space import register
@@ -14,7 +19,9 @@ logger = get_logger('arch_space')
 class MixedOp(nn.Module):
     """Base Mixed operator class."""
 
-    def __init__(self, candidates, arch_param):
+    def __init__(
+        self, candidates: Union[OrderedDict, Collection[Tuple[str, Module]]], arch_param: Optional[Param]
+    ) -> None:
         super().__init__()
         if isinstance(candidates, (tuple, list)):
             candidates = {n: p for n, p in candidates}
@@ -27,11 +34,11 @@ class MixedOp(nn.Module):
         self.arch_param = arch_param
         logger.debug('mixed op: {} p: {}'.format(type(self), arch_param))
 
-    def candidates(self):
+    def candidates(self) -> Any:
         """Return list of candidate operators."""
         return list(self._ops.values())
 
-    def candidate_names(self):
+    def candidate_names(self) -> List[str]:
         """Return list of candidate operator names."""
         return list(self._ops.keys())
 
@@ -40,15 +47,15 @@ class MixedOp(nn.Module):
         for n, cand in self._ops.items():
             yield n, cand
 
-    def alpha(self):
+    def alpha(self) -> Any:
         """Return architecture parameter value."""
         return self.arch_param_value()
 
-    def prob(self):
+    def prob(self) -> Tensor:
         """Return candidate probabilities."""
         return F.softmax(self.alpha(), dim=-1)
 
-    def arch_param_value(self):
+    def arch_param_value(self) -> Any:
         """Return architecture parameter value."""
         return self.arch_param.value()
 
@@ -57,7 +64,7 @@ class MixedOp(nn.Module):
         raise NotImplementedError
 
     @staticmethod
-    def gen(model):
+    def gen(model: Module) -> Iterator[Module]:
         """Return an iterator over all MixedOp in a model."""
         for m in model.modules():
             if isinstance(m, MixedOp):
@@ -68,16 +75,16 @@ class MixedOp(nn.Module):
 class SoftmaxSumMixedOp(MixedOp):
     """Mixed operator using softmax weighted sum."""
 
-    def __init__(self, candidates, arch_param=None):
+    def __init__(self, candidates: OrderedDict, arch_param: Optional[Param] = None) -> None:
         super().__init__(candidates, arch_param)
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> Union[Tensor, int]:
         """Compute MixedOp output."""
         outputs = [op(*args, **kwargs) for op in self.candidates()]
         w_path = F.softmax(self.alpha().to(device=outputs[0].device), dim=-1)
-        return sum(w * o for w, o in zip(w_path, outputs))
+        return sum((w * o for w, o in zip(w_path, outputs)))
 
-    def to_arch_desc(self, k=1):
+    def to_arch_desc(self, k: int = 1) -> Any:
         """Return archdesc from mixed operator."""
         cname = self.candidate_names()
         w = F.softmax(self.alpha().detach(), dim=-1)
@@ -92,20 +99,20 @@ class SoftmaxSumMixedOp(MixedOp):
 class BinaryGateMixedOp(MixedOp):
     """Mixed operator controlled by BinaryGate."""
 
-    def __init__(self, candidates, arch_param=None, n_samples=1):
+    def __init__(self, candidates: OrderedDict, arch_param: Optional[Param] = None, n_samples: int = 1) -> None:
         super().__init__(candidates, arch_param)
         self.n_samples = n_samples
-        self.s_path_f = None
+        self.s_path_f = []
         self.last_samples = []
         self.s_op = []
         self.a_grad_enabled = False
         self.reset_ops()
 
-    def arch_param_grad(self, enabled):
+    def arch_param_grad(self, enabled: bool) -> None:
         """Set if enable architecture parameter grad."""
         self.a_grad_enabled = enabled
 
-    def sample_path(self):
+    def sample_path(self) -> None:
         """Sample candidates in forward pass."""
         p = self.alpha()
         s_op = self.s_op
@@ -113,18 +120,18 @@ class BinaryGateMixedOp(MixedOp):
         samples = self.w_path_f.multinomial(1 if self.a_grad_enabled else self.n_samples)
         self.s_path_f = [s_op[i] for i in samples]
 
-    def sample_ops(self, n_samples):
+    def sample_ops(self, n_samples: int) -> None:
         """Sample activated candidates."""
         samples = self.prob().multinomial(n_samples).detach()
         self.s_op = list(samples.flatten().cpu().numpy())
 
-    def reset_ops(self):
+    def reset_ops(self) -> None:
         """Reset activated candidates."""
         s_op = list(range(len(self.candidates())))
         self.last_samples = s_op
         self.s_op = s_op
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> Tensor:
         """Compute MixedOp output."""
         self.sample_path()
         s_path_f = self.s_path_f
@@ -146,7 +153,7 @@ class BinaryGateMixedOp(MixedOp):
         self.last_samples = s_path_f
         return m_out
 
-    def swap_ops(self, samples):
+    def swap_ops(self, samples: List[int]) -> None:
         """Remove unused candidates from computation graph."""
         cands = self.candidates()
         for i in self.last_samples:
@@ -163,7 +170,7 @@ class BinaryGateMixedOp(MixedOp):
                     continue
                 p.requires_grad_(True)
 
-    def to_arch_desc(self, k=1):
+    def to_arch_desc(self, k: int = 1) -> Any:
         """Return archdesc from mixed operator."""
         cname = self.candidate_names()
         w = F.softmax(self.alpha().detach(), dim=-1)
@@ -224,7 +231,7 @@ class BinaryGateFunction(torch.autograd.function.Function):
 class BinaryGateUniformMixedOp(BinaryGateMixedOp):
     """Mixed operator controlled by BinaryGate, which candidates sampled uniformly."""
 
-    def sample_path(self):
+    def sample_path(self) -> None:
         """Sample candidates in forward pass."""
         p = self.alpha()
         s_op = self.s_op
@@ -234,7 +241,7 @@ class BinaryGateUniformMixedOp(BinaryGateMixedOp):
         s_path_f = [s_op[i] for i in samples]
         self.s_path_f = s_path_f
 
-    def sample_ops(self, n_samples):
+    def sample_ops(self, n_samples: int) -> None:
         """Sample activated candidates."""
         p = self.alpha()
         # sample uniformly
@@ -248,15 +255,15 @@ class BinaryGateUniformMixedOp(BinaryGateMixedOp):
 class GumbelSumMixedOp(MixedOp):
     """Mixed operator using gumbel softmax sum."""
 
-    def __init__(self, candidates, arch_param=None):
+    def __init__(self, candidates: OrderedDict, arch_param: Optional[Param] = None) -> None:
         super().__init__(candidates, arch_param)
         self.temp = 1e5
 
-    def set_temperature(self, temp):
+    def set_temperature(self, temp: float) -> None:
         """Set annealing temperature."""
         self.temp = temp
 
-    def prob(self):
+    def prob(self) -> Tensor:
         """Return candidate probabilities."""
         p = self.alpha()
         eps = 1e-7
@@ -265,13 +272,13 @@ class GumbelSumMixedOp(MixedOp):
         scores = (p + gumbels) / self.temp
         return F.softmax(scores, dim=-1)
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> Union[Tensor, int]:
         """Compute MixedOp output."""
         outputs = [op(*args, **kwargs) for op in self.candidates()]
         w_path = self.prob().to(outputs[0].device)
         return sum(w * o for w, o in zip(w_path, outputs))
 
-    def to_arch_desc(self, k=1):
+    def to_arch_desc(self, k: int = 1) -> Any:
         """Return archdesc from mixed operator."""
         cname = self.candidate_names()
         w = F.softmax(self.alpha().detach(), dim=-1)  # use alpha softmax
@@ -286,19 +293,19 @@ class GumbelSumMixedOp(MixedOp):
 class IndexMixedOp(MixedOp):
     """Mixed operator controlled by index."""
 
-    def __init__(self, candidates, arch_param=None):
+    def __init__(self, candidates: OrderedDict, arch_param: Optional[Categorical] = None) -> None:
         if arch_param is None:
             arch_param = Categorical(list(candidates.keys()))
         super().__init__(candidates, arch_param)
         self.last_samples = list(range(len(self.candidates())))
 
-    def alpha(self):
+    def alpha(self) -> Tensor:
         """Return architecture parameter value."""
         alpha = torch.zeros(len(self.candidates()))
         alpha[self.arch_param.index()] = 1.0
         return alpha
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> Tensor:
         """Compute MixedOp output."""
         cands = self.candidates()
         smp = self.arch_param.index()
@@ -307,7 +314,7 @@ class IndexMixedOp(MixedOp):
         self.last_samples = [smp]
         return cands[smp](*args, **kwargs)
 
-    def swap_ops(self, samples):
+    def swap_ops(self, samples: List[int]) -> None:
         """Remove unused candidates from computation graph."""
         cands = self.candidates()
         for i in self.last_samples:
@@ -324,6 +331,6 @@ class IndexMixedOp(MixedOp):
                     continue
                 p.requires_grad_(True)
 
-    def to_arch_desc(self, *args, **kwargs):
+    def to_arch_desc(self, *args, **kwargs) -> str:
         """Return archdesc from mixed operator."""
         return self.arch_param_value()

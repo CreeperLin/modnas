@@ -8,6 +8,8 @@ from modnas.registry.arch_space import build as build_module
 from modnas.registry.construct import register
 from modnas.arch_space.slot import Slot
 from modnas.utils.logging import get_logger
+from torch.nn.modules.module import Module
+from typing import Dict, Optional, Any, Sequence
 
 
 logger = get_logger('construct')
@@ -20,7 +22,7 @@ _arch_desc_parser = {
 }
 
 
-def parse_arch_desc(desc, parser=None):
+def parse_arch_desc(desc: Any, parser: Optional[str] = None) -> Any:
     """Return archdesc parsed from file."""
     if isinstance(desc, str):
         default_parser = 'yaml'
@@ -41,7 +43,7 @@ def parse_arch_desc(desc, parser=None):
 class DefaultArchDescConstructor():
     """Constructor that builds network from archdesc."""
 
-    def __init__(self, arch_desc, parse_args=None):
+    def __init__(self, arch_desc: Any, parse_args: Optional[Dict[str, Any]] = None) -> None:
         arch_desc = parse_arch_desc(arch_desc, **(parse_args or {}))
         logger.info('construct from arch_desc: {}'.format(arch_desc))
         self.arch_desc = arch_desc
@@ -55,15 +57,17 @@ class DefaultArchDescConstructor():
 class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
     """Constructor that recursively builds network submodules from archdesc."""
 
-    def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None,
-                 substitute=False, skip_exist=True):
+    def __init__(
+        self, arch_desc: Any, parse_args: Optional[Dict] = None, construct_fn: str = 'build_from_arch_desc',
+        fn_args: Optional[Dict] = None, substitute: bool = False, skip_exist: bool = True
+    ) -> None:
         super().__init__(arch_desc, parse_args)
         self.construct_fn = construct_fn
         self.fn_args = fn_args or {}
         self.substitute = substitute
         self.skip_exist = skip_exist
 
-    def visit(self, module):
+    def visit(self, module: Module) -> Module:
         """Construct and return module."""
         construct_fn = getattr(module, self.construct_fn, None)
         if construct_fn is not None and not (isinstance(module, Slot) and module.get_entity() is not None):
@@ -75,12 +79,12 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
                 module.add_module(n, m)
         return module
 
-    def __call__(self, model):
+    def __call__(self, model: Module) -> Module:
         """Run constructor."""
         Slot.set_convert_fn(self.convert)
         return self.visit(model)
 
-    def convert(self, slot, desc, *args, **kwargs):
+    def convert(self, slot: Slot, desc: Sequence[str], *args, **kwargs) -> Module:
         """Convert Slot to module from archdesc."""
         if slot.get_entity() is not None and self.skip_exist:
             logger.warning('slot {} already built'.format(slot.sid))
@@ -93,15 +97,17 @@ class DefaultRecursiveArchDescConstructor(DefaultArchDescConstructor):
 class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArchDescConstructor):
     """Constructor that converts Slots to modules from archdesc."""
 
-    def __init__(self, arch_desc, parse_args=None, construct_fn='build_from_arch_desc', fn_args=None,
-                 traversal_args=None, desc_args=None):
+    def __init__(
+        self, arch_desc: Any, parse_args: Optional[Dict] = None, construct_fn: str = 'build_from_arch_desc',
+        fn_args: Optional[Dict] = None, traversal_args: Optional[Dict] = None, desc_args: Optional[Dict] = None
+    ) -> None:
         DefaultSlotTraversalConstructor.__init__(self, **(traversal_args or {}))
         DefaultArchDescConstructor.__init__(self, arch_desc, parse_args, **(desc_args or {}))
         self.construct_fn = construct_fn
         self.fn_args = fn_args or {}
         self.idx = -1
 
-    def get_next_desc(self):
+    def get_next_desc(self) -> Any:
         """Return next archdesc item."""
         self.idx += 1
         desc = self.arch_desc[self.idx]
@@ -109,7 +115,7 @@ class DefaultSlotArchDescConstructor(DefaultSlotTraversalConstructor, DefaultArc
             desc = desc[0]
         return desc
 
-    def convert(self, slot, desc=None, *args, **kwargs):
+    def convert(self, slot: Slot, desc=None, *args, **kwargs) -> Module:
         """Convert Slot to module from archdesc."""
         if slot in self.visited:
             return None
