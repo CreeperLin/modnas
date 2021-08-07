@@ -4,6 +4,11 @@ import itertools
 from modnas.registry.callback import register
 from modnas.callback.base import CallbackBase
 from matplotlib import pyplot as plt
+from collections import OrderedDict
+from modnas.estim.base import EstimBase
+from modnas.optim.base import OptimBase
+from typing import Dict, List, Tuple, Optional, Any
+
 plt.switch_backend('Agg')
 
 
@@ -11,7 +16,7 @@ plt.switch_backend('Agg')
 class MetricsStatsReporter(CallbackBase):
     """Metrics statistics reporter class."""
 
-    def __init__(self, axis_list=None):
+    def __init__(self, axis_list: List[Tuple[int, int]] = None) -> None:
         super().__init__({
             'after:EstimBase.step_done': self.on_step_done,
             'after:EstimBase.run': self.save_stats,
@@ -19,11 +24,14 @@ class MetricsStatsReporter(CallbackBase):
         self.results = []
         self.axis_list = axis_list
 
-    def on_step_done(self, ret, estim, params, value, arch_desc=None):
+    def on_step_done(
+        self, ret: Dict[str, bool], estim: EstimBase, params: Optional[OrderedDict],
+        value: Dict[str, float], arch_desc: Optional[Any] = None
+    ) -> None:
         """Record Estimator evaluation result on each step."""
         self.results.append((params, value))
 
-    def save_stats(self, ret, estim, optim):
+    def save_stats(self, ret: Dict[str, Any], estim: EstimBase, optim: OptimBase) -> Dict[str, Any]:
         """Save statistics on search end."""
         results = self.results
         if not results:
@@ -47,3 +55,4 @@ class MetricsStatsReporter(CallbackBase):
             pickle.dump(results, f)
             self.logger.info('metrics results saved to {}'.format(result_path))
         self.results = []
+        return ret

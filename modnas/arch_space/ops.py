@@ -1,9 +1,11 @@
 """Network operators / candidates."""
+from typing import Any, List
 import torch
 import torch.nn as nn
 from modnas.utils import get_same_padding
 from modnas.utils.config import Config
 from .slot import register_slot_ccs
+from torch import Tensor
 
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'MAX')
@@ -36,7 +38,7 @@ config = Config(dct={
 class DropPath(nn.Module):
     """DropPath module."""
 
-    def __init__(self, prob=0.):
+    def __init__(self, prob: float = 0.) -> None:
         super().__init__()
         self.drop_prob = prob
 
@@ -44,7 +46,7 @@ class DropPath(nn.Module):
         """Return extra representation string."""
         return 'prob={}, inplace'.format(self.drop_prob)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         if self.training and self.drop_prob > 0.:
             keep_prob = 1. - self.drop_prob
@@ -57,7 +59,7 @@ class DropPath(nn.Module):
 class PoolBN(nn.Module):
     """AvgPool or MaxPool - BN."""
 
-    def __init__(self, pool_type, C_in, C_out, kernel_size, stride, padding):
+    def __init__(self, pool_type: str, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int) -> None:
         super().__init__()
         if C_in != C_out:
             raise ValueError('invalid channel in pooling layer')
@@ -68,10 +70,10 @@ class PoolBN(nn.Module):
         else:
             raise ValueError('invalid pooling layer type')
 
-        nets = []
-        for i in config.ops_order:
+        nets: List[Any] = []
+        for i in config['ops_order']:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C_in, **config.bn))
+                nets.append(nn.BatchNorm2d(C_in, **config['bn']))
             elif i == 'weight':
                 nets.append(pool)
             elif i == 'act':
@@ -79,7 +81,7 @@ class PoolBN(nn.Module):
 
         self.net = nn.Sequential(*nets)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         return self.net(x)
 
@@ -87,21 +89,21 @@ class PoolBN(nn.Module):
 class StdConv(nn.Module):
     """Standard conv, ReLU - Conv - BN."""
 
-    def __init__(self, C_in, C_out, kernel_size, stride, padding, groups=1):
+    def __init__(self, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int, groups: int = 1) -> None:
         super().__init__()
         C = C_in
-        nets = []
-        for i in config.ops_order:
+        nets: List[Any] = []
+        for i in config['ops_order']:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, **config.bn))
+                nets.append(nn.BatchNorm2d(C, **config['bn']))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, **config.conv, groups=groups))
+                nets.append(nn.Conv2d(C_in, C_out, kernel_size, stride, padding, **config['conv'], groups=groups))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(**config.act))
+                nets.append(nn.ReLU(**config['act']))
         self.net = nn.Sequential(*nets)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         return self.net(x)
 
@@ -109,23 +111,23 @@ class StdConv(nn.Module):
 class FacConv(nn.Module):
     """Factorized conv, ReLU - Conv(Kx1) - Conv(1xK) - BN."""
 
-    def __init__(self, C_in, C_out, kernel_length, stride, padding):
+    def __init__(self, C_in: int, C_out: int, kernel_length: int, stride: int, padding: int) -> None:
         super().__init__()
         C = C_in
-        nets = []
-        for i in config.ops_order:
+        nets: List[Any] = []
+        for i in config['ops_order']:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, **config.bn))
+                nets.append(nn.BatchNorm2d(C, **config['bn']))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), **config.conv))
-                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), **config.conv))
+                nets.append(nn.Conv2d(C_in, C_in, (kernel_length, 1), stride, (padding, 0), **config['conv']))
+                nets.append(nn.Conv2d(C_in, C_out, (1, kernel_length), 1, (0, padding), **config['conv']))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(**config.act))
+                nets.append(nn.ReLU(**config['act']))
 
         self.net = nn.Sequential(*nets)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         return self.net(x)
 
@@ -139,22 +141,23 @@ class DilConv(nn.Module):
                       5x5 conv => 9x9 receptive field
     """
 
-    def __init__(self, C_in, C_out, kernel_size, stride, padding, dilation):
+    def __init__(self, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int, dilation: int) -> None:
         super().__init__()
         C = C_in
-        nets = []
-        for i in config.ops_order:
+        nets: List[Any] = []
+        for i in config['ops_order']:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, **config.bn))
+                nets.append(nn.BatchNorm2d(C, **config['bn']))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, dilation, groups=C_in, **config.conv))
-                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config.conv))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride,
+                            padding, dilation, groups=C_in, **config['conv']))
+                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config['conv']))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(**config.act))
+                nets.append(nn.ReLU(**config['act']))
         self.net = nn.Sequential(*nets)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         return self.net(x)
 
@@ -162,12 +165,12 @@ class DilConv(nn.Module):
 class SepConv(nn.Module):
     """Depthwise separable conv, DilConv(dilation=1) * 2."""
 
-    def __init__(self, C_in, C_out, kernel_size, stride, padding):
+    def __init__(self, C_in: int, C_out: int, kernel_size: int, stride: int, padding: int) -> None:
         super().__init__()
         self.net = nn.Sequential(DilConv(C_in, C_in, kernel_size, stride, padding, dilation=1),
                                  DilConv(C_in, C_out, kernel_size, 1, padding, dilation=1))
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         return self.net(x)
 
@@ -178,16 +181,16 @@ class SepSingle(nn.Module):
     def __init__(self, C_in, C_out, kernel_size, stride, padding):
         super().__init__()
         C = C_in
-        nets = []
-        for i in config.ops_order:
+        nets: List[Any] = []
+        for i in config['ops_order']:
             if i == 'bn':
-                nets.append(nn.BatchNorm2d(C, **config.bn))
+                nets.append(nn.BatchNorm2d(C, **config['bn']))
             elif i == 'weight':
-                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, groups=C_in, **config.conv))
-                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config.conv))
+                nets.append(nn.Conv2d(C_in, C_in, kernel_size, stride, padding, groups=C_in, **config['conv']))
+                nets.append(nn.Conv2d(C_in, C_out, 1, stride=1, padding=0, **config['conv']))
                 C = C_out
             elif i == 'act':
-                nets.append(nn.ReLU(**config.act))
+                nets.append(nn.ReLU(**config['act']))
         self.net = nn.Sequential(*nets)
 
     def forward(self, x):
@@ -198,10 +201,10 @@ class SepSingle(nn.Module):
 class Identity(nn.Module):
     """Identity operation."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__()
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         return x
 
@@ -209,14 +212,14 @@ class Identity(nn.Module):
 class Zero(nn.Module):
     """Null operation that returns input-sized zero tensor."""
 
-    def __init__(self, C_in, C_out, stride, *args, **kwargs):
+    def __init__(self, C_in: int, C_out: int, stride: int, *args, **kwargs) -> None:
         super().__init__()
         if C_in != C_out:
             raise ValueError('invalid channel in zero layer')
         self.stride = stride
         self.C_out = C_out
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         if self.stride == 1:
             return x * 0.
@@ -227,14 +230,14 @@ class Zero(nn.Module):
 class FactorizedReduce(nn.Module):
     """Reduce feature map size by factorized pointwise(stride=2)."""
 
-    def __init__(self, C_in, C_out):
+    def __init__(self, C_in: int, C_out: int) -> None:
         super().__init__()
         self.relu = nn.ReLU()
         self.conv1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
         self.conv2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.BatchNorm2d(C_out, **config.bn)
+        self.bn = nn.BatchNorm2d(C_out, **config['bn'])
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
         x = self.relu(x)
         out = torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
