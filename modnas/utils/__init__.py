@@ -231,7 +231,7 @@ def format_value(
         tot_div = _div ** _factor
     else:
         tot_div = 1
-        while f_value > tot_div:
+        while f_value > tot_div * _div:
             _factor += 1
             tot_div *= _div
     f_value = round(f_value / tot_div, prec)
