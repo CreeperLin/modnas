@@ -4,6 +4,9 @@ import torch
 from modnas.utils import format_value, format_dict
 
 
+_device = None
+
+
 def version():
     """Return backend version information."""
     return format_dict({
@@ -20,6 +23,17 @@ def init_device(device=None, seed=11235):
     if device != 'cpu':
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.benchmark = True
+
+
+def set_device(device):
+    """Set current device."""
+    global _device
+    _device = device
+
+
+def get_device():
+    """Return current device."""
+    return _device
 
 
 def get_dev_mem_used():

@@ -18,7 +18,6 @@ class DefaultTrainer(TrainerBase):
     def __init__(self,
                  writer: Optional[Any] = None,
                  expman: Optional[Any] = None,
-                 device: str = 'cuda',
                  data_provider: Optional[SPEC_TYPE] = None,
                  optimizer: Optional[SPEC_TYPE] = None,
                  lr_scheduler: Optional[SPEC_TYPE] = None,
@@ -27,7 +26,6 @@ class DefaultTrainer(TrainerBase):
         super().__init__(writer)
         self.w_grad_clip = w_grad_clip
         self.expman = expman
-        self.device = device
         self.optimizer = None
         self.lr_scheduler = None
         self.data_provider = None
@@ -50,7 +48,7 @@ class DefaultTrainer(TrainerBase):
             self.data_provider = backend.get_data_provider(self.config['data_provider'])
         if self.config['criterion']:
             self.criterion = backend.get_criterion(self.config['criterion'], getattr(model, 'device_ids', None))
-        self.device = self.config.get('device', self.device)
+        self.device = self.config.get('device', backend.get_device())
 
     def get_num_train_batch(self, epoch: int) -> int:
         """Return number of train batches in current epoch."""

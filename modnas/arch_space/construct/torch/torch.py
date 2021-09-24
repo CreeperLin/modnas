@@ -73,6 +73,7 @@ class TorchToDevice():
         if model is None:
             return
         device_ids = self.device_ids
+        backend.set_device(device_ids[0])
         if device_ids[0] is not None:
             torch.cuda.set_device(device_ids[0])
         model.to(device=device_ids[0])

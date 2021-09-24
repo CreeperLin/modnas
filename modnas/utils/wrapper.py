@@ -120,8 +120,7 @@ def get_init_constructor(config, device):
         default_conf = {'type': 'DefaultInitConstructor'}
     else:
         raise NotImplementedError
-    default_conf.update(config)
-    return default_conf
+    return merge_config(default_conf, config)
 
 
 def get_model_constructor(config):
