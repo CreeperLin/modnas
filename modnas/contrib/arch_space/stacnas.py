@@ -24,9 +24,10 @@ class StacNASArchDescSearchConstructor(DefaultRecursiveArchDescConstructor, Defa
     def convert(self, slot, desc):
         """Convert Slot to mixed operator."""
         desc = desc[0] if isinstance(desc, list) else desc
-        if desc in ['IDT', 'NIL']:
+        cands = self.candidates_map.get(desc)
+        if cands is None or desc in ['IDT', 'IDF', 'FTR', 'NIL']:
             ent = build(desc, slot)
         else:
-            self.candidates = self.candidates_map[desc]
+            self.candidates = cands
             ent = DefaultMixedOpConstructor.convert(self, slot)
         return ent

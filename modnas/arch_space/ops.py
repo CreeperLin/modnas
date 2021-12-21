@@ -9,8 +9,11 @@ from torch import Tensor
 
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('avg', C_in, C_out, 3, stride, 1), 'AVG')
 register_slot_ccs(lambda C_in, C_out, stride: PoolBN('max', C_in, C_out, 3, stride, 1), 'MAX')
+register_slot_ccs(lambda C_in, C_out, stride: Identity(), 'IDT')
+register_slot_ccs(lambda C_in, C_out, stride: FactorizedReduce(C_in, C_out), 'FTR')
 register_slot_ccs(lambda C_in, C_out, stride: Identity()
-                  if C_in == C_out and stride == 1 else FactorizedReduce(C_in, C_out), 'IDT')
+                  if C_in == C_out and stride == 1 else FactorizedReduce(C_in, C_out), 'IDF')
+
 
 kernel_sizes = [1, 3, 5, 7, 9, 11, 13]
 for k in kernel_sizes:
@@ -206,22 +209,39 @@ class Zero(nn.Module):
         return x[:, :, ::self.stride, ::self.stride] * 0.
 
 
+class FactorizedReduceConv(nn.Module):
+    """Reduce feature map size by factorized pointwise(stride=2)."""
+
+    def __init__(self, C_in: int, C_out: int) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+        self.conv2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Return operator output."""
+        return torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
+
+
 class FactorizedReduce(nn.Module):
     """Reduce feature map size by factorized pointwise(stride=2)."""
 
     def __init__(self, C_in: int, C_out: int) -> None:
         super().__init__()
-        self.relu = nn.ReLU()
-        self.conv1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.conv2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-        self.bn = nn.BatchNorm2d(C_out, **config['bn'])
+        C = C_in
+        nets: List[Any] = []
+        for i in config['ops_order']:
+            if i == 'bn':
+                nets.append(nn.BatchNorm2d(C, **config['bn']))
+            elif i == 'weight':
+                nets.append(FactorizedReduceConv(C_in, C_out))
+                C = C_out
+            elif i == 'act':
+                nets.append(nn.ReLU(**config['act']))
+        self.net = nn.Sequential(*nets)
 
     def forward(self, x: Tensor) -> Tensor:
         """Return operator output."""
-        x = self.relu(x)
-        out = torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
-        out = self.bn(out)
-        return out
+        return self.net(x)
 
 
 register_slot_ccs(Zero, 'NIL')
