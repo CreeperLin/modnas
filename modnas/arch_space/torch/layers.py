@@ -1,9 +1,7 @@
 """Layers of nested network modules."""
 import torch
 import torch.nn as nn
-from .slot import Slot
-from .slot import register_slot_ccs
-from . import layer_defs
+from modnas.arch_space.torch.slot import Slot, register_slot_ccs
 from modnas.registry.layer_def import build as build_layer_def
 from modnas.utils.logging import get_logger
 from torch import Tensor

@@ -8,6 +8,7 @@ import modnas.core.params.torch
 import modnas.arch_space.construct.torch
 import modnas.arch_space.export.torch
 import modnas.arch_space.torch
+import modnas.arch_space.torch.networks
 import modnas.data_provider.dataloader.torch
 import modnas.data_provider.dataset.torch
 import modnas.metrics.torch

@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import torch.nn.functional as F
 from modnas.registry.callback import register
-from modnas.arch_space.mixed_ops import MixedOp
+from modnas.arch_space.torch.mixed_ops import MixedOp
 from modnas.callback.base import CallbackBase
 from matplotlib import pyplot as plt
 from modnas.estim.base import EstimBase

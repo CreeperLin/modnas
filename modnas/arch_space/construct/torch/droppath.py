@@ -1,10 +1,10 @@
 """DropPath constructor."""
 import torch
-from modnas.arch_space.ops import Identity
+from modnas.arch_space.torch.ops import Identity
 from modnas.core.event import event_on
 from .default import DefaultSlotTraversalConstructor
 from modnas.registry.construct import register
-from modnas.arch_space.slot import Slot
+from modnas.arch_space.torch.slot import Slot
 from torch.nn.modules.container import Sequential
 from torch.nn.modules.module import Module
 from typing import Optional

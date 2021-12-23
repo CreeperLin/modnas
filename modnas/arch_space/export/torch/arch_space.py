@@ -1,7 +1,7 @@
 """Torch Architecture Exporters."""
 import copy
-from modnas.arch_space.slot import Slot
-from modnas.arch_space.mixed_ops import MixedOp
+from modnas.arch_space.torch.slot import Slot
+from modnas.arch_space.torch.mixed_ops import MixedOp
 from modnas.registry.export import register
 
 

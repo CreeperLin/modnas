@@ -5,7 +5,7 @@ modified from https://github.com/khanrc/pt.darts
 from functools import partial
 import torch.nn as nn
 from ..ops import FactorizedReduce, StdConv
-from ..slot import Slot
+from modnas.arch_space.torch.slot import Slot
 from modnas.registry.construct import DefaultMixedOpConstructor
 from modnas.registry.construct import register as register_constructor
 from modnas.registry.arch_space import register

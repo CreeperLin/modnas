@@ -5,7 +5,7 @@ modified from https://github.com/megvii-model/SinglePathOneShot
 import torch
 import torch.nn as nn
 from .. import ops
-from ..slot import Slot
+from modnas.arch_space.torch.slot import Slot
 from modnas.registry.construct import register as register_constructor
 from modnas.registry.construct import DefaultMixedOpConstructor, DefaultSlotTraversalConstructor
 from modnas.registry.arch_space import build, register

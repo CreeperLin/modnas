@@ -8,7 +8,7 @@ from modnas.registry.construct import DefaultMixedOpConstructor, DefaultSlotTrav
     DefaultSlotArchDescConstructor
 from modnas.registry.construct import register as register_constructor
 from modnas.registry.arch_space import register
-from ..slot import Slot, register_slot_ccs
+from modnas.arch_space.torch.slot import Slot, register_slot_ccs
 
 for ks in [3, 5, 7, 9]:
     for exp in [1, 3, 6, 9]:

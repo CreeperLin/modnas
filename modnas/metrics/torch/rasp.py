@@ -1,7 +1,7 @@
 """RASP-based metrics."""
 from ..base import MetricsBase
 from modnas.registry.metrics import register, build
-from modnas.arch_space.mixed_ops import MixedOp
+from modnas.arch_space.torch.mixed_ops import MixedOp
 from modnas.registry import SPEC_TYPE
 from torch.nn.modules.module import Module
 from typing import List, Any, Union

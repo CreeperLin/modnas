@@ -11,7 +11,7 @@ from modnas.registry.construct import DefaultMixedOpConstructor, DefaultSlotTrav
     DefaultSlotArchDescConstructor
 from modnas.registry.arch_space import register
 from ..ops import get_same_padding
-from ..slot import Slot, register_slot_builder
+from modnas.arch_space.torch.slot import Slot, register_slot_builder
 
 
 def round_filters(filters, width_coeff, divisor, min_depth=None):

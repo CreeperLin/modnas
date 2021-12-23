@@ -4,7 +4,7 @@ import copy
 import torch
 from ..base import GradientBasedOptim
 from modnas.core.param_space import ParamSpace
-from modnas.arch_space.mixed_ops import MixedOp
+from modnas.arch_space.torch.mixed_ops import MixedOp
 from modnas.registry.optim import register
 from modnas.estim.base import EstimBase
 from torch import Tensor

@@ -1,8 +1,8 @@
 """Torch constructors."""
 import torch
 from modnas.registry.construct import register
-from modnas.arch_space.slot import Slot
-from modnas.arch_space import ops
+from modnas.arch_space.torch.slot import Slot
+from modnas.arch_space.torch import ops
 from modnas.core.param_space import ParamSpace
 from modnas.utils.logging import get_logger
 from modnas import backend

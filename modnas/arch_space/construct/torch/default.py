@@ -5,7 +5,7 @@ from functools import partial
 from collections import OrderedDict
 from modnas.registry.arch_space import build as build_module
 from modnas.registry.construct import register, build
-from modnas.arch_space.slot import Slot
+from modnas.arch_space.torch.slot import Slot
 from modnas.utils.logging import get_logger
 from modnas.utils import import_file
 

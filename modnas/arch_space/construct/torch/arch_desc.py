@@ -6,7 +6,7 @@ import copy
 from .default import DefaultSlotTraversalConstructor
 from modnas.registry.arch_space import build as build_module
 from modnas.registry.construct import register
-from modnas.arch_space.slot import Slot
+from modnas.arch_space.torch.slot import Slot
 from modnas.utils.logging import get_logger
 from torch.nn.modules.module import Module
 from typing import Dict, Optional, Any, Sequence

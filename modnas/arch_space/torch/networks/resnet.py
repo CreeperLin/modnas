@@ -4,7 +4,7 @@ modified from https://github.com/pytorch/vision/blob/master/torchvision/models/r
 """
 from functools import partial
 import torch.nn as nn
-from ..slot import Slot
+from modnas.arch_space.torch.slot import Slot
 from modnas.registry.construct import DefaultSlotTraversalConstructor
 from modnas.registry.construct import register as register_constructor
 from modnas.registry.arch_space import register
