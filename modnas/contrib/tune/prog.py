@@ -30,7 +30,8 @@ def tune_prog(progname=None, funcname=None, config=None, options=None, hparams=N
             if not k.startswith('_'):
                 funcname = k
                 break
-    func = mod.__dict__.get(funcname)
+    mod_dict = mod if isinstance(mod, dict) else mod.__dict__
+    func = mod_dict.get(funcname)
     entry_name = '{}:{}'.format(exec_name, funcname)
     if func is None:
         raise ValueError('entrypoint {} not exist'.format(entry_name))

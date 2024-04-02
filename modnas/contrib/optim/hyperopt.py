@@ -57,9 +57,9 @@ class HyperoptOptim(OptimBase):
 
     def convert_param(self, p):
         """Return value converted from Hyperopt space."""
-        if isinstance(p, (np.float, np.float64)):
+        if isinstance(p, (np.float32, np.float64)):
             return float(p)
-        if isinstance(p, (np.int, np.int64)):
+        if isinstance(p, (np.int32, np.int64)):
             return int(p)
         return p
 
@@ -99,7 +99,7 @@ class HyperoptOptim(OptimBase):
                 return None
             if isinstance(res, dict):
                 v = list(res.values())[0]
-            if isinstance(res, (tuple, list)):
+            elif isinstance(res, (tuple, list)):
                 v = res[0]
             else:
                 v = res

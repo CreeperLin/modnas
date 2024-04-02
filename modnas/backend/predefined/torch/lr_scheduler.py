@@ -17,12 +17,12 @@ def get_lr_scheduler(optimizer, config, trainer_config=None):
 module = torch.optim.lr_scheduler
 
 for name, attr in module.__dict__.items():
-    if name.startswith('__'):
+    if name.startswith('_'):
         continue
     if not callable(attr):
         continue
     if name.islower():
         continue
-    if name == 'Optimizer':
+    if name in ['Optimizer', 'LRScheduler']:
         continue
     register(attr)

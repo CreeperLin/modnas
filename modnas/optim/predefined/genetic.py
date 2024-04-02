@@ -19,6 +19,7 @@ class GeneticOptim(CategoricalSpaceOptim):
         self.operators = []
         self.metrics = []
         self.population = self._initialize()
+        self.pop_pt = -1
 
     def _initialize(self):
         raise NotImplementedError
@@ -30,7 +31,10 @@ class GeneticOptim(CategoricalSpaceOptim):
         return cur_pop
 
     def _next(self) -> OrderedDict:
-        params = self.population[len(self.metrics)]
+        self.pop_pt += 1
+        if self.pop_pt == len(self.population):
+            self.population.append(self.get_random_params())
+        params = self.population[self.pop_pt]
         self.set_visited_params(params)
         return params
 
@@ -51,9 +55,12 @@ class GeneticOptim(CategoricalSpaceOptim):
         _, results = estim.get_last_results()
         results = [self.to_metrics(res) for res in results]
         self.metrics.extend(results)
-        if len(self.metrics) >= len(self.population):
+        len_metrics = len(self.metrics)
+        len_pop = len(self.population)
+        if len_metrics >= len_pop:
             self.population = self._mating(self.population)
             self.metrics = []
+            self.pop_pt = -1
 
 
 @register
@@ -62,6 +69,7 @@ class EvolutionOptim(GeneticOptim):
 
     def __init__(self,
                  pop_size: int = 100,
+                 initial_pop: Optional[OrderedDict] = None,
                  n_parents: int = 2,
                  n_offsprings: int = 1,
                  n_select: int = 10,
@@ -69,6 +77,7 @@ class EvolutionOptim(GeneticOptim):
                  n_crossover: Optional[int] = None,
                  mutation_prob: float = 0.01,
                  space: Optional[ParamSpace] = None) -> None:
+        self.initial_pop = initial_pop
         super().__init__(space=space, pop_size=pop_size)
         self.add_operator(self._survival)
         self.add_operator(self._selection)
@@ -82,7 +91,8 @@ class EvolutionOptim(GeneticOptim):
         self.mutation_prob = mutation_prob
 
     def _initialize(self) -> List[OrderedDict]:
-        return [self.get_random_params() for _ in range(self.pop_size)]
+        init_fn = self.get_random_params if self.initial_pop is None else lambda: self.initial_pop
+        return [init_fn() for _ in range(self.pop_size)]
 
     def _survival(self, pop):
         n_survival = len(pop) - self.n_eliminate

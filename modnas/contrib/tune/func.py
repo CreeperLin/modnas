@@ -9,6 +9,7 @@ logger = get_logger()
 
 
 _default_hptune_config = {
+    'backend': None,
     'optim': {
         'type': 'RandomSearchOptim'
     },
@@ -21,25 +22,25 @@ _default_hptune_config = {
 }
 
 
-def tune(func, *args, tune_config=None, tune_options=None, tuned_args=None, tuned=False, **kwargs):
+def tune(func, name=None, tune_config=None, tune_options=None, tuned_args=None, tuned=False):
     """Return tuned hyperparameters for given function."""
     tuned_args = tuned_args or {}
 
     def parse_hp(hp):
-        fn_kwargs = copy.deepcopy(kwargs)
+        # print(hp)
         hp_kwargs = {k: v for k, v in hp.items() if not k.startswith('#')}
-        fn_kwargs.update(hp_kwargs)
-        fn_args = [hp.get('#{}'.format(i), v) for i, v in enumerate(args)]
-        return fn_args, fn_kwargs
+        hp_args = [v for k, v in hp.items() if k.startswith('#')]
+        return hp_args, hp_kwargs
 
-    def measure_fn(hp):
-        fn_args, fn_kwargs = parse_hp(hp)
-        return func(*fn_args, **fn_kwargs)
+    def measure_fn(hp, *fn_args, **fn_kwargs):
+        hp_args, hp_kwargs = parse_hp(hp)
+        return func(*hp_args, *fn_args, **hp_kwargs, **fn_kwargs)
 
     tune_config = tune_config or _default_hptune_config.copy()
     if not isinstance(tune_config, list):
         tune_config = [tune_config]
-    override = [{'hp_space': tuned_args}, {'defaults': {'name': func.__name__}}] + (tune_options or [])
+    name = getattr(func, '__name__', 'default') if name is None else name
+    override = [{'hp_space': tuned_args}, {'defaults': {'name': name}}] + (tune_options or [])
     tune_res = run_hptune(measure_fn=measure_fn, config=tune_config, override=override)
     best_hparams = list(tune_res.values())[0]['best_arch_desc']
     logger.info('tune: best hparams: {}'.format(dict(best_hparams)))

@@ -4,6 +4,7 @@ import itertools
 import traceback
 import multiprocessing as mp
 import yaml
+from functools import partial
 from ..base import EstimBase
 from modnas.utils.config import Config
 from modnas.utils.wrapper import run
@@ -22,6 +23,7 @@ class HPTuneEstim(EstimBase):
     def __init__(self,
                  measure_fn=None,
                  batch_size=1,
+                 is_async=False,
                  early_stopping=None,
                  trial_config=None,
                  trial_args=None,
@@ -38,6 +40,7 @@ class HPTuneEstim(EstimBase):
         self.best_iter = 0
         self.trial_index = 0
         self.is_succ = False
+        self.is_async = is_async
 
     def _default_measure_fn(self, hp, **kwargs):
         trial_config = copy.deepcopy(Config.load(self.trial_config))
@@ -58,10 +61,14 @@ class HPTuneEstim(EstimBase):
 
     def step(self, hp):
         """Return evaluation results of a parameter set."""
-        self.trial_index += 1
-        logger = self.logger
         config = self.config
         fn_args = config.get('trial_args', {})
+        self.trial_index += 1
+        if self.is_async:
+            self.measure_fn(hp, **fn_args, cb=partial(self.step_done, hp))
+            self.is_succ = True
+            return None
+        logger = self.logger
         try:
             score = self.measure_fn(hp, **fn_args)
             self.is_succ = True
@@ -71,7 +78,7 @@ class HPTuneEstim(EstimBase):
         result = {
             'score': score,
         }
-        logger.info('Evaluate hparam: {} -> {}'.format(hp, result))
+        logger.debug('Evaluate hparam: {} -> {}', hp, result)
         return result
 
     def run_epoch(self, optim, epoch, tot_epochs):

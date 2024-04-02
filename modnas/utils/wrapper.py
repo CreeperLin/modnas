@@ -318,7 +318,8 @@ def init_all(**kwargs):
     expman = ExpManager(name, **config.get('expman', {}))
     configure_logging(config=config.get('logging', None), log_dir=expman.subdir('logs'))
     writer = utils.get_writer(expman.subdir('writer'), **config.get('writer', {}))
-    logger.info('Name: {} Routine: {} Config:\n{}'.format(name, routine, config))
+    logger.info('Name: {} Routine: {}'.format(name, routine))
+    Config.save(config, expman.join('config.yaml'))
     # imports
     imports = config.get('import', [])
     if not isinstance(imports, list):

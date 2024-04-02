@@ -61,7 +61,7 @@ class OptimumReporter(CallbackBase):
         rem_opt = []
         for i, (_, m) in enumerate(opts):
             c = self.dom_cmp(met, m)
-            if c < 0:
+            if c <= 0:
                 return opts
             elif c > 0:
                 rem_opt.append(i)

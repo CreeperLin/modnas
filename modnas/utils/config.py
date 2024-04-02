@@ -129,3 +129,9 @@ class Config(dict):
         else:
             raise ValueError('invalid config type: {}'.format(type(conf)))
         return config
+
+    @staticmethod
+    def save(conf: 'Config', path: str) -> Any:
+        """Save configuration."""
+        with open(path, 'w') as f:
+            yaml.dump(conf, f)
