@@ -124,7 +124,7 @@ class EstimBase():
         """Store evaluation results of a parameter set."""
         self._inputs.append(params)
         self._results.append(value)
-        self._arch_descs.append(self.get_arch_desc() if arch_desc is None else arch_desc)
+        self._arch_descs.append(self.get_arch_desc(params) if arch_desc is None else arch_desc)
         self._n_step_waiting -= 1
         if self._n_step_waiting == 0:
             self._step_cond.release()
@@ -278,9 +278,10 @@ class EstimBase():
         """Return current states."""
         return {'cur_epoch': self.cur_epoch}
 
-    def get_arch_desc(self):
+    def get_arch_desc(self, params=None):
         """Return current archdesc."""
-        return None if self.exporter is None else self.exporter(self.model)
+        obj = self.model if self.model is not None else params
+        return None if self.exporter is None else self.exporter(obj)
 
     def save_model(self, save_name=None, exporter='DefaultTorchCheckpointExporter'):
         """Save model checkpoint to file."""

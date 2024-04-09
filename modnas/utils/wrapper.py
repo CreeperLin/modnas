@@ -273,7 +273,7 @@ def apply_hptune_config(config):
     """Apply hptune routine config."""
     Config.apply(config, config.pop('hptune', {}))
     # hpspace
-    config['export'] = None
+    # config['export'] = None
     if not config.get('construct', {}):
         config['construct'] = {
             'hparams': {

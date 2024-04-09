@@ -95,7 +95,7 @@ class OptimumReporter(CallbackBase):
             value = {'score': self.score_fn(value)}
         if not isinstance(value, dict):
             value = {'default': value}
-        arch_desc = arch_desc or estim.get_arch_desc()
+        arch_desc = estim._arch_descs[-1] if arch_desc is None else arch_desc
         res = ((None if params is None or not isinstance(params, dict) else (arch_desc or dict(params))), value)
         self.results.append(res)
         self.opt_results = self.update_optimal(res, self.opt_results)

@@ -77,7 +77,7 @@ class EvolutionOptim(GeneticOptim):
                  n_crossover: Optional[int] = None,
                  mutation_prob: float = 0.01,
                  space: Optional[ParamSpace] = None) -> None:
-        self.initial_pop = initial_pop
+        self.initial_pop = OrderedDict(initial_pop)
         super().__init__(space=space, pop_size=pop_size)
         self.add_operator(self._survival)
         self.add_operator(self._selection)

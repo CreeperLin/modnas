@@ -55,9 +55,10 @@ class DefaultParamsExporter():
 
     def __call__(self, model: None) -> Union[Dict[str, Any], List[Any], str]:
         """Run Exporter."""
+        params = dict(ParamSpace().named_param_values()) if model is None else model
         if self.with_keys:
-            params_dct = dict(ParamSpace().named_param_values())
+            params_dct = params
             return self.export_fmt.format(**params_dct) if self.export_fmt else params_dct
         else:
-            params_list = [p.value() for p in ParamSpace().params()]
+            params_list = list(params.values())
             return self.export_fmt.format(*params_list) if self.export_fmt else params_list

@@ -29,7 +29,7 @@ class EstimResultsExporter(CallbackBase):
             if self.save_chkpt_best:
                 estim.save_checkpoint(save_name=self.best_file_name)
             if params is not None:
-                arch_desc = arch_desc or estim.get_arch_desc() or params
+                arch_desc = estim._arch_descs[-1] if arch_desc is None else arch_desc
                 if self.save_desc_best:
                     estim.save_arch_desc(save_name=self.best_file_name, arch_desc=arch_desc)
 
